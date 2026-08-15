@@ -1,6 +1,7 @@
 <div align="center">
 
-<img src="assets/nemesis-logo-white.png" alt="NEMESIS — The AI Civic Operations Agent" width="460">
+<img src="assets/nemesis-logo-white.png" alt="NEMESIS — The AI Civic Operations Agent" width="280"
+style="max-width: 280px; height: auto;">
 
 <br>
 
