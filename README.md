@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="nemesis-logo-white.png" alt="NEMESIS — The AI Civic Operations Agent" width="460">
+<img src="assets/nemesis-logo-white.png" alt="NEMESIS — The AI Civic Operations Agent" width="460">
 
 <br>
 
@@ -466,7 +466,7 @@ Distributed under the **MIT License**. See [`LICENSE`](./LICENSE) for details.
 
 <div align="center">
 
-<img src="nemesis-mark-white.png" alt="NEMESIS Mark" width="80">
+<img src="assets/nemesis-mark-white.png" alt="NEMESIS Mark" width="80">
 
 <br>
 
