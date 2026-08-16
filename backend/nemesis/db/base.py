@@ -12,9 +12,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, MetaData, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, MetaData, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column
 
 NAMING_CONVENTION = {
     "ix": "ix_%(table_name)s_%(column_0_N_name)s",
@@ -59,3 +59,58 @@ class TimestampMixin:
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class TenantScopedMixin:
+    """Every domain table carries its tenant, from the first migration.
+
+    ``NOT NULL`` is doing real work here: it is what makes the tenancy guard
+    able to skip checking INSERTs. A row cannot exist without a tenant, so the
+    only way to produce a cross-tenant leak is a *read* or a *write* that
+    forgets to filter — which is exactly what ``tenancy.guard`` intercepts.
+
+    The foreign key is ``ON DELETE RESTRICT`` rather than cascade. Deleting a
+    tenant must be a deliberate, audited offboarding procedure that reckons with
+    an append-only log (§22.4 retention, Phase 26 erasure), never a side effect
+    of removing one row.
+    """
+
+    @declared_attr
+    @classmethod
+    def tenant_id(cls) -> Mapped[uuid.UUID]:
+        # `getattr` rather than `cls.__tablename__`: annotating the mixin with
+        # `__tablename__: ClassVar[str]` to satisfy the type checker collides
+        # with the instance-level declaration `DeclarativeBase` already makes,
+        # and mypy rejects the override on every model. Every concrete subclass
+        # sets it — a model without a table name is not a table — so the default
+        # is unreachable and exists only to keep this expression total.
+        table_name: str = getattr(cls, "__tablename__", "unknown")
+        return mapped_column(
+            UUID(as_uuid=True),
+            ForeignKey("tenants.id", ondelete="RESTRICT", name=f"fk_{table_name}_tenant"),
+            nullable=False,
+            index=True,
+        )
+
+
+class OptimisticVersionMixin:
+    """A version counter on every mutable aggregate.
+
+    Current-state rows are projections of the event log, and two workers can
+    finish two pipeline stages for the same complaint at the same time. Without
+    a version column the later write silently overwrites the earlier one and the
+    projection stops matching the log — which the replay gate would then report
+    as a corrupt event store rather than as the lost update it actually is.
+    """
+
+    version: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
+
+
+__all__ = [
+    "NAMING_CONVENTION",
+    "Base",
+    "OptimisticVersionMixin",
+    "TenantScopedMixin",
+    "TimestampMixin",
+    "UUIDPrimaryKeyMixin",
+]

@@ -8,6 +8,7 @@ from alembic.ini — so there is exactly one place credentials are configured.
 from __future__ import annotations
 
 import asyncio
+import re
 from logging.config import fileConfig
 from typing import Any
 
@@ -34,11 +35,27 @@ target_metadata = Base.metadata
 # migration will try to drop PostGIS's internal bookkeeping.
 EXCLUDED_TABLES = {"spatial_ref_sys", "geography_columns", "geometry_columns"}
 
+# `events` is RANGE-partitioned by month, so the database contains child tables
+# — `events_2026_08`, `events_default` — that are real tables to the reflector
+# and absent from `Base.metadata`. Without this filter every autogenerate run
+# would emit `op.drop_table("events_2026_08")`, and `alembic check` would report
+# a permanent, growing drift that gets ignored and then hides a real one.
+#
+# Partitions are created by `nemesis.events.partitions`, not by migrations,
+# because they are a function of the calendar rather than of the schema version.
+PARTITION_NAME_PATTERN = re.compile(r"^events_(\d{4}_\d{2}|default)$")
+
 
 def include_object(
     obj: Any, name: str | None, type_: str, reflected: bool, compare_to: Any
 ) -> bool:
-    return not (type_ == "table" and name in EXCLUDED_TABLES)
+    if type_ == "table" and name is not None:
+        return not (name in EXCLUDED_TABLES or PARTITION_NAME_PATTERN.match(name))
+    # Indexes on a partitioned table are cloned onto every partition under a
+    # server-chosen name. They belong to the partition, not to the schema.
+    if type_ == "index" and name is not None:
+        return not PARTITION_NAME_PATTERN.match(str(obj.table.name))
+    return True
 
 
 def _configure(connection: Connection) -> None:

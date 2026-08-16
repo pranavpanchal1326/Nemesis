@@ -249,6 +249,21 @@ jobs:
       - name: Observability cross-references
         run: python scripts/check_observability.py
 
+      # Phase 2. An unscoped domain query is a cross-tenant read, which is a
+      # data breach rather than a bug — so it fails the build rather than
+      # relying on review. The runtime guard in nemesis.tenancy.guard catches
+      # what an AST cannot see; see ADR-0014 for why both exist.
+      - name: Tenant scoping (Phase 2)
+        run: python scripts/check_tenant_scoping.py
+
+      # An append-only log lives forever, so a §9.4 event type that is neither
+      # implemented nor explicitly deferred is a gap that would otherwise be
+      # noticed never. The schema *fingerprint* check — a released payload
+      # changing shape without a version bump — needs Pydantic and runs in the
+      # test job as test_schema_lock_matches_the_registered_catalog.
+      - name: Event catalog coverage (§9.4)
+        run: python scripts/check_event_catalog.py
+
       # A rule file that does not parse means Prometheus keeps serving the LAST
       # GOOD config and logs the failure — the stack looks healthy and every
       # alert has silently stopped working. That failure mode is why this is a

@@ -86,6 +86,16 @@ fault-injection tests in Phase 25.
 |---|---|---|
 | [kpi-drift.md](kpi-drift.md) | §41 KPIs outside range | info |
 
+### Event store (Phase 2)
+
+The append-only log is the system of record, so both of these are about the
+integrity of evidence rather than about availability.
+
+| Page | Covers | Severity |
+|---|---|---|
+| [event-chain-integrity.md](event-chain-integrity.md) | A chain no longer recomputes, or the sweep that detects that has stopped | **critical** |
+| [event-partition-maintenance.md](event-partition-maintenance.md) | Rows stranded in the DEFAULT partition; retention and archival | warning |
+
 ### Procedures and the observability stack itself
 
 | Page | Covers | Severity |

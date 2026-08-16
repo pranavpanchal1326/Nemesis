@@ -43,15 +43,25 @@ out/
 .turbo/
 *.tsbuildinfo
 
-# Runtime data — never commit citizen uploads or model weights
-data/
-uploads/
-models/
+# Runtime data — never commit citizen uploads or model weights.
+#
+# Every path here is ANCHORED with a leading slash. An unanchored `models/`
+# matches at any depth, and it silently excluded the entire `backend/nemesis/db/
+# models/` ORM package — the §9.2 schema would have been absent from the commit
+# with no error anywhere, because `git add` reports nothing for an ignored path.
+# Model weights actually live in the `modelcache` Docker volume mounted at
+# /models, so these rules only ever needed to cover a repo-local override of
+# NEMESIS_MODEL_CACHE_DIR.
+/data/
+/uploads/
+/models/
 *.pt
 *.bin
 *.safetensors
 *.onnx
 
-# Validation artefacts are regenerated, not committed
-reports/*.json
+# Validation artefacts are regenerated, not committed — but anchored for the
+# same reason, so a committed measurement that backs a decision (for example
+# docs/reports/hnsw-recall.json, cited by ADR-0012) is not swept up with them.
+/reports/*.json
 !reports/.gitkeep

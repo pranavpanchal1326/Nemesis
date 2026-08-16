@@ -249,6 +249,13 @@ def _check(_: list[str]) -> int:
             ("runbooks", [sys.executable, "scripts/check_runbooks.py"]),
             ("parity", [sys.executable, "scripts/check_env_parity.py"]),
             ("observability", [sys.executable, "scripts/check_observability.py"]),
+            # Phase 2 gates. `tenant scoping` and `event catalog` are host-side
+            # AST checks; the schema *fingerprint* half needs Pydantic and
+            # therefore lives in the test suite above (test_event_registry.py),
+            # because the api container mounts only ./backend and cannot read
+            # the blueprint that the catalog check parses.
+            ("tenant scoping", [sys.executable, "scripts/check_tenant_scoping.py"]),
+            ("event catalog", [sys.executable, "scripts/check_event_catalog.py"]),
         ]
     )
 

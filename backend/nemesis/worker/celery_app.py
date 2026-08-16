@@ -27,10 +27,25 @@ QUEUE_ML = "ml"
 # delay a danger signal.
 QUEUE_SAFETY = "safety"
 
+#: Task modules, listed explicitly rather than autodiscovered.
+#:
+#: `autodiscover_tasks(["nemesis.pipeline"])` looks for a module named
+#: `tasks.py` inside each package and nothing else. `nemesis/pipeline/
+#: integrity.py` therefore registered **zero** tasks and loaded **zero** beat
+#: schedules, silently — `celery inspect registered` reported "empty" and no
+#: error appeared anywhere. The integrity sweep would never have run, and
+#: `NemesisEventIntegritySweepStalled` is the only thing that would eventually
+#: have said so.
+#:
+#: An explicit list fails loudly at worker startup if a module is missing or
+#: raises, which is the correct failure mode for the code that detects tampering.
+TASK_MODULES = ("nemesis.pipeline.integrity",)
+
 celery_app = Celery(
     "nemesis",
     broker=settings.redis_url,
     backend=settings.redis_url,
+    include=TASK_MODULES,
 )
 
 celery_app.conf.update(
@@ -59,4 +74,23 @@ celery_app.conf.update(
     },
 )
 
-celery_app.autodiscover_tasks(["nemesis.pipeline"])
+# Beat schedules live here, keyed by task *name* rather than by import, so
+# `beat` gets a complete schedule from this module alone. Defining them as an
+# import side effect of the task module made the schedule depend on whether
+# something had imported it first — which is how the schedule silently emptied.
+celery_app.conf.beat_schedule = {
+    "sweep-chain-integrity": {
+        "task": "nemesis.integrity.sweep_chains",
+        # Hourly: frequent enough that a tamper is found the same day,
+        # infrequent enough that the read load is invisible next to the writes.
+        "schedule": 3600.0,
+        "options": {"queue": QUEUE_IO},
+    },
+    "maintain-event-partitions": {
+        "task": "nemesis.integrity.maintain_partitions",
+        # Daily, against a three-month window. Twelve weeks of missed runs would
+        # have to accumulate before the DEFAULT partition ever takes a row.
+        "schedule": 86400.0,
+        "options": {"queue": QUEUE_IO},
+    },
+}

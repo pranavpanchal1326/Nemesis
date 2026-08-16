@@ -144,6 +144,38 @@ dependency_up = Gauge(
 )
 
 
+# --- Event store integrity (Phase 2, §17.4) --------------------------------
+# The blueprint lists background chain re-verification as ROADMAP. These are the
+# signals that close it: without them the sweep runs and nobody can tell whether
+# it found anything, which is the same as not running it.
+#
+# Unlabelled on purpose. A `tenant_id` label would be unbounded cardinality on
+# the one metric that must never stop being scraped, and the *identity* of a
+# broken chain belongs in the structured log where the exact offset is — not in
+# a time series.
+event_chains_verified_total = Counter(
+    "nemesis_event_chains_verified_total",
+    "Entity chains recomputed and checked by the integrity sweep.",
+    registry=REGISTRY,
+)
+
+event_chain_breaks_total = Counter(
+    "nemesis_event_chain_breaks_total",
+    "Entity chains that failed to recompute. Any non-zero value is an incident.",
+    registry=REGISTRY,
+)
+
+# A gauge, not a counter: the question is "how many rows are stranded right
+# now", and the answer must be able to go back to zero once the remedy is
+# applied. Non-zero means attaching the month's partition now needs a scan and
+# an ACCESS EXCLUSIVE lock on a hot append-only table.
+event_default_partition_rows = Gauge(
+    "nemesis_event_default_partition_rows",
+    "Rows sitting in the events DEFAULT partition, which should always be zero.",
+    registry=REGISTRY,
+)
+
+
 # --- Feature flags (Phase 1a) ----------------------------------------------
 # `flag` is bounded by the code-declared registry, so it cannot grow
 # unboundedly the way a tenant or user label would. `outcome` distinguishes a
