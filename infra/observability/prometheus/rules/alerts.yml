@@ -316,3 +316,62 @@ groups:
             metric read directly; investigate the notification chain before
             concluding it is apathy.
           runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/kpi-drift.md
+
+  # ------------------------------------------------------------------------
+  # Event store integrity (Phase 2, closing the §17.4 ROADMAP gap)
+  # ------------------------------------------------------------------------
+  - name: nemesis-event-store
+    rules:
+      # There is no acceptable rate of chain breaks. The threshold is zero, and
+      # the alert is critical, because the alternative reading — "a few broken
+      # chains are normal" — destroys the evidentiary value of every intact one.
+      - alert: NemesisEventChainBroken
+        expr: increase(nemesis_event_chain_breaks_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          blueprint: "17.4"
+        annotations:
+          summary: "{{ $value }} event chain(s) failed integrity verification"
+          description: >-
+            The integrity sweep recomputed a chain and got a different hash than
+            the one stored. Do not repair anything: the log is evidence, and a
+            self-healing chain proves nothing. The structured log line carries
+            the exact entity and sequence offset of the first break.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/event-chain-integrity.md
+
+      # The sweep is the only thing that can detect tampering after the write.
+      # A sweep that silently stops running looks exactly like a system with no
+      # tampering in it — so its absence is alerted on directly, the same
+      # dead-man's-switch reasoning as the pipeline heartbeat.
+      - alert: NemesisEventIntegritySweepStalled
+        expr: increase(nemesis_event_chains_verified_total[6h]) == 0
+        for: 30m
+        labels:
+          severity: warning
+          blueprint: "17.4"
+        annotations:
+          summary: "No event chains verified in the last 6 hours"
+          description: >-
+            The hourly integrity sweep has not verified a chain. Tamper
+            detection is currently off, and nothing else in the system will say
+            so — an alert that cannot fire reads as coverage.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/event-chain-integrity.md
+
+      # Rows in the DEFAULT partition are readable and correct, so this is a
+      # warning rather than a page. It escalates on its own though: attaching
+      # the month's partition over existing default rows needs a full scan and
+      # an ACCESS EXCLUSIVE lock, and the cost grows every day it is ignored.
+      - alert: NemesisEventDefaultPartitionNonEmpty
+        expr: nemesis_event_default_partition_rows > 0
+        for: 1h
+        labels:
+          severity: warning
+          blueprint: "22.4"
+        annotations:
+          summary: "{{ $value }} event(s) stranded in the DEFAULT partition"
+          description: >-
+            Partition maintenance did not run ahead of the calendar. Writes are
+            still succeeding — that is what the default partition is for — but
+            the remedy gets more expensive the longer it waits.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/event-partition-maintenance.md

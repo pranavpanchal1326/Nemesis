@@ -13,8 +13,11 @@ If no Postgres is reachable, integration tests skip rather than fail, so
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import uuid
 from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 
 import psycopg
 import pytest
@@ -90,6 +93,120 @@ def settings(test_database_url: str) -> Settings:
         database_pool_size=5,
         database_max_overflow=0,
     )
+
+
+@pytest.fixture(scope="session")
+def migrated_database_url(test_database_url: str) -> str:
+    """Apply every migration to the throwaway database, once per session.
+
+    Through ``alembic upgrade head`` in a subprocess, never
+    ``Base.metadata.create_all``. Two reasons, and the second is the one that
+    bites:
+
+    1. The engineering standards forbid ``create_all`` outright — a test suite
+       that builds its schema differently from production is testing a schema
+       that will never exist anywhere else.
+    2. ``events`` is ``PARTITION BY RANGE``, and ``create_all`` produces a
+       partitioned table with **no partitions**, which rejects every insert.
+       The tests would fail for a reason that has nothing to do with the code.
+
+    A subprocess rather than Alembic's Python API because ``env.py`` resolves
+    its URL from the process-global ``Settings``. Mutating that in-process and
+    clearing the cache would leave the application pointed at the test database
+    for the rest of the session — exactly the defect the ``bound_session``
+    fixture exists to correct.
+    """
+    environment = os.environ | {
+        "NEMESIS_DATABASE_URL": test_database_url,
+        # Alembic's env.py refuses a wildcard CORS policy in production-like
+        # environments; the migration run is not the place to exercise that.
+        "NEMESIS_APP_ENV": "ci",
+    }
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=Path(__file__).resolve().parent.parent,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        pytest.fail(f"alembic upgrade head failed:\n{result.stdout}\n{result.stderr}")
+    return test_database_url
+
+
+#: Truncated between tests. Order is irrelevant — CASCADE handles the foreign
+#: keys — but `events` is listed first because truncating a partitioned parent
+#: is the operation most likely to break on a Postgres upgrade, and a failure
+#: there should be obvious rather than buried mid-list.
+_TRUNCATED_TABLES = (
+    "events",
+    "event_chain_heads",
+    "event_idempotency",
+    "event_snapshots",
+    "archived_partitions",
+    "complaints",
+    "complaint_clusters",
+    "work_orders",
+    "budget_allocations",
+    "users",
+    "departments",
+    "contractors",
+    "tenants",
+)
+
+
+@pytest.fixture
+async def migrated_engine(migrated_database_url: str) -> AsyncIterator[AsyncEngine]:
+    """An engine on the migrated database, with the tenancy guard installed.
+
+    The guard is installed here rather than only in the application so the test
+    suite runs under the same restriction production does. A test that could
+    quietly issue an unscoped query would be free to assert behaviour no real
+    caller can reach.
+    """
+    from nemesis.tenancy.guard import install_tenant_guard
+
+    eng = create_async_engine(migrated_database_url, pool_pre_ping=True)
+    install_tenant_guard(eng.sync_engine)
+    try:
+        yield eng
+    finally:
+        await eng.dispose()
+
+
+@pytest.fixture
+async def tenants(migrated_engine: AsyncEngine) -> AsyncIterator[tuple[uuid.UUID, uuid.UUID]]:
+    """A clean database with two tenants.
+
+    Two, always. One tenant cannot demonstrate isolation, and a suite that only
+    ever has one is how a cross-tenant leak reaches production with every test
+    green.
+    """
+    from sqlalchemy import text as sql_text
+
+    first, second = uuid.uuid4(), uuid.uuid4()
+    async with migrated_engine.begin() as conn:
+        await conn.execute(
+            sql_text(f"TRUNCATE {', '.join(_TRUNCATED_TABLES)} RESTART IDENTITY CASCADE")
+        )
+        for tenant_uuid, slug in ((first, "pilot-city"), (second, "campus")):
+            await conn.execute(
+                sql_text(
+                    "INSERT INTO tenants (id, slug, name) VALUES (:id, :slug, :name)"
+                ).bindparams(id=tenant_uuid, slug=slug, name=slug.replace("-", " ").title())
+            )
+    yield first, second
+
+
+@pytest.fixture
+def tenant_id(tenants: tuple[uuid.UUID, uuid.UUID]) -> uuid.UUID:
+    return tenants[0]
+
+
+@pytest.fixture
+def other_tenant_id(tenants: tuple[uuid.UUID, uuid.UUID]) -> uuid.UUID:
+    return tenants[1]
 
 
 @pytest.fixture

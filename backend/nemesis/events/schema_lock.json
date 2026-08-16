@@ -1,0 +1,101 @@
+{
+  "events": {
+    "admin_action@1": {
+      "entity_type": "admin_action",
+      "fingerprint": "069fde268974f0a08e9a2a2ac2fc18fd186e56a645953fae870599d5d736784d",
+      "has_upcaster": false,
+      "model": "AdminActionV1"
+    },
+    "citizen_confirmation_requested@1": {
+      "entity_type": "work_order",
+      "fingerprint": "bb2602cd91c2a0919bde5110e2e304d9dcc9e62d1e8f9bcbf92227a0a8d52107",
+      "has_upcaster": false,
+      "model": "CitizenConfirmationRequestedV1"
+    },
+    "citizen_confirmed@1": {
+      "entity_type": "work_order",
+      "fingerprint": "c87b001ac944e9dc99bd2b609f2b3cd953062b3fda58441a75c0a6309324d9d5",
+      "has_upcaster": false,
+      "model": "CitizenConfirmedV1"
+    },
+    "citizen_disputed@1": {
+      "entity_type": "work_order",
+      "fingerprint": "8cec6c63e837a92625e4ec4dd9975ca30c8eb4183ec8130e30f1fa2f92c28091",
+      "has_upcaster": false,
+      "model": "CitizenDisputedV1"
+    },
+    "classification_scored@1": {
+      "entity_type": "complaint",
+      "fingerprint": "b1c0804cb713c59e24df8d0af66aa7744a6293f0453d5961909df721df407f7d",
+      "has_upcaster": false,
+      "model": "ClassificationScoredV1"
+    },
+    "cluster_created@1": {
+      "entity_type": "complaint_cluster",
+      "fingerprint": "727c038cd9903b355cbc65262c0729703fda82f94b1dd065d6cc62a664476e9e",
+      "has_upcaster": false,
+      "model": "ClusterCreatedV1"
+    },
+    "cluster_match_found@1": {
+      "entity_type": "complaint_cluster",
+      "fingerprint": "3a5b478104cf41cf2eab69d8ff7a1e832de3b4915fc9c6f7263f933a6236994b",
+      "has_upcaster": false,
+      "model": "ClusterMatchFoundV1"
+    },
+    "cluster_merge_reverted@1": {
+      "entity_type": "complaint_cluster",
+      "fingerprint": "d923621ebabf50c148a10af08d47e37ff3a6b21d4eb7804860cb2f660e206763",
+      "has_upcaster": false,
+      "model": "ClusterMergeRevertedV1"
+    },
+    "complaint_submitted@1": {
+      "entity_type": "complaint",
+      "fingerprint": "ed649254bd1dc7c8eb19634fdd321ec713a29a28b00efb562465cb701c6fb4d6",
+      "has_upcaster": false,
+      "model": "ComplaintSubmittedV1"
+    },
+    "exif_check_completed@1": {
+      "entity_type": "complaint",
+      "fingerprint": "b234ea60a075cafd4b74ef9525d2af3e57a7b2a4facd2ded48287376bcf859b1",
+      "has_upcaster": false,
+      "model": "ExifCheckCompletedV1"
+    },
+    "safety_trigger_fired@1": {
+      "entity_type": "complaint",
+      "fingerprint": "65d34c87a6eb6a80c85d8faf8dcf288d3886454dc451c633967d28d4e757393f",
+      "has_upcaster": false,
+      "model": "SafetyTriggerFiredV1"
+    },
+    "severity_scored@1": {
+      "entity_type": "complaint",
+      "fingerprint": "e3b95378b8f9067af0563be1f40aaf00210c9d997246ac686e5619688d37639f",
+      "has_upcaster": false,
+      "model": "SeverityScoredV1"
+    },
+    "ssim_verification_completed@1": {
+      "entity_type": "work_order",
+      "fingerprint": "822db8c27552cbb0be4ab594271566393934f579d2ca9e7b091de49034990660",
+      "has_upcaster": false,
+      "model": "SsimVerificationCompletedV1"
+    },
+    "system_degradation@1": {
+      "entity_type": "system",
+      "fingerprint": "ba49d39bf97692a830e744a7bccc5e4c5ef4de1516b2c7ae63780988d9a4d7d6",
+      "has_upcaster": false,
+      "model": "SystemDegradationV1"
+    },
+    "work_order_assigned@1": {
+      "entity_type": "work_order",
+      "fingerprint": "43f81813a3321ff34a8719d04efbdf7468967cc6bb3ba162aaca9f38bcf80448",
+      "has_upcaster": false,
+      "model": "WorkOrderAssignedV1"
+    },
+    "work_order_created@1": {
+      "entity_type": "work_order",
+      "fingerprint": "bda0d03cc0b51b273e1ac484990e5cc0f0577962a2a6a466a85375ad567241a0",
+      "has_upcaster": false,
+      "model": "WorkOrderCreatedV1"
+    }
+  },
+  "lock_format_version": 1
+}

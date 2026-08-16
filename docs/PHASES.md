@@ -86,7 +86,7 @@ that satisfies more of these wins.
 | 0 | Foundation & guardrails ✅ | 0 · Operating System | PLT | — |
 | 1a | Engineering operating system (local-first) ✅ | 0 · Operating System | SRE | 0 |
 | 1b | Cloud environments & promotion pipeline | 0 · Operating System | SRE | 1a + a chosen deploy target |
-| 2 | Event store, schema registry & tenancy | A · Platform | PLT | 1a |
+| 2 | Event store, schema registry & tenancy ✅ | A · Platform | PLT | 1a |
 | 3 | Ingestion, orchestration & realtime transport | A · Platform | PLT | 2 |
 | 4 | Public API, versioning & integration platform | A · Platform | PLT | 3 |
 | 5 | Tenant, taxonomy & organisation service | B · Control Plane | PLT | 2 |
@@ -321,9 +321,139 @@ tissue.
 
 # Track A — Platform Spine
 
-## Phase 2 — Event store, schema registry & tenancy · PLT
+## Phase 2 — Event store, schema registry & tenancy ✅ · PLT
 
 The spine everything writes through. The phase worth over-engineering.
+
+**Shipped**
+- Full §9.2 schema as one reviewed Alembic migration with a tested `downgrade()`,
+  `tenant_id` **NOT NULL on every domain table from the first migration** —
+  there is no migration in this repository's future that adds tenancy
+- **`events` RANGE-partitioned by month from row zero** (ADR-0011), with a
+  DEFAULT partition as the safety net so a missed maintenance run is a warning
+  rather than a total outage of the write path. Partitioning forces three
+  companion tables — `event_chain_heads`, `event_idempotency`,
+  `archived_partitions` — because Postgres requires the partition key in every
+  unique constraint, which makes per-entity sequence uniqueness unenforceable
+  inside the partitioned table
+- **RFC 8785 canonical JSON** (ADR-0013) with ECMAScript number formatting, NFC
+  normalisation, and UTF-16 code-unit key ordering. §9.3's
+  `json.dumps(sort_keys=True)` is not canonical in four separate ways, each of
+  which makes verification a coin flip
+- `EventStore.append()` with a **widened, structured hash preimage** (ADR-0010)
+  that includes `tenant_id`, `event_version`, `sequence`, and `entity_type` —
+  §9.3's omits all four, so a cross-tenant row move passes verification.
+  Serialised per entity by an upsert-and-lock on `event_chain_heads`, which also
+  avoids the `ON CONFLICT DO NOTHING` + `SELECT` race that only appears under
+  the exact concurrency it is meant to survive
+- **Event schema registry**: 13 of the §9.4 types registered as versioned
+  Pydantic payloads, 9 explicitly deferred to their owning phase, 1 renamed and
+  recorded as such. A committed `schema_lock.json` fingerprints every released
+  schema; editing one in place fails CI with the remediation in the message
+- **Tenancy enforced at three layers, none of them convention** (ADR-0014): an
+  AST check in CI, a `before_execute` interceptor installed on the test engine
+  as well as the application one, and Postgres RLS scheduled for Phase 25 —
+  named honestly rather than implied
+- Projectors rebuilding current state from the log, with snapshotting so replay
+  stays O(1) in history length, and a `projector_version` so a snapshot from an
+  older build is discarded rather than trusted
+- `verify_chain()` reporting the **exact offset and kind** of a break, plus the
+  hourly integrity sweep §17.4 leaves ROADMAP — **closing that gap rather than
+  disclosing it**. It never repairs: a chain that repairs itself has no
+  evidentiary value, because the repair is indistinguishable from the tamper
+- Retention and archival on `DETACH PARTITION`, reported by the daily task and
+  **never acted on automatically** — retention on an append-only civic record is
+  a decision with legal weight (Phase 26 owns the approval path)
+- `python -m nemesis.events.inspect`, read-only, so an on-call answers the
+  question with a command instead of improvising SQL against the event log —
+  which is the most common cause of the break it is used to investigate
+- HNSW parameters chosen against a **measured recall curve**
+  (`docs/reports/hnsw-recall.md`), two runbook pages, and five ADRs
+
+**Gate — met**
+- ✅ **1000 concurrent appends across 50 entities → zero chain forks**, each in
+  its own transaction on its own connection, verified chain by chain afterwards
+- ✅ Full replay from an empty projection reproduces state **byte-identically**,
+  asserted as a canonical-hash equality; snapshotted replay proven equal to
+  unsnapshotted
+- ✅ A deliberately tampered row is detected **at the exact offset**, and its
+  neighbours are not — the verifier continues from the stored hash rather than
+  the recomputed one, so one altered row does not cascade into a whole-chain
+  false positive
+- ✅ An event payload change without an upcaster fails CI — **demonstrated** by
+  editing a released model in place and watching the lock check fail
+- ✅ A domain query without tenant scoping fails the static check —
+  **demonstrated** with both an ORM and a raw-SQL probe
+- ✅ Every migration applies, reverts, and re-applies cleanly; `alembic check`
+  reports no drift with partitions filtered out of autogenerate
+- ✅ ruff clean · ruff format clean · **mypy --strict clean (50 modules)** ·
+  **267 tests passing** · **94.17% coverage** against an 85% floor · all seven
+  check scripts green
+
+**Defects the gate caught** (each now covered by a regression test or a fix):
+1. **The canonicaliser rejected strings it had just produced.** Integers were
+   bounded by `MAX_SAFE_INTEGER`, but `2**53` as a float canonicalises to
+   `9007199254740992`, which `json.loads` reads back as an `int` one past that
+   bound. The second attempt — testing exact double representability — failed
+   too, because shortest-round-trip formatting prints the shortest string that
+   *parses back* to the double, not the double's exact value. Precision policy
+   belongs at the Pydantic boundary; canonicalisation must be total and stable
+2. **`text()` bind parameters do not work in DDL.** `CREATE TABLE … PARTITION OF
+   … FOR VALUES FROM (:range_start)` fails with "the server expects 0
+   arguments". The runtime partition maintainer could never have created a
+   partition; only the migration's `format()`-based path worked, so this would
+   have surfaced as a mysterious default-partition fill months later
+3. **`:parent::regclass` mis-parses.** SQLAlchemy's bind-parameter regex reads a
+   parameter followed by the `::` cast operator as undefined, and raises for a
+   parameter that is plainly there
+4. **The static tenancy check accepted a mention instead of a comparison**, so
+   `select(Complaint.tenant_id, Complaint.id)` passed while returning every
+   tenant's rows. The two enforcement layers must agree on what counts as
+   scoping, or the weaker one silently defines the policy
+5. **The Phase 1a environment-parity check produced a false positive** the
+   moment this phase landed: it substring-matched the literal `admin` (the local
+   Grafana password) against source, and the §9.4 event type `admin_action`
+   contains it. Rewritten to match whole string literals via AST — a check that
+   flags an event name as a leaked credential is one people learn to ignore
+6. **A circular import between models and events**, reported by Python as a
+   partial-initialisation error three modules away from its cause. Resolved by
+   moving the shared constant to a leaf module rather than by a local import
+7. **`geoalchemy2` emitted a duplicate spatial index** alongside every explicitly
+   declared one — two identical GiST indexes on the hottest geospatial column in
+   the system, doubling write cost, and both invisible in the model
+8. **The Postgres container has no `shm_size`**, so it gets Docker's 64 MB
+   default and a parallel HNSW build fails with `DiskFullError` at 20 000 rows.
+   Nothing builds an HNSW index today; the first real build at Phase 9 or 10
+   volume would have hit it, most likely during a migration
+9. **The scheduled integrity tasks registered with Celery as nothing at all.**
+   `autodiscover_tasks(["nemesis.pipeline"])` only looks for a module named
+   `tasks.py`, so `pipeline/integrity.py` contributed zero tasks and zero beat
+   schedules — `celery inspect registered` reported "empty" and no error
+   appeared anywhere. The sweep that detects tampering would never have run, and
+   the only thing that would eventually have said so is the dead-man's-switch
+   alert written to catch exactly that. Task modules are now listed explicitly
+   so a missing one fails at worker startup, and the beat schedule moved to
+   `celery_app` so it no longer depends on something having imported the task
+   module first
+10. **`.gitignore` excluded the entire ORM package.** An unanchored `models/`
+    rule, added for model weights that actually live in a Docker volume, also
+    matched `backend/nemesis/db/models/`. The whole §9.2 schema would have been
+    absent from the commit with no error anywhere, because `git add` reports
+    nothing for an ignored path. Every runtime-data rule is now anchored — the
+    same pattern would also have swallowed `docs/reports/hnsw-recall.json`
+11. **The `worker-io` image was stale**, missing `prometheus-client` despite it
+    being a base dependency since Phase 0. Invisible while `nemesis/pipeline/`
+    was empty and nothing worker-side imported metrics. Found only because
+    defect #9's fix made the import explicit and the worker refused to start —
+    the loud failure mode doing exactly what it was chosen for
+
+**Carried forward, not silently absorbed:** the HNSW parameters are measured but
+**provisional**. The benchmark uses synthetic clustered vectors, and the low
+id-recall it reports is an artefact of near-ties in that distribution — the
+distance-ratio column (1.0105 at the chosen setting) is what shows the index is
+returning answers as good as exact search. Phase 9 must re-measure against real
+CLIP output before these are considered settled. The `shm_size` fix belongs with
+Phase 10, which knows how large the index needs to be.
 
 **Ships**
 - Full §9.2 schema as reviewed Alembic migrations, each with a tested `downgrade()`

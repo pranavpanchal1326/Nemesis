@@ -67,3 +67,8 @@ The concrete signal that should reopen this decision.
 | [0007](0007-observability-as-an-opt-in-compose-profile.md) | Observability runs as an opt-in compose profile | Accepted | SRE |
 | [0008](0008-prometheus-scrapes-the-app-collector-carries-traces.md) | Prometheus scrapes the app; the collector carries traces only | Accepted | SRE |
 | [0009](0009-feature-flags-mutate-by-cli-not-api.md) | Feature flags mutate through the CLI, not an HTTP API | Accepted | SRE |
+| [0010](0010-widened-event-hash-preimage.md) | The event hash preimage is widened and structured, not §9.3's concatenation | Accepted | PLT |
+| [0011](0011-partition-the-event-log-by-month.md) | The event log is range-partitioned by month from the first migration | Accepted | PLT |
+| [0012](0012-halfvec-for-image-embeddings.md) | `halfvec(512)` for image embeddings, full `vector(384)` for text | Accepted | PLT · DATA |
+| [0013](0013-rfc-8785-canonical-json.md) | Event payloads are hashed through RFC 8785 canonical JSON | Accepted | PLT |
+| [0014](0014-tenancy-enforced-at-three-layers.md) | Tenant isolation is enforced at three layers, none of them convention | Accepted | PLT · SEC |
