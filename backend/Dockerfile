@@ -8,7 +8,7 @@
 # (sm_120), unsupported by stable CUDA 12.4 wheels, and its 8GB of VRAM is
 # reserved for Ollama (§12.4). §27.1 budgets CLIP as CPU-bound at demo scale.
 
-FROM python:3.12-slim-bookworm AS base
+FROM python:3.14-slim-bookworm AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
