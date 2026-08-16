@@ -1,0 +1,79 @@
+# Alertmanager.
+#
+# THERE ARE NO NOTIFICATION INTEGRATIONS HERE, AND THAT IS THE POINT.
+#
+# Phase 1a ships alert *evaluation, routing, grouping, and inhibition*. It does
+# not ship paging, because paging requires somebody to page — an on-call
+# rotation and an escalation policy — and those are Phase 1b, deferred until a
+# deploy target exists. Wiring a Slack webhook to a laptop stack would be
+# theatre: a channel nobody watches, trained to be ignored before the first real
+# incident.
+#
+# Every route below therefore terminates at a named receiver with no
+# integrations, which Alertmanager treats as a valid terminal sink. The alerts
+# are fully visible in the Alertmanager UI and its /api/v2/alerts endpoint,
+# which is what the Phase 1a gate verifies against and what `nem obs-verify`
+# reads. Phase 1b adds `slack_configs` / `pagerduty_configs` to these same
+# receivers — a routing tree that already works, not a new one.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  # Grouping by alertname alone would collapse "database down" and "ollama down"
+  # into one notification. Grouping by the labels that identify *what broke*
+  # keeps a multi-dependency failure legible as multiple problems.
+  group_by: [alertname, severity, dependency, stage]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: default
+
+  routes:
+    # The dead-man's-switch is not an incident. It is routed to its own sink so
+    # it never appears alongside real alerts, and so Phase 1b can point it at a
+    # heartbeat monitor rather than at a human.
+    - matchers: [alertname = "NemesisAlertPipelineHeartbeat"]
+      receiver: heartbeat
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
+
+    - matchers: [severity = "critical"]
+      receiver: critical
+      group_wait: 10s
+      repeat_interval: 1h
+
+    - matchers: [severity = "warning"]
+      receiver: warning
+
+    - matchers: [severity = "info"]
+      receiver: info
+      repeat_interval: 24h
+
+receivers:
+  - name: default
+  - name: heartbeat
+  - name: critical
+  - name: warning
+  - name: info
+
+# Suppress the consequences so the responder sees the cause. Without these, a
+# single stopped Postgres produces four simultaneous alerts and the responder
+# spends the first five minutes working out which one to read.
+inhibit_rules:
+  # A failed dependency is *why* readiness is 503. Saying both adds nothing.
+  - source_matchers: [alertname = "NemesisDependencyDown"]
+    target_matchers: [alertname = "NemesisReadinessFailing"]
+    equal: [environment]
+
+  # If we cannot scrape a target, every latency and ratio derived from it is
+  # stale by definition and must not be alerted on.
+  - source_matchers: [alertname = "NemesisTargetDown"]
+    target_matchers: [severity =~ "warning|info"]
+    equal: [environment]
+
+  # Critical beats warning for the same subject.
+  - source_matchers: [severity = "critical"]
+    target_matchers: [severity = "warning"]
+    equal: [alertname, environment]

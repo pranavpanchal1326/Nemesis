@@ -1,0 +1,82 @@
+# OpenTelemetry Collector — traces only.
+#
+# Phase 0 instrumented FastAPI, SQLAlchemy, asyncpg, Redis, and Celery but left
+# the exporter optional so no service depended on a running collector. This is
+# the collector those spans were waiting for.
+#
+# METRICS ARE DELIBERATELY NOT IN THIS PIPELINE. The application already exposes
+# a Prometheus registry at /metrics with hand-chosen bucket edges and bounded
+# label cardinality (nemesis/observability/metrics.py). Routing that through the
+# collector's prometheus receiver would add a scrape-to-OTLP-to-remote-write
+# conversion whose staleness and _total-suffix semantics differ subtly from a
+# direct scrape — a translation layer between us and the numbers the §27.1
+# budgets are judged on, bought for no benefit at a single-node scale.
+# Prometheus scrapes the app directly. See ADR-0008.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # First in the pipeline on purpose: under memory pressure the collector must
+  # shed spans rather than get OOM-killed. A dead collector loses every trace;
+  # a limiting collector loses some.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 96
+    spike_limit_mib: 32
+
+  # Stamps the deployment environment so a local trace can never be mistaken for
+  # a pilot one once Phase 1b introduces more than one environment.
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: local
+        action: upsert
+
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 15s
+      # Bounded. An unbounded retry queue against a down Tempo turns a trace
+      # backlog into the collector's own memory incident.
+      max_elapsed_time: 120s
+    sending_queue:
+      enabled: true
+      queue_size: 512
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp/tempo]
+  telemetry:
+    logs:
+      level: warn
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888

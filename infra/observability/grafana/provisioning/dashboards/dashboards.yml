@@ -1,0 +1,17 @@
+apiVersion: 1
+
+providers:
+  - name: nemesis
+    orgId: 1
+    folder: NEMESIS
+    type: file
+    # Read-only on purpose. A dashboard edited in the browser and never
+    # exported is a change that exists on exactly one laptop; making the
+    # provisioned copy authoritative forces edits back into the repository,
+    # where they get reviewed like anything else.
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

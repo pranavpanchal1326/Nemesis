@@ -1,0 +1,119 @@
+# Dependency update automation, on top of Phase 0's SBOM and vulnerability scan.
+#
+# GROUPED DELIBERATELY. Fifteen individual patch PRs get rubber-stamped or
+# ignored — both outcomes are worse than one weekly PR that a human actually
+# reads. Majors stay separate because they need judgement, and burying a major
+# among patches is how a breaking change gets merged on a glance.
+#
+# Note what this does NOT cover, and why the weekly scan in ci.yml exists:
+# Dependabot tells you when a dependency has a NEW VERSION. It does not tell you
+# when yesterday's pinned version acquired a CVE overnight. Those are different
+# questions and only the second one has a deadline.
+
+version: 2
+
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels: [dependencies, backend]
+    commit-message:
+      # Conventional commits are enforced by a commit-msg hook, and the
+      # changelog is generated from them. `build` is correct here: a dependency
+      # bump changes what is built, not what the system does.
+      prefix: build
+      prefix-development: chore
+      include: scope
+
+    groups:
+      # The ML stack moves together and breaks together. torch, open_clip,
+      # faster-whisper, and mediapipe have interlocking wheel and ABI
+      # constraints — and CPU-only wheels from a pinned index (ADR-0002).
+      # Updating one in isolation produces a PR that cannot be evaluated without
+      # updating the others anyway.
+      ml-stack:
+        patterns:
+          - torch
+          - open-clip-torch
+          - faster-whisper
+          - sentence-transformers
+          - mediapipe
+          - scikit-*
+          - imagehash
+          - pillow
+        update-types: [minor, patch]
+
+      observability:
+        patterns:
+          - opentelemetry-*
+          - prometheus-client
+          - structlog
+        update-types: [minor, patch]
+
+      web-stack:
+        patterns:
+          - fastapi
+          - uvicorn
+          - pydantic*
+          - python-multipart
+          - orjson
+        update-types: [minor, patch]
+
+      data-stack:
+        patterns:
+          - sqlalchemy
+          - alembic
+          - asyncpg
+          - psycopg*
+          - pgvector
+          - geoalchemy2
+          - celery
+          - redis
+        update-types: [minor, patch]
+
+      dev-tooling:
+        patterns:
+          - pytest*
+          - ruff
+          - mypy
+          - types-*
+          - hypothesis
+          - httpx
+        update-types: [minor, patch, major]
+
+    ignore:
+      # Pinned by ADR-0002 and the hardware profile: the RTX 5060 is Blackwell
+      # (sm_120), stable CUDA 12.4 wheels do not emit sm_120 kernels, and its
+      # 8 GB of VRAM is reserved for Ollama. A major torch bump is a hardware
+      # decision, not a dependency decision, and belongs in an RFC.
+      - dependency-name: torch
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: docker
+    directories:
+      - /backend
+      - /infra/postgres
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: build
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns: ["*"]

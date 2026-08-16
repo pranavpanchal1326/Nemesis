@@ -1,0 +1,318 @@
+# Alert rules.
+#
+# Two conventions are load-bearing here and both are checked by CI
+# (scripts/check_observability.py):
+#
+#   1. Every alert carries a `runbook_url` annotation, and that URL must resolve
+#      to a file that actually exists in docs/runbooks/. An alert whose runbook
+#      is a 404 at 2am is worse than no alert — it costs the responder time and
+#      teaches them to distrust the next one.
+#   2. Every `stage="..."` selector must name a stage declared in
+#      nemesis.observability.metrics.PipelineStage. Dashboards and alerts that
+#      silently reference a stage the code never emits are the observability
+#      equivalent of dead code, except they look like working coverage.
+#
+# Severity vocabulary:
+#   critical — wakes a human once Phase 1b has someone to wake. Citizen-visible
+#              harm, or a safety guarantee at risk.
+#   warning  — degrades a stated budget or capability; handled in hours.
+#   info     — not actionable on its own; exists to be correlated against.
+
+groups:
+  # ------------------------------------------------------------------------
+  # Meta: does the alerting path itself work?
+  # ------------------------------------------------------------------------
+  - name: nemesis-meta
+    rules:
+      # The standard dead-man's-switch. This alert is always firing, by
+      # construction. Its value is that its *absence* proves the chain from
+      # scrape → rule evaluation → Alertmanager is broken, which no
+      # conditionally-firing alert can ever prove. It is also what the Phase 1a
+      # gate exercises end to end.
+      - alert: NemesisAlertPipelineHeartbeat
+        expr: vector(1)
+        labels:
+          severity: info
+          kpi: meta
+        annotations:
+          summary: Alerting pipeline is alive (always firing, by design)
+          description: >-
+            This alert firing means Prometheus is evaluating rules and reaching
+            Alertmanager. If it stops firing, the alerting path is down and
+            every other alert in this file has silently stopped working.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/alert-pipeline-heartbeat.md
+
+      - alert: NemesisTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          kpi: meta
+        annotations:
+          summary: "Scrape target {{ $labels.job }} is down"
+          description: >-
+            Prometheus has been unable to scrape {{ $labels.job }}
+            ({{ $labels.instance }}) for 2 minutes. Metrics for this component
+            are stale; treat every other signal from it as unreliable.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/scrape-target-down.md
+
+  # ------------------------------------------------------------------------
+  # §27.1 processing budgets
+  # ------------------------------------------------------------------------
+  - name: nemesis-slo-latency
+    rules:
+      # §41.1 headline KPI. `for: 10m` because a single slow batch of CPU-bound
+      # CLIP inference on a laptop is normal; ten minutes of it is a regression.
+      - alert: NemesisClassificationLatencyBudgetBreached
+        expr: nemesis:kpi_classification_latency_p95_seconds > 8
+        for: 10m
+        labels:
+          severity: warning
+          kpi: submission_to_classification_latency
+          blueprint: "41.1"
+        annotations:
+          summary: "Classification p95 is {{ $value | humanizeDuration }} (budget 8s)"
+          description: >-
+            The §41.1 submission-to-classification KPI has been outside its 8s
+            p95 budget for 10 minutes. Most likely causes, in order: worker-ml
+            saturation, a cold model cache after a restart, or CPU contention
+            with host-side Ollama.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/slo-latency-budget-breach.md
+
+      # Critical, and with a much shorter `for`, unlike its siblings. §11.2's
+      # fail-safe only means anything if it is fast: a safety bypass that
+      # arrives after the complaint has already been scored and routed has
+      # bypassed nothing.
+      - alert: NemesisSafetyCheckLatencyBudgetBreached
+        expr: nemesis:kpi_safety_check_latency_p99_seconds > 5
+        for: 2m
+        labels:
+          severity: critical
+          kpi: safety_failsafe
+          blueprint: "27.1"
+        annotations:
+          summary: "Safety check p99 is {{ $value | humanizeDuration }} (budget 5s)"
+          description: >-
+            The deterministic safety fail-safe is running slower than its 5s
+            budget. The `safety` queue exists precisely so that a saturated `ml`
+            queue cannot delay this path — if this fires, check whether safety
+            work is being routed to the wrong queue.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/safety-path-degraded.md
+
+      - alert: NemesisDedupLatencyBudgetBreached
+        expr: nemesis:kpi_dedup_decision_latency_p95_seconds > 10
+        for: 10m
+        labels:
+          severity: warning
+          kpi: dedup_decision_latency
+          blueprint: "27.1"
+        annotations:
+          summary: "Dedup decision p95 is {{ $value | humanizeDuration }} (budget 10s)"
+          description: >-
+            Two-stage dedup is over budget. Stage 1 (PostGIS ST_DWithin) should
+            eliminate ≥90% of candidates before any embedding comparison; if it
+            is not, check the query plan for an index that stopped being used.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/slo-latency-budget-breach.md
+
+      - alert: NemesisEndToEndBudgetBreached
+        expr: nemesis:kpi_end_to_end_latency_p95_seconds > 30
+        for: 10m
+        labels:
+          severity: warning
+          kpi: end_to_end_latency
+          blueprint: "27.1"
+        annotations:
+          summary: "End-to-end p95 is {{ $value | humanizeDuration }} (budget 30s)"
+          description: >-
+            Submit → work-order-created is over its 30s budget for the
+            non-ambiguous path. Check the per-stage panel first: this metric is
+            a sum, and the stage panel says which term grew.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/slo-latency-budget-breach.md
+
+      - alert: NemesisAgentInvestigationBudgetBreached
+        expr: nemesis:kpi_agent_investigation_latency_p95_seconds > 90
+        for: 10m
+        labels:
+          severity: warning
+          kpi: agent_latency
+          blueprint: "27.1"
+        annotations:
+          summary: "Investigation Agent p95 is {{ $value | humanizeDuration }} (budget 90s)"
+          description: >-
+            Agent-invoked complaints are exceeding the 90s budget. Ollama shares
+            the RTX 5060 with nothing else by design (ADR-0002), so this usually
+            means tool-call round trips, not token generation.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/ollama-unreachable.md
+
+  # ------------------------------------------------------------------------
+  # §27.3 runbook scenarios, as live signals
+  # ------------------------------------------------------------------------
+  - name: nemesis-dependencies
+    rules:
+      # §27.3 "Database connection pool exhausted" and the general dependency
+      # case. Driven by the same gauge /ready sets, so the alert and the
+      # readiness probe can never disagree about what "up" means.
+      - alert: NemesisDependencyDown
+        expr: nemesis_dependency_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          blueprint: "27.3"
+        annotations:
+          summary: "Dependency {{ $labels.dependency }} is down"
+          description: >-
+            The readiness probe has reported {{ $labels.dependency }}
+            unavailable for 2 minutes, so this instance is returning 503 and
+            should be out of rotation.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/dependency-down.md
+
+      - alert: NemesisDatabasePoolExhausted
+        expr: >-
+          sum(rate(nemesis_system_degradation_total{dependency="database",reason="pool_exhausted"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+          blueprint: "27.3"
+        annotations:
+          summary: Database connection pool exhausted
+          description: >-
+            Submissions are being shed with 503 + Retry-After. §27.3 requires no
+            data loss here — the client-side retry state is the control, and the
+            Celery queue drains against the same pool once connections free up.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/database-pool-exhausted.md
+
+      - alert: NemesisOllamaUnreachable
+        expr: >-
+          sum(rate(nemesis_system_degradation_total{dependency="ollama"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          blueprint: "27.3"
+        annotations:
+          summary: Investigation Agent is degrading to human review
+          description: >-
+            Ollama is unreachable or timing out. Per §27.3 this is a *designed*
+            degradation, not an outage: ambiguous cases route to the human
+            review queue and classification is unaffected. It is a warning
+            because the queue depth it creates is a human cost.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/ollama-unreachable.md
+
+      - alert: NemesisWebsocketHubDegraded
+        expr: >-
+          sum(rate(nemesis_system_degradation_total{dependency="websocket_hub"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          blueprint: "27.3"
+        annotations:
+          summary: WebSocket hub is shedding or disconnecting clients
+          description: >-
+            Clients are falling back to polling. The map stays correct but stops
+            being live; the cluster-merge scene degrades to manual refresh.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/websocket-hub-disconnect.md
+
+      # Catch-all. The three scenarios above are the ones §27.3 names; this
+      # fires for a dependency nobody wrote a specific rule for yet, so a new
+      # degradation path cannot be invisible just because it is new.
+      - alert: NemesisUnclassifiedDegradation
+        expr: >-
+          sum by (dependency, reason) (
+            rate(nemesis_system_degradation_total{dependency!~"database|ollama|websocket_hub"}[5m])
+          ) > 0
+        for: 15m
+        labels:
+          severity: warning
+          blueprint: "24.2"
+        annotations:
+          summary: "Sustained degradation: {{ $labels.dependency }} ({{ $labels.reason }})"
+          description: >-
+            A fallback path has been taken continuously for 15 minutes on a
+            dependency with no dedicated alert. Either fix the cause or add a
+            specific rule and runbook page for it.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/system-degradation.md
+
+  # ------------------------------------------------------------------------
+  # API surface
+  # ------------------------------------------------------------------------
+  - name: nemesis-api
+    rules:
+      - alert: NemesisHighErrorRate
+        expr: nemesis:http_error_ratio > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of requests are 5xx"
+          description: >-
+            Server-error ratio above 5% for 5 minutes. Check the error contract
+            panel — RFC 9457 responses carry a `type` that groups the failure
+            mode without leaking internals.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/http-error-rate.md
+
+      - alert: NemesisReadinessFailing
+        expr: >-
+          sum(rate(nemesis_http_requests_total{endpoint="/ready",status="503"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Readiness probe is returning 503
+          description: >-
+            The instance is deliberately taking itself out of rotation. This is
+            correct behaviour under a failed dependency — pair it with
+            NemesisDependencyDown to find out which one.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/readiness-failing.md
+
+      - alert: NemesisPipelineStageFailing
+        expr: nemesis:pipeline_stage_failure_ratio > 0.02
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.stage }} failing at {{ $value | humanizePercentage }}"
+          description: >-
+            A pipeline stage is failing more than 2% of the time. §24.2 requires
+            a failing stage to degrade the complaint's status, never to lose it
+            — confirm the affected complaints are in a recoverable state before
+            treating this as purely a latency problem.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/pipeline-stage-failures.md
+
+  # ------------------------------------------------------------------------
+  # §41 KPI drift — informational, not pages
+  # ------------------------------------------------------------------------
+  - name: nemesis-kpi-drift
+    rules:
+      # §41.1 gives this KPI no target on purpose ("track as a baseline"). The
+      # threshold here is therefore a *conversation trigger*, not a budget: if
+      # a third of all complaints need agent escalation, the dedup bands (§14.3)
+      # are the thing to look at, not the agent.
+      - alert: NemesisAgentInvocationRateElevated
+        expr: nemesis:kpi_agent_invocation_ratio > 0.30
+        for: 1h
+        labels:
+          severity: info
+          kpi: agent_invocation_rate
+          blueprint: "41.1"
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of complaints escalate to the agent"
+          description: >-
+            Sustained high escalation suggests the ambiguous dedup band is too
+            wide. Phase 7's backtesting is the correct tool to answer that — do
+            not retune the threshold live.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/kpi-drift.md
+
+      - alert: NemesisClosureConfirmationRateLow
+        expr: nemesis:kpi_closure_confirmation_ratio < 0.60
+        for: 6h
+        labels:
+          severity: info
+          kpi: closure_confirmation_rate
+          blueprint: "41.1"
+        annotations:
+          summary: "Closure confirmation rate {{ $value | humanizePercentage }} (target >60%)"
+          description: >-
+            Most closures are being auto-confirmed-unconfirmed rather than
+            actively confirmed by citizens. This is the §3.1 trust-collapse
+            metric read directly; investigate the notification chain before
+            concluding it is apathy.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/kpi-drift.md

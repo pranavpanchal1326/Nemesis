@@ -1,0 +1,346 @@
+{
+  "uid": "nemesis-kpis",
+  "title": "NEMESIS — §41 Product Health KPIs",
+  "description": "The Blueprint §41.1 KPI set. Every panel reads a nemesis:kpi_* recorded rule rather than a raw histogram, so a number here means exactly what the same number means in an alert and, from Phase 23, in a customer report.",
+  "tags": ["nemesis", "kpi", "blueprint-41"],
+  "timezone": "browser",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "nemesis-prometheus" },
+        "hide": 2
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "Alerts firing",
+        "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+        "enable": true,
+        "iconColor": "red",
+        "expr": "ALERTS{alertstate=\"firing\",alertname!=\"NemesisAlertPipelineHeartbeat\"}",
+        "titleFormat": "{{alertname}}",
+        "textFormat": "{{severity}}"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "id": 1,
+      "title": "Latency KPIs — §27.1 budgets",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "id": 2,
+      "title": "Submission → classification (p95)",
+      "description": "§41.1 headline KPI. Target < 8s p95. Green below budget, red above — there is no amber, because the budget is the line.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "nemesis:kpi_classification_latency_p95_seconds",
+          "legendFormat": "p95"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "noValue": "no data yet — emitted from Phase 9",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 8 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "id": 3,
+      "title": "Safety fail-safe (p99)",
+      "description": "§27.1 target < 5s, tracked at p99 not p95: on the safety path the tail is the requirement. A late bypass has bypassed nothing.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "nemesis:kpi_safety_check_latency_p99_seconds",
+          "legendFormat": "p99"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "noValue": "no data yet — emitted from Phase 8",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "id": 4,
+      "title": "Dedup decision (p95)",
+      "description": "§27.1 target < 10s. Stage 1 (PostGIS) should eliminate ≥90% of candidates before any embedding comparison.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "nemesis:kpi_dedup_decision_latency_p95_seconds",
+          "legendFormat": "p95"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "noValue": "no data yet — emitted from Phase 10",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "id": 5,
+      "title": "End-to-end, no agent (p95)",
+      "description": "§27.1 target < 30s for submit → work-order-created on the non-ambiguous path.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "nemesis:kpi_end_to_end_latency_p95_seconds",
+          "legendFormat": "p95"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "noValue": "no data yet — emitted from Phase 12",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 30 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 6,
+      "title": "Pipeline latency against §27.1 budgets",
+      "description": "All processing budgets on one axis. The dashed series are the budgets themselves, drawn rather than remembered — a chart you have to hold a number in your head to read is a chart that gets misread.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 6 },
+      "targets": [
+        { "refId": "A", "expr": "nemesis:kpi_safety_check_latency_p99_seconds", "legendFormat": "safety_check p99" },
+        { "refId": "B", "expr": "nemesis:kpi_classification_latency_p95_seconds", "legendFormat": "classification p95" },
+        { "refId": "C", "expr": "nemesis:kpi_dedup_decision_latency_p95_seconds", "legendFormat": "dedup p95" },
+        { "refId": "D", "expr": "nemesis:kpi_end_to_end_latency_p95_seconds", "legendFormat": "end_to_end p95" },
+        { "refId": "E", "expr": "nemesis:kpi_agent_investigation_latency_p95_seconds", "legendFormat": "agent_investigation p95" },
+        { "refId": "F", "expr": "vector(8)", "legendFormat": "budget: classification 8s" },
+        { "refId": "G", "expr": "vector(30)", "legendFormat": "budget: end-to-end 30s" }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": "budget:.*" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "custom.fillOpacity", "value": 0 },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "row",
+      "id": 7,
+      "title": "Rate KPIs",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "collapsed": false
+    },
+    {
+      "type": "gauge",
+      "id": 8,
+      "title": "Investigation Agent invocation rate",
+      "description": "§41.1 explicitly sets NO target for this — it is a baseline that tells you whether the dedup bands need retuning (§14.3). The 30% mark is a conversation trigger, not a budget.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 16 },
+      "targets": [{ "refId": "A", "expr": "nemesis:kpi_agent_invocation_ratio" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 1,
+          "noValue": "no data yet — emitted from Phase 16",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.3 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "gauge",
+      "id": 9,
+      "title": "Closure confirmation rate",
+      "description": "§41.1 target > 60% within the 48h window. The denominator includes auto-confirmed-unconfirmed closures on purpose — excluding them would report 100% forever and flatter exactly the number §21.2 exists to keep honest.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 16 },
+      "targets": [{ "refId": "A", "expr": "nemesis:kpi_closure_confirmation_ratio" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 1,
+          "noValue": "no data yet — emitted from Phase 15",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0.6 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 10,
+      "title": "Submission throughput & safety trigger share",
+      "description": "Volume context for every ratio on this dashboard. A KPI computed over three complaints is noise wearing a percentage sign.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 16 },
+      "targets": [
+        { "refId": "A", "expr": "nemesis:kpi_submission_rate_per_minute", "legendFormat": "submissions/min" },
+        { "refId": "B", "expr": "nemesis:kpi_safety_trigger_ratio", "legendFormat": "safety trigger share" }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "safety trigger share" },
+            "properties": [
+              { "id": "unit", "value": "percentunit" },
+              { "id": "custom.axisPlacement", "value": "right" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "row",
+      "id": 11,
+      "title": "KPIs this dashboard deliberately does not claim to show",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "collapsed": false
+    },
+    {
+      "type": "text",
+      "id": 12,
+      "title": "Not observable from a time-series database",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "options": {
+        "mode": "markdown",
+        "content": "Three §41 KPIs have no panel here, and the absence is deliberate. A proxy metric that *looks* like the KPI is worse than a visible gap, because the gap gets closed and the proxy gets believed.\n\n| KPI | Why it is not here | Where it lands |\n|---|---|---|\n| **Dedup precision** (>90%) | Defined against a human-audited sample of merged clusters. No counter produces it. | Phase 10 labelled fixture set → Phase 23 metrics layer |\n| **Dedup recall** (>80%) | Requires knowing the duplicates that were *missed*, which by definition were never observed as duplicates. | Phase 10 fixture set → Phase 11 feedback loop |\n| **Safety fail-safe false-negative rate** (hard 0%) | A false negative is the case the system did not notice. It is an audit result, not a runtime observation. | Phase 8 review-queue labels → Phase 11 regression set |\n\nWhat *is* shown for safety is whether the fail-safe ran and how fast — necessary, not sufficient, and labelled as such.\n\n§41.2 business KPIs (resubmission rate, contractor dispute rate, underreporting-zone coverage) are cohort-shaped and post-pilot; they belong in the analytical store from Phase 23, not in Prometheus."
+      }
+    }
+  ]
+}
