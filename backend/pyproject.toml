@@ -1,0 +1,179 @@
+[project]
+name = "nemesis"
+version = "0.1.0"
+description = "NEMESIS — Networked Enforcement & Municipal Evidence System for Infrastructure & Service accountability"
+# No `readme` key: it would point outside the Docker build context (../README.md),
+# which breaks the image build for zero benefit.
+# Pinned hard: torch / open_clip / faster-whisper / mediapipe have no reliable
+# wheels for 3.13+. The host machine may have a newer Python; containers do not.
+requires-python = ">=3.12,<3.13"
+
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "psycopg[binary]>=3.2.0",  # sync driver: Alembic + test bootstrap only
+    "alembic>=1.14.0",
+    "pgvector>=0.3.6",
+    "geoalchemy2>=0.15.2",
+    "celery[redis]>=5.4.0",
+    "redis>=5.2.0",
+    "structlog>=24.4.0",
+    "python-multipart>=0.0.17",
+    "orjson>=3.10.0",
+    # Observability. Instrumented from Phase 0; the collector/Grafana stack is
+    # wired in Phase 1. Exporters are no-ops when no endpoint is configured, so
+    # local runs carry no cost and no dependency on a running collector.
+    "opentelemetry-sdk>=1.29.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.29.0",
+    "opentelemetry-instrumentation-fastapi>=0.50b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
+    "opentelemetry-instrumentation-asyncpg>=0.50b0",
+    "opentelemetry-instrumentation-redis>=0.50b0",
+    "opentelemetry-instrumentation-celery>=0.50b0",
+    "prometheus-client>=0.21.0",
+]
+
+[project.optional-dependencies]
+# Heavy inference stack. Installed only into the `worker-ml` image via the
+# INSTALL_ML build arg, so the API and `worker-io` images stay ~200MB and fast
+# to rebuild during backend iteration.
+#
+# CPU-ONLY BY DESIGN. The RTX 5060 is Blackwell (sm_120), which stable CUDA 12.4
+# torch wheels do not support, and its 8GB of VRAM is reserved for Ollama
+# (§12.4). Blueprint §27.1 budgets CLIP as CPU-bound at demo scale, which an
+# 8-core Zen CPU meets comfortably. The CPU wheel index is pinned in the
+# Dockerfile — do not switch to the default index without also solving VRAM
+# contention with Ollama.
+ml = [
+    "torch>=2.5.0",
+    "open-clip-torch>=2.29.0",
+    "faster-whisper>=1.1.0",
+    "sentence-transformers>=3.3.0",
+    "scikit-learn>=1.5.0",
+    "scikit-image>=0.24.0",
+    "mediapipe>=0.10.18",
+    "imagehash>=4.3.1",
+    "exifread>=3.0.0",
+    "pillow>=11.0.0",
+]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.28.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "types-redis>=4.6.0",
+    # Invariants worth proving over generated inputs rather than three examples:
+    # the hash chain, severity arithmetic, and dedup band ordering.
+    "hypothesis>=6.122.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["nemesis"]
+
+# --------------------------------------------------------------------------
+# Lint / format
+# --------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["."]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "A",    # flake8-builtins
+    "C4",   # comprehensions
+    "DTZ",  # flake8-datetimez — naive datetimes are a correctness bug here
+    "T20",  # flake8-print — structlog only, never print()
+    "SIM",  # flake8-simplify
+    "RUF",
+]
+ignore = [
+    "B008",  # FastAPI Depends() in defaults is the documented idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+"alembic/versions/*" = ["N999", "E501"]
+# Operator-facing CLIs: stdout is the interface, not a debugging leftover.
+# T20 stays enabled everywhere else so a stray print cannot bypass structlog in
+# application code.
+"scripts/*" = ["T201"]
+
+# --------------------------------------------------------------------------
+# Type checking — strict, no escape hatches in first-party code
+# --------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_no_return = true
+disallow_any_generics = true
+plugins = ["pydantic.mypy"]
+exclude = ["^alembic/versions/"]
+
+[[tool.mypy.overrides]]
+# Third-party packages without bundled type information.
+module = [
+    "celery.*",
+    "open_clip.*",
+    "faster_whisper.*",
+    "mediapipe.*",
+    "imagehash.*",
+    "exifread.*",
+    "skimage.*",
+    "sklearn.*",
+    "geoalchemy2.*",
+    "pgvector.*",
+    "opentelemetry.instrumentation.*",
+]
+ignore_missing_imports = true
+
+# --------------------------------------------------------------------------
+# Tests
+# --------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-q --strict-markers --strict-config"
+markers = [
+    "integration: requires a live Postgres/Redis (skipped when unavailable)",
+]
+filterwarnings = [
+    # A warning we do not act on is a warning we will not notice when it matters.
+    "error",
+    "ignore::DeprecationWarning:celery.*",
+    "ignore::DeprecationWarning:kombu.*",
+]
+
+[tool.coverage.run]
+source = ["nemesis"]
+branch = true
+omit = ["nemesis/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+# A gate, not a dashboard. Raised deliberately as domain logic lands; never
+# lowered to make a red build green.
+fail_under = 85
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

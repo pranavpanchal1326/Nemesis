@@ -1,0 +1,153 @@
+# §41 KPI definitions — one definition per KPI, expressed once.
+#
+# This is a deliberate precursor to Phase 23's governed metrics layer. The
+# failure it prevents is the ordinary one: a dashboard panel, an alert rule, and
+# a customer report each computing "classification latency" slightly differently
+# and then disagreeing in a meeting nobody can resolve. Every panel and every
+# alert below references a `nemesis:kpi_*` series, never a raw histogram.
+#
+# Naming: `nemesis:kpi_<name>_<unit>` — the colon marks a recorded rule, per
+# Prometheus convention, so a raw metric can never be confused with a derived one.
+#
+# NOT COMPUTABLE HERE, and honestly so:
+#   * Dedup precision / recall (§41.1) are defined against a *human-audited
+#     sample*. There is no scrapeable counter that produces them, and inventing
+#     a proxy that looks like the KPI is worse than the gap. They arrive with
+#     Phase 10's labelled fixture set and Phase 23's metrics layer.
+#   * Safety fail-safe false-negative rate (§41.1) is likewise an audit result,
+#     not a runtime observation — by construction, a false negative is the case
+#     the system did not notice. What IS observable is whether the safety stage
+#     ran and how fast; that is covered below and alerted on.
+#   * §41.2 business KPIs are post-pilot and cohort-shaped. They belong in the
+#     analytical store (Phase 23), not in a time-series database.
+
+groups:
+  - name: nemesis-kpi-latency
+    interval: 30s
+    rules:
+      # §41.1 "Submission-to-classification latency", target < 8s p95.
+      - record: nemesis:kpi_classification_latency_p95_seconds
+        expr: >-
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(nemesis_pipeline_stage_duration_seconds_bucket{stage="classification"}[5m])
+            )
+          )
+
+      # §27.1 safety check, target < 5s. Tracked at p99 rather than p95: the
+      # safety path is the one place where the tail *is* the requirement.
+      - record: nemesis:kpi_safety_check_latency_p99_seconds
+        expr: >-
+          histogram_quantile(
+            0.99,
+            sum by (le) (
+              rate(nemesis_pipeline_stage_duration_seconds_bucket{stage="safety_check"}[5m])
+            )
+          )
+
+      - record: nemesis:kpi_dedup_decision_latency_p95_seconds
+        expr: >-
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(nemesis_pipeline_stage_duration_seconds_bucket{stage="dedup"}[5m])
+            )
+          )
+
+      # §27.1 end-to-end submit → work order created, non-ambiguous case, < 30s.
+      - record: nemesis:kpi_end_to_end_latency_p95_seconds
+        expr: >-
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(nemesis_pipeline_stage_duration_seconds_bucket{stage="end_to_end"}[5m])
+            )
+          )
+
+      # §27.1 end-to-end *with* the Investigation Agent, < 90s. Split from the
+      # line above because averaging them together hides both.
+      - record: nemesis:kpi_agent_investigation_latency_p95_seconds
+        expr: >-
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(nemesis_pipeline_stage_duration_seconds_bucket{stage="agent_investigation"}[5m])
+            )
+          )
+
+      - record: nemesis:kpi_api_latency_p95_seconds
+        expr: >-
+          histogram_quantile(
+            0.95,
+            sum by (le, endpoint) (
+              rate(nemesis_http_request_duration_seconds_bucket[5m])
+            )
+          )
+
+  - name: nemesis-kpi-rates
+    interval: 30s
+    rules:
+      # §41.1 "Investigation Agent invocation rate" — tracked as a baseline with
+      # no target. A rising value is the signal that dedup bands need retuning
+      # (§14.3), which is the whole reason the blueprint asks for it.
+      - record: nemesis:kpi_agent_invocation_ratio
+        expr: >-
+          sum(rate(nemesis_pipeline_events_total{event_type="agent_investigation_started"}[30m]))
+          /
+          clamp_min(
+            sum(rate(nemesis_pipeline_events_total{event_type="complaint_submitted"}[30m])),
+            0.0001
+          )
+
+      # §41.1 "Closure confirmation rate", target > 60%. The denominator
+      # deliberately includes auto-confirmed-unconfirmed closures: counting only
+      # active confirmations in both halves would report 100% forever and
+      # flatter exactly the number §21.2 exists to keep honest.
+      - record: nemesis:kpi_closure_confirmation_ratio
+        expr: >-
+          sum(rate(nemesis_pipeline_events_total{event_type="citizen_confirmed"}[6h]))
+          /
+          clamp_min(
+            sum(rate(nemesis_pipeline_events_total{event_type=~"citizen_confirmed|closure_auto_confirmed"}[6h])),
+            0.0001
+          )
+
+      - record: nemesis:kpi_safety_trigger_ratio
+        expr: >-
+          sum(rate(nemesis_pipeline_events_total{event_type="safety_trigger_fired"}[30m]))
+          /
+          clamp_min(
+            sum(rate(nemesis_pipeline_events_total{event_type="complaint_submitted"}[30m])),
+            0.0001
+          )
+
+      - record: nemesis:kpi_submission_rate_per_minute
+        expr: sum(rate(nemesis_pipeline_events_total{event_type="complaint_submitted"}[5m])) * 60
+
+  - name: nemesis-service-health
+    interval: 30s
+    rules:
+      - record: nemesis:http_error_ratio
+        expr: >-
+          sum(rate(nemesis_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(nemesis_http_requests_total[5m])), 0.0001)
+
+      - record: nemesis:http_request_rate
+        expr: sum by (endpoint, method) (rate(nemesis_http_requests_total[5m]))
+
+      # §24.2 / §27.3. A degradation rate above zero is not automatically a
+      # page — degrading correctly is the designed behaviour — but it is always
+      # something a human should be able to see and attribute.
+      - record: nemesis:degradation_rate
+        expr: sum by (dependency, reason) (rate(nemesis_system_degradation_total[5m]))
+
+      - record: nemesis:pipeline_stage_failure_ratio
+        expr: >-
+          sum by (stage) (rate(nemesis_pipeline_stage_duration_seconds_count{outcome="failed"}[5m]))
+          /
+          clamp_min(
+            sum by (stage) (rate(nemesis_pipeline_stage_duration_seconds_count[5m])),
+            0.0001
+          )

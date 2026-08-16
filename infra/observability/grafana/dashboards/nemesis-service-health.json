@@ -1,0 +1,324 @@
+{
+  "uid": "nemesis-service-health",
+  "title": "NEMESIS — Service Health & §27.3 Degradation",
+  "description": "The operational view. Answers three questions in order: is the service up, is it serving correctly, and which designed degradation path is it currently taking. §24.2 makes degrading a first-class behaviour rather than a failure — so degradation gets a panel, not a log line.",
+  "tags": ["nemesis", "operations", "blueprint-27"],
+  "timezone": "browser",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "annotations": {
+    "list": [
+      {
+        "name": "Alerts firing",
+        "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+        "enable": true,
+        "iconColor": "red",
+        "expr": "ALERTS{alertstate=\"firing\",alertname!=\"NemesisAlertPipelineHeartbeat\"}",
+        "titleFormat": "{{alertname}}",
+        "textFormat": "{{severity}} — {{dependency}}"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "id": 1,
+      "title": "Is it up?",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "id": 2,
+      "title": "Scrape targets up",
+      "description": "If this is not full, every other panel on this dashboard is stale for the missing target and must not be trusted.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 5, "w": 5, "x": 0, "y": 1 },
+      "targets": [{ "refId": "A", "expr": "up", "legendFormat": "{{job}}" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true },
+        "colorMode": "background",
+        "textMode": "value_and_name",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red", "index": 0 } } },
+            { "type": "value", "options": { "1": { "text": "up", "color": "green", "index": 1 } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 3,
+      "title": "Dependency readiness (§27.3)",
+      "description": "Set by the /ready probe itself, so this panel and the readiness status can never disagree about what 'up' means. A drop to zero is the same event that puts the instance out of rotation with a 503.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 5, "w": 10, "x": 5, "y": 1 },
+      "targets": [
+        { "refId": "A", "expr": "nemesis_dependency_up", "legendFormat": "{{dependency}}" }
+      ],
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "showPoints": "never"
+          },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "id": 4,
+      "title": "5xx ratio",
+      "description": "Alert threshold is 5% for 5 minutes. RFC 9457 responses carry a `type` that groups the failure mode without disclosing internals — use it before reading logs.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 5, "w": 5, "x": 15, "y": 1 },
+      "targets": [{ "refId": "A", "expr": "nemesis:http_error_ratio" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.01 },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "id": 5,
+      "title": "In flight",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 1 },
+      "targets": [{ "refId": "A", "expr": "sum(nemesis_http_requests_in_flight)" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 40 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "row",
+      "id": 6,
+      "title": "Is it serving correctly?",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "id": 7,
+      "title": "Request rate by route template",
+      "description": "Labelled by route template, never resolved path — otherwise every complaint id becomes its own time series and the registry eats the process.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+      "targets": [
+        { "refId": "A", "expr": "nemesis:http_request_rate", "legendFormat": "{{method}} {{endpoint}}" }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 20, "stacking": { "mode": "normal" }, "showPoints": "never" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "id": 8,
+      "title": "API latency p95 by route template",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+      "targets": [
+        { "refId": "A", "expr": "nemesis:kpi_api_latency_p95_seconds", "legendFormat": "{{endpoint}}" },
+        { "refId": "B", "expr": "vector(2)", "legendFormat": "budget: submission ack 2s" }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": "budget:.*" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "row",
+      "id": 9,
+      "title": "Which degradation path is it taking? (§24.2 / §27.3)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "id": 10,
+      "title": "Degraded-mode fallbacks by dependency",
+      "description": "Non-zero here is not automatically an incident — degrading correctly is the designed behaviour under §24.2. It is always something a human should be able to see and attribute, which is the entire reason this metric exists.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 8, "w": 14, "x": 0, "y": 16 },
+      "targets": [
+        { "refId": "A", "expr": "nemesis:degradation_rate", "legendFormat": "{{dependency}} — {{reason}}" }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "sum"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "no degradation recorded",
+          "custom": { "drawStyle": "bars", "lineWidth": 1, "fillOpacity": 70, "stacking": { "mode": "normal" }, "showPoints": "never" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "table",
+      "id": 11,
+      "title": "Pipeline stage failure ratio",
+      "description": "§24.2 requires a failing stage to degrade the complaint's status, never to lose it. A red row here is a prompt to confirm the affected complaints are in a recoverable state, not just to chase latency.",
+      "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+      "gridPos": { "h": 8, "w": 10, "x": 14, "y": 16 },
+      "targets": [
+        { "refId": "A", "expr": "nemesis:pipeline_stage_failure_ratio", "format": "table", "instant": true }
+      ],
+      "transformations": [
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "environment": true, "stack": true }, "renameByName": { "stage": "Stage", "Value": "Failure ratio" } } },
+        { "id": "sortBy", "options": { "fields": {}, "sort": [{ "field": "Failure ratio", "desc": true }] } }
+      ],
+      "options": { "showHeader": true, "cellHeight": "sm" },
+      "fieldConfig": {
+        "defaults": { "noValue": "no stage metrics yet — emitted from Phase 3" },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Failure ratio" },
+            "properties": [
+              { "id": "unit", "value": "percentunit" },
+              { "id": "decimals", "value": 2 },
+              { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "gradient" } },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "orange", "value": 0.02 },
+                    { "color": "red", "value": 0.1 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "row",
+      "id": 12,
+      "title": "Observability plumbing",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+      "collapsed": true,
+      "panels": [
+        {
+          "type": "timeseries",
+          "id": 13,
+          "title": "Spans accepted vs refused by the collector",
+          "description": "The memory_limiter processor sheds spans under pressure by design. Refusals mean traces are incomplete — which matters most exactly when you reach for a trace to explain a latency alert.",
+          "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 },
+          "targets": [
+            { "refId": "A", "expr": "sum(rate(otelcol_receiver_accepted_spans_total[5m]))", "legendFormat": "accepted" },
+            { "refId": "B", "expr": "sum(rate(otelcol_receiver_refused_spans_total[5m]))", "legendFormat": "refused" },
+            { "refId": "C", "expr": "sum(rate(otelcol_exporter_send_failed_spans_total[5m]))", "legendFormat": "export failed" }
+          ],
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "fieldConfig": {
+            "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" } },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": "refused|export failed" },
+                "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+              }
+            ]
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 14,
+          "title": "Rule evaluation health",
+          "description": "If rule evaluation stalls, every alert in this stack silently stops working and the heartbeat is the only thing that notices.",
+          "datasource": { "type": "prometheus", "uid": "nemesis-prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
+          "targets": [
+            { "refId": "A", "expr": "sum(rate(prometheus_rule_evaluation_failures_total[5m]))", "legendFormat": "evaluation failures" },
+            { "refId": "B", "expr": "max(prometheus_rule_group_last_duration_seconds)", "legendFormat": "slowest rule group" }
+          ],
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "fieldConfig": {
+            "defaults": { "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" } },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "slowest rule group" },
+                "properties": [{ "id": "unit", "value": "s" }, { "id": "custom.axisPlacement", "value": "right" }]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

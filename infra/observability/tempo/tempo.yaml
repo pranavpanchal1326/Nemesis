@@ -1,0 +1,42 @@
+# Tempo — single-binary, local-disk trace store.
+#
+# Sized for a laptop, not a cluster. Retention is deliberately short: traces
+# answer "why was this request slow *just now*", and the durable record of what
+# happened is the event log (§9.1), not a trace backend. Anything that needs to
+# survive a week belongs in an event, not a span.
+
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+  log_level: warn
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+ingester:
+  # Short flush windows keep a trace queryable seconds after it completes, which
+  # is what makes this useful while debugging interactively.
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    # 24h. Long enough to debug yesterday's failure, short enough that the
+    # volume cannot quietly consume the disk this laptop also builds images on.
+    block_retention: 24h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
+
+usage_report:
+  reporting_enabled: false

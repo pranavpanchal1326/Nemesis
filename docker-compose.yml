@@ -1,0 +1,345 @@
+# NEMESIS — full stack, one command, no internet dependency once built.
+#
+#   docker compose up -d --build
+#
+# Deliberately NOT in this file:
+#   * Ollama  — runs on the Windows host with exclusive access to the RTX 5060.
+#               Containers reach it via host.docker.internal:11434 (§12.4).
+#   * frontend — runs on the host with Node 24 + Turbopack. Bind-mounting a
+#               Next.js project into WSL2 makes file-watching HMR crawl on
+#               Windows, and keeps ~1.5GB out of the WSL memory budget.
+#
+# Memory limits are explicit and sum to ~6GB, inside the 8GB WSL2 cap set in
+# docs/HARDWARE.md. Without them, worker-ml will happily consume everything and
+# take Postgres down with it.
+
+# Container-internal service addresses. These MUST override the values in .env,
+# which are host-oriented (localhost) for host-side tooling such as pytest and
+# alembic.
+#
+# Kept as a separate anchor and merged *inside* each service's `environment`
+# map on purpose: YAML merge keys replace a mapping wholesale rather than
+# deep-merging, so a service that declares its own `environment:` block while
+# inheriting `<<: *backend-base` would silently drop these and fall back to the
+# .env localhost values. That failure is near-invisible — the container starts
+# fine and then cannot reach Redis.
+x-backend-env: &backend-env
+  NEMESIS_DATABASE_URL: postgresql+asyncpg://nemesis:${POSTGRES_PASSWORD:-nemesis}@postgres:5432/nemesis
+  NEMESIS_REDIS_URL: redis://redis:6379/0
+  NEMESIS_OLLAMA__BASE_URL: http://host.docker.internal:11434
+  # Tracing is off unless the `obs` profile is running. `nem obs` sets both
+  # variables in the compose invocation, which recreates the backend services
+  # with the exporter enabled; `nem obs-down` restores them without it.
+  #
+  # Defaulting to off is not laziness — a BatchSpanProcessor pointed at an
+  # absent collector retries on a background thread and writes an export error
+  # every few seconds forever, which is a log full of noise about the tool that
+  # was supposed to reduce noise.
+  NEMESIS_OTEL__ENABLED: "${NEMESIS_OTEL__ENABLED:-false}"
+  NEMESIS_OTEL__ENDPOINT: "${NEMESIS_OTEL__ENDPOINT:-}"
+
+x-backend-base: &backend-base
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  env_file: [.env]
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  depends_on:
+    postgres: {condition: service_healthy}
+    redis: {condition: service_healthy}
+  restart: unless-stopped
+
+services:
+  postgres:
+    build:
+      context: ./infra/postgres
+    environment:
+      POSTGRES_USER: nemesis
+      # Substituted, not literal, so the local convenience value is the default
+      # rather than the only possibility. A password that exists only as a
+      # hardcoded string is one that cannot be rotated without editing compose,
+      # which is how it ends up never being rotated (docs/SECRETS.md).
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-nemesis}"
+      POSTGRES_DB: nemesis
+      # Sized for a 16GB host that is also running Ollama. Raising these is the
+      # first thing to revisit on a bigger machine.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    command:
+      - postgres
+      - -c
+      - shared_buffers=384MB
+      - -c
+      - work_mem=32MB
+      - -c
+      - maintenance_work_mem=192MB      # HNSW index builds are maintenance_work_mem bound
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - max_connections=60
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nemesis -d nemesis"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    mem_limit: 1536m
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "60", "1", "--maxmemory", "192mb", "--maxmemory-policy", "noeviction"]
+    ports: ["6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 256m
+    restart: unless-stopped
+
+  api:
+    <<: *backend-base
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args: {INSTALL_ML: "false", INSTALL_DEV: "true"}
+    environment:
+      <<: *backend-env
+    command: ["uvicorn", "nemesis.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["8000:8000"]
+    volumes:
+      - ./backend:/app
+      - uploads:/data/uploads
+    mem_limit: 640m
+
+  worker-io:
+    <<: *backend-base
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args: {INSTALL_ML: "false", INSTALL_DEV: "false"}
+    environment:
+      <<: *backend-env
+    command:
+      - celery
+      - -A
+      - nemesis.worker.celery_app:celery_app
+      - worker
+      - --queues=io,safety
+      - --concurrency=4
+      - --loglevel=INFO
+    volumes:
+      - ./backend:/app
+      - uploads:/data/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A nemesis.worker.celery_app:celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    mem_limit: 640m
+
+  worker-ml:
+    <<: *backend-base
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args: {INSTALL_ML: "true", INSTALL_DEV: "false"}
+    # concurrency=1 is load-bearing: this is the only process permitted to hold
+    # CLIP + Whisper + e5 weights simultaneously.
+    command:
+      - celery
+      - -A
+      - nemesis.worker.celery_app:celery_app
+      - worker
+      - --queues=ml
+      - --concurrency=1
+      - --max-tasks-per-child=100
+      - --loglevel=INFO
+    environment:
+      <<: *backend-env
+      OMP_NUM_THREADS: "4"
+      MKL_NUM_THREADS: "4"
+      TOKENIZERS_PARALLELISM: "false"
+    volumes:
+      - ./backend:/app
+      - uploads:/data/uploads
+      - modelcache:/models
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A nemesis.worker.celery_app:celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
+    mem_limit: 3g
+
+  beat:
+    <<: *backend-base
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args: {INSTALL_ML: "false", INSTALL_DEV: "false"}
+    environment:
+      <<: *backend-env
+    command:
+      - celery
+      - -A
+      - nemesis.worker.celery_app:celery_app
+      - beat
+      - --loglevel=INFO
+      - --schedule=/tmp/celerybeat-schedule
+      - --max-interval=60
+    volumes: [./backend:/app]
+    # beat serves no HTTP endpoint, so the image's default HTTP healthcheck can
+    # never pass. Process liveness is the meaningful signal here: if the beat
+    # process dies, SLA sweeps (§12.3) stop firing silently.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    mem_limit: 192m
+
+  # ------------------------------------------------------------------------
+  # Observability (Phase 1a) — opt-in via the `obs` profile.
+  #
+  #     nem obs          start the stack and turn on trace export
+  #     nem obs-verify   prove metric → dashboard → alert end to end
+  #     nem obs-down     stop it and turn trace export back off
+  #
+  # A PROFILE, NOT A DEFAULT, AND THE REASON IS ARITHMETIC (ADR-0007). The
+  # application services already sum to 6336 MB inside an 8192 MB WSL2 cap. The
+  # five services below add 992 MB, landing at 7328 MB — which fits, but leaves
+  # under 900 MB of headroom on a machine that is also expected to run a
+  # browser, an editor, and host-side Ollama. Making this the default would mean
+  # every `nem up` competes with the demo for memory, and the first symptom
+  # would be worker-ml getting OOM-killed mid-inference.
+  # ------------------------------------------------------------------------
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.119.0
+    profiles: [obs]
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./infra/observability/otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP — what the Python exporter uses
+    depends_on:
+      tempo: {condition: service_started}
+    # No healthcheck: the contrib image is distroless and has no shell for
+    # `docker exec`. Liveness is covered instead by Prometheus scraping its
+    # self-telemetry on :8888, which NemesisTargetDown alerts on — a stronger
+    # signal than a local probe, because it also proves the scrape path works.
+    mem_limit: 128m
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.7.0
+    profiles: [obs]
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./infra/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempodata:/var/tempo
+    # 3200 is published so `nem obs-verify` and a browser can query traces
+    # directly without going through Grafana.
+    ports: ["3200:3200"]
+    mem_limit: 256m
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    profiles: [obs]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # 7 days. Long enough to see a weekly pattern; short enough that a laptop
+      # disk is never the reason the stack stops working.
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    volumes:
+      - ./infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/observability/prometheus/rules:/etc/prometheus/rules:ro
+      - promdata:/prometheus
+    ports: ["9090:9090"]
+    depends_on:
+      alertmanager: {condition: service_started}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 256m
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    profiles: [obs]
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./infra/observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanagerdata:/alertmanager
+    ports: ["9093:9093"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9093/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    mem_limit: 96m
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.5.1
+    profiles: [obs]
+    environment:
+      # Local-only credentials, and the environment-parity check (§ scripts/
+      # check_env_parity.py) knows it: GRAFANA_ADMIN_PASSWORD is on the list of
+      # values a deployed environment must supply externally, so this default
+      # cannot silently follow the stack to a pilot.
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+      # Anonymous read on a laptop stack. The alternative is a login prompt
+      # between an engineer and an alert they are already looking at, which is
+      # how dashboards stop getting opened.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_DEFAULT_THEME: dark
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports: ["3001:3000"]
+    depends_on:
+      prometheus: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    mem_limit: 256m
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:
+  modelcache:
+  promdata:
+  grafanadata:
+  tempodata:
+  alertmanagerdata:

@@ -1,0 +1,45 @@
+# Provisioned, never clicked.
+#
+# A datasource configured through the UI lives in Grafana's SQLite volume and
+# disappears the moment somebody runs `nem nuke`. Provisioning from a file makes
+# the whole observability stack reproducible from a clean checkout, which is the
+# same property `docker compose up` gives the application.
+
+apiVersion: 1
+
+deleteDatasources:
+  - name: Prometheus
+  - name: Tempo
+
+datasources:
+  - name: Prometheus
+    uid: nemesis-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+      # Lets a latency panel link straight to an exemplar trace in Tempo, so
+      # "p95 is bad" becomes "here is a slow request" in one click. The whole
+      # reason both datasources are provisioned together.
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: nemesis-tempo
+
+  - name: Tempo
+    uid: nemesis-tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: nemesis-prometheus
+      # The API → queue → worker span stitching Phase 0 built exists so this
+      # graph is complete. Without node-graph enabled it renders as a flat list
+      # and the cross-service hop — the part that was actually hard — is invisible.
+      nodeGraph:
+        enabled: true
+      serviceMap:
+        datasourceUid: nemesis-prometheus

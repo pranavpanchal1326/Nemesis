@@ -1,0 +1,90 @@
+# Fast, local-only checks. Anything requiring a running stack (mypy against
+# installed dependencies, the test suite) belongs in CI and `nem check`, not
+# here — a pre-commit hook that takes 40 seconds gets bypassed with --no-verify,
+# and a hook everyone bypasses is worse than no hook.
+#
+#   pip install pre-commit && pre-commit install
+
+# No `default_language_version` pin. The application runtime is pinned to 3.12
+# inside the containers, where it matters; hook tooling runs on whatever host
+# Python is present, and pinning it here only breaks checkouts that happen to
+# have a different local interpreter.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-case-conflict          # Windows/Linux mixed team
+      # README.md is a hand-tuned presentation document — centered HTML blocks,
+      # deliberate spacing, badge rows. Whitespace there is layout, not lint, and
+      # a formatter stripping it silently rewrote 12 lines on first run. Excluded
+      # so presentation stays an authoring decision.
+      - id: end-of-file-fixer
+        exclude: ^README\.md$
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: ^README\.md$
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        exclude: ^README\.md$
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        # Model weights and citizen media must never enter git history; once
+        # committed they are effectively permanent.
+        args: [--maxkb=1024]
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  # Secret scanning. A leaked credential in history is a rotation incident, not
+  # a revert — catching it before the commit lands is the only cheap moment.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # Phase 1a governance checks. They belong here rather than only in CI because
+  # they are pure standard library, run in well under a second, and fail for
+  # reasons that are cheap to fix at commit time — an alert pointing at a
+  # runbook that does not exist, a stage selector the code never emits, a secret
+  # added to the deployment contract with no rotation procedure.
+  - repo: local
+    hooks:
+      - id: runbook-coverage
+        name: runbook coverage (§27.3)
+        entry: python scripts/check_runbooks.py
+        language: system
+        pass_filenames: false
+        files: ^(docs/runbooks/|NEMESIS-Blueprint-v2\.md|backend/nemesis/observability/metrics\.py)
+
+      - id: environment-parity
+        name: environment parity
+        entry: python scripts/check_env_parity.py
+        language: system
+        pass_filenames: false
+        files: ^(\.env\.example|docker-compose\.yml|docs/SECRETS\.md|backend/nemesis/deployment\.py)$
+
+      - id: observability-cross-references
+        name: observability cross-references
+        entry: python scripts/check_observability.py
+        language: system
+        pass_filenames: false
+        files: ^(infra/observability/|docs/runbooks/|backend/nemesis/observability/metrics\.py)
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, refactor, test, chore, perf, build, ci, revert]

@@ -14,3 +14,44 @@ desktop.ini
 *.swp
 .idea/
 .vscode/
+
+# Secrets & local config
+.env
+.env.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Runtime data — never commit citizen uploads or model weights
+data/
+uploads/
+models/
+*.pt
+*.bin
+*.safetensors
+*.onnx
+
+# Validation artefacts are regenerated, not committed
+reports/*.json
+!reports/.gitkeep
