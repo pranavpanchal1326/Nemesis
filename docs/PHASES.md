@@ -89,7 +89,7 @@ that satisfies more of these wins.
 | 2 | Event store, schema registry & tenancy ✅ | A · Platform | PLT | 1a |
 | 3 | Ingestion, orchestration & realtime transport ✅ | A · Platform | PLT | 2 |
 | 4 | Public API, versioning & integration platform | A · Platform | PLT | 3 |
-| 5 | Tenant, taxonomy & organisation service | B · Control Plane | PLT | 2 |
+| 5 | Tenant, taxonomy & organisation service ✅ | B · Control Plane | PLT | 2 |
 | 6 | Policy & rules engine | B · Control Plane | PLT · DATA | 5 |
 | 7 | Configuration simulation & backtesting | B · Control Plane | DATA | 6 |
 | 8 | Trust & safety spine | C · Intelligence | DATA · SEC | 3, 6 |
@@ -765,21 +765,171 @@ an API product with a compatibility obligation, not an endpoint.
 The anti-hardcoding track. This is what turns NEMESIS from a deployment into a
 product, and it is the single largest correction to the previous plan.
 
-## Phase 5 — Tenant, taxonomy & organisation service · PLT
+## Phase 5 — Tenant, taxonomy & organisation service ✅ · PLT
 
-**Ships**
-- Tenant model with plan, locale set, timezone, branding, and data-residency attributes
-- **Custom defect taxonomies as data.** A tenant defines its own categories with display names, translations, icons, severity semantics, routing hints, and attached classifier prompt sets. Nothing in the pipeline references a hardcoded category
-- Organisation modelling: departments, zones/wards, sites, teams, and shifts — an arbitrary hierarchy, because a campus, an industrial park, and a municipality do not share a shape
-- Contractor and vendor registry with certification scopes per taxonomy node
-- Business calendars: working hours, holidays, and monsoon-season windows feeding SLA computation (§13.4)
-- Locale and translation management, so a new language is a data import, not a release
-- Tenant provisioning API and a seeded template library (campus / industrial park / municipality)
+The anti-hardcoding phase. Critique-log defect #1 is a domain model compiled into
+the artefact; this is where it becomes data.
 
-**Gate**
-- A brand-new tenant with a **completely different taxonomy** — zero categories in common with the civic set — is onboarded end to end **without a code change or a deploy**
-- No domain module contains a category, role, ward, or language literal; enforced by a CI check
-- Two tenants with conflicting taxonomies operate simultaneously without leakage
+**Shipped**
+- **Custom defect taxonomies as data** — `taxonomy_nodes` with a tenant-defined
+  key, an arbitrary hierarchy, display names, translations, icons, severity
+  semantics, and routing hints. **The key is an immutable contract and the
+  display name is a translation** (ADR-0019): `classification_scored.category`
+  lives in a log that must stay readable for years, so a rename would orphan
+  history — and "we cannot fix the label because the log would break" is not an
+  answer anybody outside engineering accepts. Two columns, and neither problem
+- **A materialised path, and the two ways it silently goes wrong.** The subtree
+  read is one index-backed prefix scan because Phase 6 walks ancestors per scored
+  complaint against an eight-second §27.1 budget. `roads` is not an ancestor of
+  `roadside_waste`, which a bare `startswith` would claim; and `_` is both the
+  recommended word separator and a `LIKE` wildcard, so the pattern escapes it
+- **Two organisation hierarchies, not one** (ADR-0018): `departments` is
+  *responsibility*, `zones` is *place*, both arbitrary and tenant-`kind`ed. One
+  table reads tidier and cannot express Phase 6's routing rule, which is
+  `(category × place) → responsible unit` — a rule that cannot name both sides
+  cannot be written, and a Public Works division covering eleven wards each
+  worked by four divisions is not a tree
+- **`taxonomy_prompt_sets`** keyed by node, locale, *and* encoder — Phase 9's
+  gate is that a new category is classifiable by adding prompts alone, and a CLIP
+  prompt and the Marathi text prompt that scores the same category cannot share a
+  row without one of them being wrong. Prompts in an undeclared locale are
+  refused, because nothing ever asks for that locale and the category would
+  appear configured while classifying nothing
+- **Business calendars with SLA arithmetic as a pure function.** `resolve_deadline`
+  takes a plain `WorkingWeek` and no session, no ORM, and no clock, because it is
+  the piece most likely to be subtly wrong. Three failure modes are refused by
+  construction: adding hours and *then* checking for a holiday (removes at most
+  one), doing it in UTC (a working day is a wall clock), and treating §13.4's
+  monsoon as non-working (it is harder, not impossible — so it stretches the
+  budget by a stated multiplier and the adjustment is reported with the deadline)
+- **`contractor_certifications` replaces §9.2's `categories_certified` array.**
+  An array cannot carry a validity window, so a certification that lapsed last
+  March is indistinguishable from a current one — and §15.3 would rank on it
+  anyway. `certified_contractors(on=...)` takes the date as a parameter because
+  §17's audit asks retrospectively, and a function that can only answer for today
+  cannot audit an assignment made in March
+- **Translations as tenant data**, with `coverage()` as the honest half: importing
+  strings is easy, and knowing a tenant declared Marathi and translated 40% of its
+  taxonomy is what stops a half-localised deployment reaching a citizen
+- **Tenant provisioning in one transaction**, with a seeded template library
+  (municipality / campus / industrial park) as **JSON data files**. A template
+  written as a Python module would fail this phase's own test in the most
+  embarrassing way. Templates parse through the same Pydantic models the API
+  binds, and `all_templates()` in the suite makes a broken one fail CI rather
+  than the first onboarding that reaches for it
+- **Three new event types on the tenant chain** — `tenant_provisioned`,
+  `taxonomy_published`, `organisation_changed` — so a tenant's configuration
+  history is hash-chained like everything else. `taxonomy_published` carries the
+  content hash of the *whole* taxonomy rather than of the change, so "what was the
+  taxonomy when this complaint was classified" is one comparison instead of a
+  replay. Provisioning appends exactly two: a template creating eleven
+  departments is one operator action, and eleven events would bury it
+- **A control-plane API guarded by a shared token** (ADR-0020), with reads
+  token-free and tenant-scoped. ADR-0009's CLI-only answer was reconsidered and
+  rejected for this surface: the gate is *onboard a customer without opening an
+  editor*, and "shell into the container" is a worse version of the thing the
+  phase removes. The token is not identity and does not pretend to be — which is
+  why every mutation also writes an event, and why a compromise is investigated
+  by reading the chain rather than by asking the token who used it
+- `check_domain_literals.py` as the standing defence, reading the category list
+  **from the seeded templates** so a category added to a template is covered
+  without touching the check; a CLI (`python -m nemesis.control_plane`); a
+  runbook; and three ADRs
+
+**Gate — met**
+- ✅ **A brand-new tenant with a completely different taxonomy, onboarded end to
+  end with no code change and no deploy** — proven three ways because they fail
+  differently: at the service layer, over HTTP in-process, and live against the
+  running stack by `nem gate-phase5`, which invents a vocabulary
+  (`micrometeorite_strike`, `co2_scrubber_fault`) that appears nowhere in this
+  repository, in no template and no fixture
+- ✅ **The new tenant then accepts a citizen complaint** through the Phase 3
+  ingest path. "Provisioning returned 201" and "the tenant is real to the rest of
+  the system" are different claims and only the second one matters
+- ✅ **No domain module contains a category, role, ward, or language literal** —
+  50 modules clean against 33 seeded categories, 7 role names, and ward/language
+  patterns, wired into `nem check` and CI
+- ✅ **Two tenants with conflicting taxonomies operate simultaneously without
+  leakage**, asserted in its sharpest form: the *same key* under different
+  parents with different severity semantics, read back through separate requests
+  against one process and one database. Another tenant's category is **404, never
+  403** — a distinguishable rejection is an enumeration oracle
+- ✅ Provisioning wrote `tenant_provisioned` then `taxonomy_published` on a chain
+  that `verify_chain` recomputes, with no forked sequence
+- ✅ An SLA deadline reports the seasonal adjustment that moved it
+- ✅ ruff clean · ruff format clean · **mypy --strict clean (89 modules)** ·
+  **446 tests passing** · **87.32% coverage** against an 85% floor ·
+  `alembic check` clean · migration applies, reverts, and re-applies · all six
+  check scripts green · **15/15 live gate checks passed**
+
+**Defects the gate and the post-implementation audit caught** (each now covered
+by a regression test or a fix):
+1. **The subtree rewrite matched nothing, and the tree read as intact.**
+   `update_node` reparents a node and then rewrites every descendant's path — and
+   it read `node.path` *after* the `UPDATE`. `session.execute(update(...))`
+   synchronises the session by default, so that attribute already held the *new*
+   path; the rewrite searched for descendants of a prefix nothing was under,
+   matched zero rows, and left every descendant pointing at a path that no longer
+   existed. The moved node itself was correct, so the tree looked right at the
+   level anyone would have checked. Caught only by asserting on the *grandchild* —
+   a test that checked direct children would have passed
+2. **A constraint name Postgres cannot store.** The naming convention's
+   column-concatenation rule produced
+   `uq_contractor_certifications_tenant_id_contractor_id_taxonomy_node_id` — 69
+   characters against a 63-character limit. SQLAlchemy refuses outright, which is
+   the good outcome; a silently truncated name is one a later migration cannot
+   reference, and that is how a migration chain quietly becomes non-reversible
+3. **The autogenerated migration could not run at all.** Alembic emits
+   `geoalchemy2.types.Geography(...)` and does not add the import, so the file
+   raises `NameError` on a fresh database — which is every CI run and every new
+   developer, and invisible on the machine where the migration was generated
+4. **`departments.path` was added `NOT NULL` with no default.** Autogenerate's
+   single-statement form fails on any table that already has rows, which is every
+   deployment that has onboarded a customer. Rewritten as add-nullable, backfill,
+   set-NOT-NULL
+5. **The first hardcoding check reported twenty findings on a clean codebase.**
+   Matching any two- or three-letter lowercase literal as a possible BCP-47 tag
+   flagged `pk` and `fk` from the constraint naming convention, `lat`/`lng` from
+   the realtime envelope, `ok` from a health response, and `jpg` from the upload
+   allow-list. Every one was wrong. A check that is wrong twenty times out of
+   twenty is one people learn to silence — Phase 1a defect #5 in a new place — so
+   it was narrowed to what the critique log actually describes: a *collection* of
+   two or more recognised language codes, which is what a pinned locale set looks
+   like in source
+6. **`tenant_scope` in an `async with` list.** It is a synchronous context
+   manager, so `async with session_scope() as s, tenant_scope(t):` fails at
+   runtime with a message about the asynchronous context manager protocol, from a
+   line that reads correctly. Present in both the CLI and the first test file;
+   the tests now go through one helper so the mistake is unrepeatable
+7. **The pilot safety validator had a new hole and the existing tests found it.**
+   Adding `control_plane_token` to the boot guard broke three tests that
+   construct a pilot `Settings` — correctly, because they assert the guards are
+   real. The token is now in the deployment contract with a rotation procedure,
+   which `check_env_parity.py` demanded before it would pass
+
+**Carried forward, not silently absorbed:**
+- **`departments` keeps its §9.2 name** even though `kind` now makes it general.
+  Renaming it renames `work_orders.department_id`, whose name is mirrored in the
+  `work_order_created` payload — so the rename costs a payload version bump plus
+  an upcaster for no behavioural change. That belongs to Phase 14, which owns
+  work-order workflow and will be editing that payload anyway
+- **`contractors.categories_certified` was dropped and its data cannot be carried
+  forward.** The column held taxonomy *keys* and the new table references
+  `taxonomy_nodes.id`, which this migration creates empty — so there is no row for
+  any key to resolve to. Inventing placeholder nodes to preserve strings nothing
+  can yet interpret would be worse. Stated in the migration rather than discovered
+  from a diff
+- **`severity_semantics` and `routing_hints` are day-one defaults, not policy.**
+  Phase 6 replaces both with versioned, effective-dated, approved documents.
+  Shipping them now is what lets a tenant be useful before that phase lands;
+  shipping them as if they were the final shape would be pre-empting it
+- **Taxonomy structure is not versioned.** Phase 6 owns draft→approve→activate,
+  and building half of it now would fix a shape before the phase that has to live
+  with it exists. What Phase 5 carries is a monotonic revision counter and a
+  content hash, which is enough to answer "which taxonomy scored this complaint"
+- **The control-plane token is a shared secret, and Phase 13 deletes it.** It
+  must not acquire scopes, per-tenant variants, or an expiry — each is a step
+  toward reimplementing authorization badly in the phase that does not own it
 
 ## Phase 6 — Policy & rules engine · PLT · DATA
 

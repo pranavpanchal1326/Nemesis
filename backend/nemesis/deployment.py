@@ -84,6 +84,19 @@ DEPLOYMENT_REQUIRED: tuple[RequiredSetting, ...] = (
         ),
     ),
     RequiredSetting(
+        env_var="NEMESIS_CONTROL_PLANE_TOKEN",
+        setting_path="control_plane_token",
+        criticality=Criticality.SECRET,
+        local_default="dev-only-insecure-control-plane-token-change-me",
+        why=(
+            "Phase 5. Guards tenant provisioning and every taxonomy, calendar, "
+            "and translation write. The local value is published in this "
+            "repository, so a deployment that kept it lets anyone create a "
+            "tenant or redefine what an existing tenant's complaints mean — "
+            "which changes how every future complaint is scored and routed."
+        ),
+    ),
+    RequiredSetting(
         env_var="NEMESIS_CORS_ALLOW_ORIGINS",
         setting_path="cors_allow_origins",
         criticality=Criticality.POLICY,
