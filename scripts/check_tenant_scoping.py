@@ -29,7 +29,23 @@ BACKEND = ROOT / "backend"
 
 #: Packages whose queries must be tenant-scoped. Infrastructure packages
 #: (config, observability, flags) do not touch domain tables at all.
-DOMAIN_PACKAGES = ("nemesis/db", "nemesis/events", "nemesis/projections", "nemesis/pipeline")
+#:
+#: Every package that issues a query against a domain table belongs here. Phase 3
+#: added four (`api`, `ingest`, `outbox`, `realtime`) and adding them to this
+#: tuple was not optional bookkeeping: a domain package outside the list is not
+#: "unchecked", it is *silently exempt*, and the static half of ADR-0014 would
+#: have reported "clean" while the newest and least reviewed query code in the
+#: system went unread.
+DOMAIN_PACKAGES = (
+    "nemesis/api",
+    "nemesis/db",
+    "nemesis/events",
+    "nemesis/ingest",
+    "nemesis/outbox",
+    "nemesis/pipeline",
+    "nemesis/projections",
+    "nemesis/realtime",
+)
 
 MODELS_PACKAGE = BACKEND / "nemesis" / "db" / "models"
 

@@ -107,6 +107,7 @@ http_request_duration_seconds = Histogram(
 http_requests_in_flight = Gauge(
     "nemesis_http_requests_in_flight",
     "Requests currently being served.",
+    multiprocess_mode="livesum",
     registry=REGISTRY,
 )
 
@@ -126,6 +127,109 @@ pipeline_events_total = Counter(
     registry=REGISTRY,
 )
 
+# The §24.2 signal. Labelled by `fallback` and not only by `stage`, because
+# "dedup was skipped" and "the report is parked waiting for a human" are the
+# same event to a counter and completely different to an operator.
+pipeline_stage_degraded_total = Counter(
+    "nemesis_pipeline_stage_degraded_total",
+    "Pipeline stages that took their declared fallback path, by stage and fallback.",
+    labelnames=("stage", "fallback"),
+    registry=REGISTRY,
+)
+
+pipeline_stage_retries_total = Counter(
+    "nemesis_pipeline_stage_retries_total",
+    "Stage attempts beyond the first, by stage.",
+    labelnames=("stage",),
+    registry=REGISTRY,
+)
+
+# A gauge rather than a counter: the question an operator has is "how many
+# complaints are parked right now", and that number must be able to come back
+# down when the queue is worked, which a counter cannot express.
+pipeline_dead_letters_open = Gauge(
+    "nemesis_pipeline_dead_letters_open",
+    "Unresolved pipeline dead letters, by stage.",
+    labelnames=("stage",),
+    multiprocess_mode="max",
+    registry=REGISTRY,
+)
+
+# --- Ingestion (§26.1) -----------------------------------------------------
+ingest_submissions_total = Counter(
+    "nemesis_ingest_submissions_total",
+    "Complaint submissions accepted or rejected, by outcome.",
+    labelnames=("outcome",),
+    registry=REGISTRY,
+)
+
+ingest_upload_bytes = Histogram(
+    "nemesis_ingest_upload_bytes",
+    "Size of accepted submission media.",
+    # Edges around the 15 MB cap: a phone photo lands near 2-5 MB and a voice
+    # note near 100 KB, so the interesting resolution is at the small end.
+    buckets=(64_000, 256_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 15_000_000),
+    registry=REGISTRY,
+)
+
+# --- Rate limiting (§26.4) -------------------------------------------------
+# `tier` is bounded by the declared plan map, never a tenant id.
+rate_limit_decisions_total = Counter(
+    "nemesis_rate_limit_decisions_total",
+    "Rate limit decisions, by tier and outcome (allowed / limited / failed_open).",
+    labelnames=("tier", "outcome"),
+    registry=REGISTRY,
+)
+
+# --- Transactional outbox (Phase 3) ----------------------------------------
+outbox_dispatched_total = Counter(
+    "nemesis_outbox_dispatched_total",
+    "Outbox rows published to the realtime transport.",
+    registry=REGISTRY,
+)
+
+outbox_pending_messages = Gauge(
+    "nemesis_outbox_pending_messages",
+    "Undispatched outbox rows across all tenants.",
+    multiprocess_mode="max",
+    registry=REGISTRY,
+)
+
+# Measured from the event's `occurred_at` to the moment the relay published it.
+# This is the number §26.3's "realtime" claim actually rests on, and the only
+# one that would reveal a relay that is alive, healthy, and hours behind.
+outbox_dispatch_lag_seconds = Histogram(
+    "nemesis_outbox_dispatch_lag_seconds",
+    "Delay between an event being recorded and its realtime publish.",
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 15.0, 60.0, 300.0),
+    registry=REGISTRY,
+)
+
+# --- WebSocket hub (§26.3) -------------------------------------------------
+websocket_connections = Gauge(
+    "nemesis_websocket_connections",
+    "Currently open pipeline-event WebSocket connections.",
+    multiprocess_mode="livesum",
+    registry=REGISTRY,
+)
+
+websocket_messages_sent_total = Counter(
+    "nemesis_websocket_messages_sent_total",
+    "Envelopes written to a client socket.",
+    registry=REGISTRY,
+)
+
+# A client shed for lagging is not an error — it is the hub working as designed
+# (§27.3's fallback is that the client reconnects and polls). It is counted
+# separately from errors so a burst of shedding reads as "somebody's browser
+# tab is throttled", not as an outage.
+websocket_clients_shed_total = Counter(
+    "nemesis_websocket_clients_shed_total",
+    "Connections closed for failing to keep up with their own event stream.",
+    labelnames=("reason",),
+    registry=REGISTRY,
+)
+
 # --- Degradation (§24.2, §27.3) --------------------------------------------
 # The signal that a dependency failed and the system took its fallback path.
 # A pipeline that degrades silently is indistinguishable from one that works.
@@ -140,6 +244,7 @@ dependency_up = Gauge(
     "nemesis_dependency_up",
     "Readiness of a downstream dependency (1 = up, 0 = down).",
     labelnames=("dependency",),
+    multiprocess_mode="min",
     registry=REGISTRY,
 )
 
@@ -172,6 +277,7 @@ event_chain_breaks_total = Counter(
 event_default_partition_rows = Gauge(
     "nemesis_event_default_partition_rows",
     "Rows sitting in the events DEFAULT partition, which should always be zero.",
+    multiprocess_mode="max",
     registry=REGISTRY,
 )
 
@@ -192,6 +298,7 @@ feature_flag_state = Gauge(
     "nemesis_feature_flag_state",
     "Current resolved state of a declared flag (1 = on, 0 = off, -1 = killed).",
     labelnames=("flag",),
+    multiprocess_mode="mostrecent",
     registry=REGISTRY,
 )
 

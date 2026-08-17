@@ -81,6 +81,37 @@ class EntityType(StrEnum):
     SYSTEM = "system"
 
 
+class DegradationFallback(StrEnum):
+    """What a pipeline stage did instead of its job (§24.2).
+
+    Here rather than in ``nemesis.pipeline`` because a *projector* branches on
+    it, and the projection layer must not depend on the orchestration layer —
+    the dependency direction is domain ← projections ← pipeline, and a projector
+    that imported a Celery module would drag the broker into replay.
+
+    Each member is a distinct operational outcome, not a severity ranking:
+
+    ``PENDING_CLASSIFICATION``
+        §24.2 by name. The classifier is unavailable, so the report is parked
+        for manual review with a status that says so. It is never lost and it
+        never receives a guessed category, which downstream would be
+        indistinguishable from a confident one.
+    ``HALTED_FOR_REVIEW``
+        A stage that cannot be skipped failed — the safety fail-safe being the
+        one that matters. Proceeding would mean scoring a report the danger
+        check never saw, so the pipeline stops and a human is the next step.
+    ``SKIPPED_STAGE``
+        The stage is optional and its absence only reduces information. EXIF
+        cross-check is the example: §11.1 already treats absent EXIF as reduced
+        trust rather than as a rejection, so an unavailable checker lands in
+        the same place the missing-metadata case already does.
+    """
+
+    PENDING_CLASSIFICATION = "pending_classification"
+    HALTED_FOR_REVIEW = "halted_for_review"
+    SKIPPED_STAGE = "skipped_stage"
+
+
 class AssigneeType(StrEnum):
     STAFF = "staff"
     CONTRACTOR = "contractor"

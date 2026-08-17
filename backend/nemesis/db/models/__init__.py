@@ -24,6 +24,7 @@ from nemesis.db.models.event import (
     EventSnapshot,
 )
 from nemesis.db.models.organisation import Contractor, Department, User
+from nemesis.db.models.outbox import OutboxMessage, PipelineDeadLetter
 from nemesis.db.models.tenant import Tenant
 from nemesis.db.models.work_order import BudgetAllocation, WorkOrder
 from nemesis.tenancy.registry import TENANT_COLUMN, register_tenant_scoped_table
@@ -43,6 +44,8 @@ __all__ = [
     "EventChainHead",
     "EventIdempotency",
     "EventSnapshot",
+    "OutboxMessage",
+    "PipelineDeadLetter",
     "Tenant",
     "User",
     "WorkOrder",

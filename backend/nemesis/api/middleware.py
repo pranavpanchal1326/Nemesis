@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Awaitable, Callable
-from typing import Final
+from typing import Any, Final
 
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -109,6 +109,95 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
                 )
 
 
+class BodySizeLimitMiddleware:
+    """Refuse an oversized request body **while it is arriving**.
+
+    Pure ASGI rather than ``BaseHTTPMiddleware``, because this has to intercept
+    ``receive`` — the only place where "how many bytes have actually been read"
+    exists. A check on ``UploadFile`` after the fact runs once the body is
+    already spooled to disk, which enforces the limit precisely up to the point
+    where enforcing it would have mattered.
+
+    Two layers, and the second is the one that works:
+
+    1. ``Content-Length``, when present, is rejected up front. Cheap, and it
+       gives an honest client a useful error before it uploads anything.
+    2. A running total across ``http.request`` messages. A chunked upload
+       carries no ``Content-Length`` at all, so this is what actually caps a
+       client that is trying to be difficult.
+
+    The cap is the per-file limit plus headroom: one submission may legitimately
+    carry a photo *and* a voice note (§26.1), plus multipart framing.
+    """
+
+    #: Multipart boundaries, part headers, and the small text fields. Generous
+    #: because being wrong in the tight direction rejects a valid submission.
+    OVERHEAD_BYTES: Final = 64 * 1024
+
+    def __init__(self, app: Any, *, max_body_bytes: int) -> None:
+        self.app = app
+        self._max = max_body_bytes
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+
+        declared = _content_length(scope)
+        if declared is not None and declared > self._max:
+            await _reject_too_large(send, self._max)
+            return
+
+        received = 0
+
+        async def counting_receive() -> Any:
+            nonlocal received
+            message = await receive()
+            if message.get("type") == "http.request":
+                received += len(message.get("body", b""))
+                if received > self._max:
+                    # Signalling end-of-stream rather than raising: an exception
+                    # here escapes into the ASGI server, which turns a rejected
+                    # upload into a 500 and a stack trace. Truncating makes the
+                    # multipart parser fail cleanly, and the route's own cap
+                    # reports it as the 413 it is.
+                    return {"type": "http.disconnect"}
+            return message
+
+        await self.app(scope, counting_receive, send)
+
+
+def _content_length(scope: Any) -> int | None:
+    for key, value in scope.get("headers", ()):
+        if key == b"content-length":
+            try:
+                return int(value)
+            except ValueError:
+                return None
+    return None
+
+
+async def _reject_too_large(send: Any, limit: int) -> None:
+    body = (
+        b'{"type":"https://nemesis.dev/problems/upload-too-large",'
+        b'"title":"Request body too large","status":413,'
+        b'"detail":"The request body exceeds the configured limit of '
+        + str(limit).encode()
+        + b' bytes."}'
+    )
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 413,
+            "headers": [
+                (b"content-type", b"application/problem+json"),
+                (b"content-length", str(len(body)).encode()),
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": body})
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -152,3 +241,12 @@ def register_middleware(app: FastAPI, settings: Settings) -> None:
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(ObservabilityMiddleware)
     app.add_middleware(CorrelationHeaderMiddleware)
+    # Outermost of all. A body that will be refused should be refused before any
+    # other middleware has done work on the request — and before the multipart
+    # parser has had a chance to spool it to disk.
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        max_body_bytes=(
+            settings.ingest.max_upload_bytes * 2 + BodySizeLimitMiddleware.OVERHEAD_BYTES
+        ),
+    )

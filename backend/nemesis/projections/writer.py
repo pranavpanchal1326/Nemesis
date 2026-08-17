@@ -92,6 +92,8 @@ def _complaint_values(
         "is_safety_flagged": state.get("is_safety_flagged", False),
         "is_fraud_flagged": state.get("is_fraud_flagged", False),
         "funding_source": state.get("funding_source"),
+        "degraded_stage": state.get("degraded_stage"),
+        "degraded_fallback": state.get("degraded_fallback"),
         "version": result.sequence,
     }
 

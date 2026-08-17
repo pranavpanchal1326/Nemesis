@@ -60,6 +60,12 @@
       "has_upcaster": false,
       "model": "ExifCheckCompletedV1"
     },
+    "pipeline_stage_degraded@1": {
+      "entity_type": "complaint",
+      "fingerprint": "1356f6f3c419e48e6d968837077d13a71b9f275b7c431cdf40a55221f5111301",
+      "has_upcaster": false,
+      "model": "PipelineStageDegradedV1"
+    },
     "safety_trigger_fired@1": {
       "entity_type": "complaint",
       "fingerprint": "65d34c87a6eb6a80c85d8faf8dcf288d3886454dc451c633967d28d4e757393f",

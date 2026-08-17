@@ -72,3 +72,6 @@ The concrete signal that should reopen this decision.
 | [0012](0012-halfvec-for-image-embeddings.md) | `halfvec(512)` for image embeddings, full `vector(384)` for text | Accepted | PLT · DATA |
 | [0013](0013-rfc-8785-canonical-json.md) | Event payloads are hashed through RFC 8785 canonical JSON | Accepted | PLT |
 | [0014](0014-tenancy-enforced-at-three-layers.md) | Tenant isolation is enforced at three layers, none of them convention | Accepted | PLT · SEC |
+| [0015](0015-transactional-outbox-with-a-dedicated-relay.md) | Realtime events publish from a transactional outbox, drained by a dedicated relay | Accepted | PLT |
+| [0016](0016-realtime-payloads-are-default-deny.md) | A published event payload is empty unless a shape is declared for it | Accepted | PLT · SEC |
+| [0017](0017-the-rate-limiter-fails-open.md) | The submission rate limiter fails open, and counts every time it does | Accepted | PLT · SEC |

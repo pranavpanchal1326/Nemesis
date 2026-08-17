@@ -17,14 +17,13 @@ tamper. A finding produces a metric, a structured log, and an event on the
 
 from __future__ import annotations
 
-import asyncio
-import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
 
 from nemesis.db.session import session_scope
+from nemesis.domain.constants import SYSTEM_TENANT_ID as _SYSTEM_TENANT_ID
 from nemesis.events.partitions import (
     default_partition_rows,
     detachable_partitions,
@@ -37,9 +36,12 @@ from nemesis.observability.metrics import (
     event_chain_breaks_total,
     event_chains_verified_total,
     event_default_partition_rows,
+    outbox_pending_messages,
 )
+from nemesis.outbox.writer import purge_dispatched, undispatched_total
 from nemesis.tenancy.context import tenant_scope
 from nemesis.worker.celery_app import QUEUE_IO, celery_app
+from nemesis.worker.loop import run_async
 
 logger = structlog.get_logger(__name__)
 
@@ -53,18 +55,17 @@ SWEEP_BATCH_SIZE = 500
 #: partition the time machine still reads would break a shipped feature.
 RETENTION_MONTHS = 12
 
-#: The tenant a system-level finding is recorded against. Integrity findings and
-#: degradations belong to the deployment rather than to any customer, so they
-#: get a fixed, reserved tenant rather than being attributed to whichever tenant
-#: happened to own the broken chain — which would put an operational failure in
-#: a customer's audit trail.
-SYSTEM_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+#: Re-exported so existing callers keep their import site. The constant itself
+#: moved to ``nemesis.domain.constants`` when Phase 3 discovered it had to be a
+#: real row in ``tenants`` — see that module for why, and the Phase 3 migration
+#: for the row.
+SYSTEM_TENANT_ID = _SYSTEM_TENANT_ID
 
 
 @celery_app.task(name="nemesis.integrity.sweep_chains", queue=QUEUE_IO, bind=False)
 def sweep_chain_integrity(limit: int = SWEEP_BATCH_SIZE) -> dict[str, Any]:
     """Verify a batch of chains and report any that do not recompute."""
-    return asyncio.run(_sweep_chain_integrity(limit))
+    return run_async(_sweep_chain_integrity(limit))
 
 
 async def _sweep_chain_integrity(limit: int) -> dict[str, Any]:
@@ -102,7 +103,7 @@ async def _sweep_chain_integrity(limit: int) -> dict[str, Any]:
 @celery_app.task(name="nemesis.integrity.maintain_partitions", queue=QUEUE_IO, bind=False)
 def maintain_event_partitions() -> dict[str, Any]:
     """Keep the partition window ahead of the clock and watch the default."""
-    return asyncio.run(_maintain_event_partitions())
+    return run_async(_maintain_event_partitions())
 
 
 async def _maintain_event_partitions() -> dict[str, Any]:
@@ -142,6 +143,35 @@ async def _maintain_event_partitions() -> dict[str, Any]:
         "rows_in_default_partition": stranded,
         "eligible_for_archival": eligible,
     }
+
+
+#: How long a dispatched outbox row is kept so a reconnecting client can be
+#: caught up from it. Twenty-four hours: long enough to cover a laptop closed
+#: overnight, short enough that the table the relay scans stays small.
+OUTBOX_RESUME_WINDOW_HOURS = 24
+
+
+@celery_app.task(name="nemesis.integrity.purge_outbox", queue=QUEUE_IO, bind=False)
+def purge_dispatched_outbox() -> dict[str, Any]:
+    """Drop dispatched outbox rows past the resume window."""
+    return run_async(_purge_dispatched_outbox())
+
+
+async def _purge_dispatched_outbox() -> dict[str, Any]:
+    horizon = datetime.now(tz=UTC) - timedelta(hours=OUTBOX_RESUME_WINDOW_HOURS)
+    async with session_scope() as session:
+        deleted = await purge_dispatched(session, older_than=horizon)
+        remaining = await undispatched_total(session)
+
+    # Published from the purge rather than from the relay: the relay only ever
+    # sees the rows it is about to send, so its view of "pending" is bounded by
+    # its own batch size and would read as healthy no matter how far behind it
+    # was. This task counts the whole backlog.
+    outbox_pending_messages.set(remaining)
+
+    if deleted:
+        logger.info("outbox_rows_purged", deleted=deleted, older_than=horizon.isoformat())
+    return {"deleted": deleted, "pending": remaining, "horizon": horizon.isoformat()}
 
 
 async def record_system_degradation(
