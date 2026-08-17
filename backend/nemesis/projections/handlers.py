@@ -16,7 +16,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from nemesis.domain.lifecycle import ComplaintStatus, EntityType, WorkOrderStatus
+from nemesis.domain.lifecycle import (
+    ComplaintStatus,
+    DegradationFallback,
+    EntityType,
+    WorkOrderStatus,
+)
 from nemesis.projections.registry import ProjectedState, ProjectionEvent, projector
 
 # ---------------------------------------------------------------------------
@@ -88,6 +93,31 @@ def _classification_scored(state: ProjectedState, event: ProjectionEvent) -> Pro
     # pipeline and must not be walked back into it by a later stage completing.
     if not state.get("is_safety_flagged"):
         state["status"] = ComplaintStatus.CLASSIFIED.value
+    return state
+
+
+@projector(EntityType.COMPLAINT, "pipeline_stage_degraded")
+def _pipeline_stage_degraded(state: ProjectedState, event: ProjectionEvent) -> ProjectedState:
+    """§24.2. Records *that* the pipeline degraded, and moves the status only
+    for the one fallback whose whole purpose is a status.
+
+    Unrecognised fallback values are recorded and change nothing. A projector
+    must be total — it is replayed by builds newer and older than the writer —
+    and inventing a status for a fallback this build has never heard of would be
+    a guess written into current state.
+    """
+    payload = event.payload
+    state["degraded_stage"] = payload["stage"]
+    state["degraded_fallback"] = payload["fallback_taken"]
+    state["degraded_failure_mode"] = payload["failure_mode"]
+    state["degraded_at"] = event.occurred_at
+    # Same precedence rule as classification: a safety flag means the report was
+    # routed out of the normal pipeline, and a later degradation must not walk
+    # it back into the ordinary work list.
+    if payload[
+        "fallback_taken"
+    ] == DegradationFallback.PENDING_CLASSIFICATION.value and not state.get("is_safety_flagged"):
+        state["status"] = ComplaintStatus.PENDING_CLASSIFICATION.value
     return state
 
 

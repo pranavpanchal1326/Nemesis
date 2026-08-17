@@ -14,6 +14,8 @@ from sqlalchemy import text
 
 from nemesis.api.errors import register_exception_handlers
 from nemesis.api.middleware import register_middleware
+from nemesis.api.ratelimit import close_limiter
+from nemesis.api.v1 import api_v1, realtime_router
 from nemesis.config import Settings, get_settings
 from nemesis.db.session import dispose_engine, get_engine
 from nemesis.flags import close_flags, get_flags
@@ -21,6 +23,7 @@ from nemesis.flags.registry import REGISTRY
 from nemesis.observability import metrics
 from nemesis.observability.logging import configure_logging, get_logger
 from nemesis.observability.tracing import configure_tracing
+from nemesis.realtime.service import close_realtime
 
 log = get_logger(__name__)
 
@@ -66,6 +69,12 @@ def _lifespan_factory(settings: Settings) -> Any:
         try:
             yield
         finally:
+            # Realtime first: closing sockets needs the loop, the flag store,
+            # and Redis to still be alive. Disposing the engine before telling
+            # connected clients the server is going away would leave them
+            # waiting for a close frame that never arrives.
+            await close_realtime()
+            await close_limiter()
             await dispose_engine()
             await close_flags()
             log.info("shutdown")
@@ -154,6 +163,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def prometheus_metrics() -> Response:
         payload, content_type = metrics.render()
         return Response(content=payload, media_type=content_type)
+
+    # Domain routers (Phase 3). Registered after the ops probes so a routing
+    # mistake in a domain router can never shadow /health or /ready — the two
+    # endpoints an orchestrator uses to decide whether this process lives.
+    app.include_router(api_v1)
+    app.include_router(realtime_router)
 
     return app
 

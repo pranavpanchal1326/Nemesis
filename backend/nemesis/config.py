@@ -147,6 +147,101 @@ class FeatureFlagSettings(BaseModel):
     redis_key: str = "nemesis:feature_flags"
 
 
+class IngestSettings(BaseModel):
+    """Submission limits (§26.1), enforced while the request body streams.
+
+    ``max_upload_bytes`` is a *streaming* cap, not a post-hoc check. A cap
+    applied after reading the body has already spent the disk and the memory it
+    was supposed to protect, which means the limit is enforced precisely up to
+    the point where enforcing it would have mattered.
+
+    Content types are allow-lists and are matched against **sniffed magic
+    bytes**, never against the ``Content-Type`` the client sent. A declared
+    content type is a claim by an untrusted party; §25.1 lists upload handling
+    as a threat surface, and "it said it was a JPEG" is not a control.
+    """
+
+    max_upload_bytes: int = Field(default=15 * 1024 * 1024, gt=0)
+    #: §26.1 states 1000 characters. Enforced at the boundary so an oversized
+    #: description is a 422 rather than a row that will not fit a later column.
+    max_description_chars: int = Field(default=1000, gt=0)
+
+    #: Read size while streaming to disk. 64 KiB is large enough that the syscall
+    #: overhead is irrelevant and small enough that a hundred concurrent uploads
+    #: do not add up to a memory problem on a 16 GB laptop.
+    stream_chunk_bytes: int = Field(default=64 * 1024, gt=0)
+
+    allowed_image_types: tuple[str, ...] = ("image/jpeg", "image/png", "image/webp")
+    allowed_audio_types: tuple[str, ...] = (
+        "audio/mpeg",
+        "audio/ogg",
+        "audio/wav",
+        "audio/webm",
+        "audio/mp4",
+    )
+
+    #: §27.1 budgets submission acknowledgment at under two seconds and the full
+    #: non-ambiguous pipeline at under thirty. This is what the 202 reports back
+    #: to the client, so the number a citizen sees is the number the SLA table
+    #: states rather than an independently invented estimate.
+    estimated_processing_seconds: int = Field(default=8, gt=0)
+
+
+class RateLimitTier(BaseModel):
+    """One token bucket's shape."""
+
+    #: Sustained rate: tokens refilled per window.
+    requests: int = Field(gt=0)
+    window_seconds: int = Field(gt=0)
+    #: Bucket capacity. Above ``requests`` so a citizen photographing three
+    #: potholes on one street is not rejected for it — the limit exists to stop
+    #: automated flooding, not to pace an engaged reporter.
+    burst: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def _burst_must_not_undercut_rate(self) -> RateLimitTier:
+        if self.burst < 1:
+            raise ValueError("burst must allow at least one request")
+        return self
+
+
+class RateLimitSettings(BaseModel):
+    """Tiered limits (§26.4), resolved per tenant plan.
+
+    **Provisional by design.** Phase 6 makes every behavioural knob governed,
+    effective-dated policy data, and these limits are on that list. Until then
+    they are typed configuration and the plan-to-tier mapping is a dict, which
+    is honest about what it is: a solutions engineer can change a customer's
+    tier without a deploy only once Phase 6 lands.
+
+    ``fail_open`` is the decision worth arguing about. When Redis is unavailable
+    the limiter cannot know whether a request is over budget, and it must choose.
+    It allows the request, because the thing being rate-limited is a citizen
+    reporting a hazard: dropping real reports during a Redis outage is a worse
+    outcome than briefly permitting abuse, and the abuse paths have their own
+    controls in §11.3. The choice is counted (``failed_open``) so it is visible
+    rather than assumed.
+    """
+
+    enabled: bool = True
+    fail_open: bool = True
+
+    anonymous: RateLimitTier = RateLimitTier(requests=20, window_seconds=3600, burst=5)
+    authenticated: RateLimitTier = RateLimitTier(requests=120, window_seconds=3600, burst=20)
+    partner: RateLimitTier = RateLimitTier(requests=3600, window_seconds=3600, burst=120)
+
+    #: Tenant plan -> tier name. An unlisted plan resolves to ``anonymous``,
+    #: which is the restrictive direction: a plan nobody has configured must not
+    #: silently receive the highest allowance.
+    plan_tiers: dict[str, str] = Field(
+        default_factory=lambda: {
+            "trial": "anonymous",
+            "pilot": "authenticated",
+            "partner": "partner",
+        }
+    )
+
+
 class OllamaSettings(BaseModel):
     """Local LLM used by the Investigation Agent (Blueprint §12.4)."""
 
@@ -202,11 +297,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_ttl_seconds: int = Field(default=3600, gt=0)
 
-    # --- ingestion limits --------------------------------------------------
-    max_upload_bytes: int = Field(default=15 * 1024 * 1024, gt=0)
-    rate_limit_submissions_per_hour: int = Field(default=20, gt=0)
-
     # --- nested groups -----------------------------------------------------
+    ingest: IngestSettings = IngestSettings()
+    rate_limit: RateLimitSettings = RateLimitSettings()
     dedup: DedupSettings = DedupSettings()
     severity: SeveritySettings = SeveritySettings()
     models: ModelSettings = ModelSettings()

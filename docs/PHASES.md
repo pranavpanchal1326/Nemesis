@@ -87,7 +87,7 @@ that satisfies more of these wins.
 | 1a | Engineering operating system (local-first) ✅ | 0 · Operating System | SRE | 0 |
 | 1b | Cloud environments & promotion pipeline | 0 · Operating System | SRE | 1a + a chosen deploy target |
 | 2 | Event store, schema registry & tenancy ✅ | A · Platform | PLT | 1a |
-| 3 | Ingestion, orchestration & realtime transport | A · Platform | PLT | 2 |
+| 3 | Ingestion, orchestration & realtime transport ✅ | A · Platform | PLT | 2 |
 | 4 | Public API, versioning & integration platform | A · Platform | PLT | 3 |
 | 5 | Tenant, taxonomy & organisation service | B · Control Plane | PLT | 2 |
 | 6 | Policy & rules engine | B · Control Plane | PLT · DATA | 5 |
@@ -495,25 +495,202 @@ Phase 10, which knows how large the index needs to be.
 - A domain query without tenant scoping fails a static check
 - Every migration applies, reverts, and re-applies cleanly
 
-## Phase 3 — Ingestion, orchestration & realtime transport · PLT
+## Phase 3 — Ingestion, orchestration & realtime transport ✅ · PLT
 
-**Ships**
-- `POST /api/v1/complaints` (§26.1) with streaming multipart, content-type sniffing, size caps, and an idempotency key
-- `GET /api/v1/complaints/{id}` (§26.2), ETag-aware
-- Celery task graph as discrete, retryable, idempotent stages with explicit retry budgets and dead-letter handling
-- **Transactional outbox** — realtime events publish from committed rows, never from inside a request handler, so the map can never render an event that later rolled back
-- WebSocket hub `/ws/pipeline-events` (§26.3) with per-connection backpressure, heartbeat, resumable cursors, and tenant scoping
-- Tiered rate limiting — anonymous, authenticated, and partner tiers resolved from the control plane
-- Graceful degradation (§24.2): classifier down → `pending_classification` and manual review, never a lost report
-- OpenTelemetry spans stitched across HTTP → queue → worker
-- **Worker metrics export — carried forward from Phase 1a, and it must land here.** Celery workers serve no HTTP port, so Prometheus does not scrape them; correct export needs `prometheus_client` multiprocess mode (a shared `PROMETHEUS_MULTIPROC_DIR` and a `multiprocess_mode` on every Gauge). Deferring it in Phase 1a cost nothing because `nemesis/pipeline/` was empty and there were zero worker-side metrics to miss. **The moment the first worker task ships, every §41 pipeline KPI becomes unobservable without it** — the dashboards and alert rules already exist and would silently show no data (ADR-0008)
+The path from a citizen's phone to a pin on a map, and the guarantees that make
+each hop survivable.
 
-**Gate**
-- One submission emits the full event sequence in order with a valid chain
-- `SIGKILL` mid-pipeline loses nothing on restart
-- A rolled-back transaction never emits a WebSocket event
-- A client that stops reading is shed without stalling the hub
-- Rate limit tiers verified per tenant plan
+**Shipped**
+- `POST /api/v1/complaints` (§26.1) with the size cap enforced **while the body
+  streams** — an ASGI-level counter over `receive`, because a check on
+  `UploadFile` runs once the body is already spooled to disk and enforces the
+  limit precisely up to the point where enforcing it would have mattered. Content
+  type comes from **sniffed magic bytes**, per field; the `Content-Type` the
+  client sends is ignored entirely (§25.1), and so is the filename — stored media
+  is content-addressed by its own SHA-256, so a path traversal has nothing to
+  traverse with and two identical uploads are one file
+- **Media lands in quarantine and Phase 3 serves nothing.** §22.1 requires face
+  blur before any persistence including temp paths, and the blur is Phase 8's —
+  it needs MediaPipe, which lives in `worker-ml`. So there is deliberately no
+  media endpoint in this phase and the reference recorded in the event is an
+  internal URI a browser cannot follow. A stated constraint rather than a gap
+  glossed over: Phase 8 inserts blur-and-promote between quarantine and a served
+  store, and its repository-level guard test has exactly one code path to police
+  because of this
+- `GET /api/v1/complaints/{id}` (§26.2), **ETag-aware** — the validator is the
+  projection's `version`, which is the log position the row reflects rather than
+  a hash of the body, so it is exactly as strong as the representation and free
+  to compute. §27.3's polling fallback is 5 seconds per client, and this is what
+  makes that affordable. The response carries no citizen data at all until Phase
+  13 can say who is asking
+- **Celery task graph as declarations, not control flow.** Five stages, each with
+  its own queue, retry budget, backoff, declared fallback, and a
+  `continue_on_degrade` flag — because whether a missing dedup pass should stop
+  everything is a property of dedup (§14.3: an unmerged duplicate is the safe
+  error), not of the error handling. Each stage enqueues its successor by name
+  rather than running inside a Celery `chain`, so §11.2's "bypasses the scoring
+  pipeline entirely" means the successors are never enqueued instead of four
+  no-ops holding queue slots behind a danger signal
+- **The perception, dedup, and scoring providers are deliberately absent.** Phase
+  3 owns orchestration — transactions, idempotency, ordering, retry budgets, and
+  what happens when a stage cannot run. Shipping a placeholder classifier would
+  be Phase 2's twelfth defect repeated on purpose. The unregistered stage takes
+  its declared degradation path, which is not a stub: §24.2 requires the degraded
+  path to be real shipped behaviour, and a report parked because no classifier
+  exists behaves exactly as one will the day the classifier is down
+- **Redelivery is a provable no-op at the stage, not at the event.** Every event
+  a stage emits is keyed `pipeline:<stage>:<complaint>:<index>`, and a redelivery
+  detected on the *first* append abandons the whole transaction. Checking only
+  the first is the point: letting each slot no-op independently means a provider
+  that emits three events this time and two last time appends a brand-new event
+  onto a chain that has already moved on — the stage would have half-run twice
+- **Transactional outbox** (ADR-0015) written in the same transaction as the
+  event, drained by a **dedicated relay process** under a Postgres advisory lock.
+  The row is a *pointer*, not a payload copy: a denormalised copy would double
+  what Phase 26 must erase and Phase 4 must scrub, and could drift from the row
+  whose hash was signed
+- **WebSocket hub `/ws/pipeline-events`** (§26.3) with a bounded queue and its
+  own writer task per connection, so **no fan-out path ever awaits a socket**. A
+  client that stops reading is shed — closed with a code that means "you fell
+  behind" and a resume cursor in the close frame — rather than being allowed to
+  stall the process serving everyone else. Heartbeats go through the same queue,
+  so a dead tab fills its buffer on heartbeats alone and is shed on schedule
+  instead of lingering as a healthy-looking connection
+- **A published payload is empty unless a shape is declared for it** (ADR-0016).
+  Strip-the-sensitive-fields fails on the next field somebody adds;
+  declare-what-is-allowed fails safe on the same change. Coordinates are coarsened
+  at the source to ~110 m, and §26.3's own example is knowingly not followed —
+  its `merged_complaint_ids` are citizen identifiers §26.4 forbids on a public
+  surface
+- **Tiered rate limiting** on an atomic Redis token bucket, resolved per tenant
+  plan, that **fails open and counts every time it does** (ADR-0017). The thing
+  being limited is a citizen reporting a hazard; a fail-open indistinguishable
+  from a normal allow is a control nobody can prove is working
+- **Worker metrics export — the Phase 1a carry-forward, landed.**
+  `prometheus_client` multiprocess mode, a shared `PROMETHEUS_MULTIPROC_DIR`, an
+  explicit `multiprocess_mode` on every gauge, an exporter per worker container,
+  stale mmap files cleared before the children fork, and Prometheus scrape jobs.
+  The §41 pipeline KPI panels and alert rules already existed and would have shown
+  no data indefinitely, which reads as "no traffic" rather than "no export"
+- Four new alert rules and a runbook page for the failure this phase introduces:
+  a relay that is alive, healthy, and hours behind
+- Three ADRs, and `nem gate-phase3` — a live drill against the running stack,
+  because two of the gate clauses are about *processes* and are not reachable
+  from a test process
+
+**Gate — met**
+- ✅ **One submission emits the full §10 sequence in order, on chains that
+  recompute.** `complaint_submitted → exif_check_completed →
+  classification_scored → severity_scored` on the complaint chain,
+  `cluster_created` on the cluster chain, `work_order_created` on the work-order
+  chain — each verified by `verify_chain`, and each projection materialised into
+  its current-state table rather than only into a projected dict
+- ✅ **A redelivered stage appends nothing**, enqueues no second realtime
+  publish, and reports it. A stage that fails partway leaves no partial write
+- ✅ **A rolled-back transaction never emits a WebSocket event** — structurally,
+  not by arrangement: the relay reads committed rows, so there is no code path
+  from an uncommitted event to a socket
+- ✅ **A client that stops reading is shed without stalling the hub** — asserted
+  against a sink whose `send` never returns, with a healthy peer proving the hub
+  kept delivering throughout
+- ✅ **Rate limit tiers verified per tenant plan**, against real Redis, including
+  continuous refill and the fail-open path
+- ✅ **`SIGKILL` on the worker loses nothing**, drilled live: a submission made
+  while the worker is dead is durably queued, the replacement completes it
+  exactly once, and an untouched complaint gains no duplicate
+- ✅ ruff clean · ruff format clean · **mypy --strict clean (74 modules)** ·
+  **361 tests passing** · **87.68% coverage** against an 85% floor ·
+  `alembic check` clean · all five check scripts green · promtool validates 24
+  rules · **14/14 live gate checks passed** on three consecutive runs against
+  the running seven-service stack
+
+**Defects the gate caught** (each now covered by a regression test or a fix):
+1. **`record_system_degradation` could never have worked.** `events.tenant_id`
+   carries a foreign key to `tenants`, and Phase 2's reserved `SYSTEM_TENANT_ID`
+   was a Python constant with no row behind it — so every degradation record
+   would have failed on the foreign key. The failure mode is the bad kind: it
+   raises *inside* the handler recording some other failure, so the second error
+   masks the first, and the only code path that would ever have exercised it is
+   the one that runs when the system is already broken. Phase 2 shipped it
+   because a test created the row itself, which made the test pass while
+   production could not
+2. **Every Celery worker child processed exactly one task and then failed
+   everything after it.** The task bodies called `asyncio.run`, which creates a
+   *new* event loop per task, while `nemesis.db.session` caches a module-global
+   engine whose asyncpg connections bind to the loop that created them. So the
+   first task built the engine on loop A and succeeded, and the second was handed
+   a pooled connection owned by loop A on loop B: `got Future attached to a
+   different loop`. The shape is what makes it dangerous — on a quiet system,
+   with tasks arriving one at a time and restarts in between, it looks like it
+   works; under load it degrades every complaint behind the first one into the
+   dead-letter queue, correctly and uselessly, with a stack trace that names
+   asyncio rather than anything in this codebase. Fixed with one persistent loop
+   per process (`nemesis/worker/loop.py`) rather than by disposing the engine per
+   task, which would trade the bug for a fresh TCP connection and prepared-
+   statement cache on every pipeline stage.
+
+   **The suite could not have caught it**, and that is the uncomfortable part
+   twice over. pytest-asyncio gives every test a fresh loop, so a test process
+   reproduces the *working* case by construction — the live gate found it, on the
+   second submission of a re-run. `tests/conftest.py` had documented this exact
+   hazard for the test engine since Phase 1; the same reasoning was never applied
+   to the worker. The regression test now does what a worker does rather than
+   what a test normally does, plus a grep that fails if any task module reaches
+   for `asyncio.run` again
+3. **Starlette's deprecated `HTTP_413_REQUEST_ENTITY_TOO_LARGE` turned a 413 into
+   a 500.** Phase 0 hit exactly this with 422 and fixed *that constant*; the
+   class was still open, so the first oversized upload raised the deprecation
+   under `filterwarnings = ["error"]` from inside the error handler. Every status
+   code this API returns from an error path is now a named literal
+4. **The metrics tmpfs was root-owned against a uid-10001 image.**
+   `tmpfs: [/tmp/prometheus]` mounts 0755 root, and the image runs
+   `USER nemesis`, so `prometheus_client` raised `PermissionError` while creating
+   its mmap file — at *import* of `metrics.py`, before any application code runs,
+   taking the worker into a crash loop. Nothing in Python can repair it: the
+   directory has to be writable before the process starts
+5. **Celery's Redis `visibility_timeout` was never set, so it was one hour.**
+   Redis has no acknowledgement; `task_acks_late` is implemented by restoring a
+   message after the visibility timeout, and there is no connection-drop signal
+   that returns it sooner. A worker killed mid-task therefore did not have its
+   work redelivered "on restart" — it had it redelivered 3600 seconds later, with
+   nothing anywhere saying so. Found by the SIGKILL drill, which is the only
+   thing that could have found it
+6. **The static tenancy check scanned four packages and Phase 3 added four
+   more.** A domain package outside `DOMAIN_PACKAGES` is not "unchecked", it is
+   *silently exempt* — the newest and least reviewed query code in the system
+   would have gone unread while the check reported clean
+7. **`AppendedEvent` carried no `correlation_id`**, so the outbox would have had
+   to re-read the event it had just written in order to stamp the published
+   envelope — a query existing only because a dataclass field was missing
+8. **A `text()` bind parameter for a UUID.** asyncpg sends a string and Postgres
+   refuses to coerce varchar to uuid, so the migration's seed failed with a
+   datatype mismatch. The same family as Phase 2's DDL and `::regclass` findings:
+   a parameter that reads correctly and does not run
+9. **The first backpressure test sheds every client, not just the slow one.** A
+   burst broadcast with no scheduling yield fills every bounded queue. That is an
+   artefact of the test rather than the hub — the production listener consumes
+   the Redis subscription with `async for`, so each message is its own scheduling
+   turn — but it pinned down an invariant the hub silently depends on, and the
+   test now documents it rather than working around it
+
+**Carried forward, not silently absorbed:**
+- **Tenant resolution is an `X-Tenant-ID` header, and it is not authentication.**
+  Phase 13 owns identity. Every consequence is confined to one function, so that
+  phase's change is a function body rather than a refactor
+- **Rate-limit tiers are typed configuration keyed by `tenants.plan`**, not
+  control-plane policy. Phase 6 makes them versioned and effective-dated
+- **In-flight `SIGKILL` recovery is bounded at 360 seconds, not instant.** The
+  queued case recovers immediately and is drilled; the in-flight case is a Redis
+  visibility timeout and is stated rather than implied
+- **`HALTED_FOR_REVIEW` deliberately does not invent a status.** A halted
+  complaint keeps a truthful status — it genuinely has not been classified — and
+  the projection and the API response carry `degraded_stage` and
+  `degraded_fallback` so a client can tell "still processing" from "stopped,
+  waiting for a human". Adding a lifecycle state is a migration plus an upcaster,
+  which `domain/lifecycle.py` argues is the correct cost for changing the shape
+  of the pipeline and the wrong cost for describing a degradation
+- **The human review queue that works the dead-letter table is Phase 8's.** Phase
+  3 ships the table, the events, and the metrics; §11.4's reviewer UI is not here
 
 ## Phase 4 — Public API, versioning & integration platform · PLT
 

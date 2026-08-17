@@ -84,6 +84,11 @@ class AppendedEvent:
     recorded_at: datetime
     previous_hash: str
     event_hash: str
+    #: Carried on the result, not just written to the row. The outbox needs it to
+    #: stamp the published envelope, and re-reading the event to recover a value
+    #: the caller had in hand a moment ago is a query that exists only because a
+    #: dataclass field was missing.
+    correlation_id: str | None = None
     #: True when an idempotency key matched an existing event and nothing was
     #: appended. Returned rather than hidden: a caller that emits a notification
     #: per event needs to know it is looking at a replay, or the citizen gets
@@ -226,6 +231,7 @@ class EventStore:
             recorded_at=recorded_at,
             previous_hash=head_hash,
             event_hash=event_hash,
+            correlation_id=correlation_id,
         )
 
     async def _lock_chain_head(
@@ -350,5 +356,6 @@ def _to_appended(event: Event, *, was_redelivery: bool = False) -> AppendedEvent
         recorded_at=event.recorded_at,
         previous_hash=event.previous_hash,
         event_hash=event.event_hash,
+        correlation_id=event.correlation_id,
         was_redelivery=was_redelivery,
     )

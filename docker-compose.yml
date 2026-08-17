@@ -38,6 +38,17 @@ x-backend-env: &backend-env
   NEMESIS_OTEL__ENABLED: "${NEMESIS_OTEL__ENABLED:-false}"
   NEMESIS_OTEL__ENDPOINT: "${NEMESIS_OTEL__ENDPOINT:-}"
 
+# Celery prefork workers only (Phase 3). Read by `prometheus_client` AT IMPORT,
+# which is why it is set here and not in code: by the time any application
+# module runs, the import has already happened and setting it would be a no-op
+# that looks like configuration.
+#
+# NOT set for `api`. That process is single-threaded uvicorn and serves
+# /metrics from its own in-process registry, which is exact. Multiprocess mode
+# trades exactness for aggregation, and there is nothing there to aggregate.
+x-worker-metrics-env: &worker-metrics-env
+  PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+
 x-backend-base: &backend-base
   build:
     context: ./backend
@@ -125,7 +136,7 @@ services:
       dockerfile: Dockerfile
       args: {INSTALL_ML: "false", INSTALL_DEV: "false"}
     environment:
-      <<: *backend-env
+      <<: [*backend-env, *worker-metrics-env]
     command:
       - celery
       - -A
@@ -134,9 +145,20 @@ services:
       - --queues=io,safety
       - --concurrency=4
       - --loglevel=INFO
+    ports: ["9101:9100"]
     volumes:
       - ./backend:/app
       - uploads:/data/uploads
+    # tmpfs, not a volume: the mmap files are this container's export state for
+    # this run only. Persisting them across restarts is exactly the stale-data
+    # bug `reset_multiprocess_dir` exists to clean up.
+    # `mode=1777` is load-bearing. A tmpfs mounts root-owned 0755 and the image
+    # runs as uid 10001 (`USER nemesis`), so without it `prometheus_client`
+    # raises PermissionError while creating its mmap file — at *import* of
+    # `metrics.py`, before any application code runs, which takes the whole
+    # worker down in a crash loop. Nothing in Python can repair that: the
+    # directory has to be writable before the process starts.
+    tmpfs: ["/tmp/prometheus:mode=1777"]
     healthcheck:
       test: ["CMD-SHELL", "celery -A nemesis.worker.celery_app:celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
       interval: 30s
@@ -163,14 +185,18 @@ services:
       - --max-tasks-per-child=100
       - --loglevel=INFO
     environment:
-      <<: *backend-env
+      <<: [*backend-env, *worker-metrics-env]
       OMP_NUM_THREADS: "4"
       MKL_NUM_THREADS: "4"
       TOKENIZERS_PARALLELISM: "false"
+    ports: ["9102:9100"]
     volumes:
       - ./backend:/app
       - uploads:/data/uploads
       - modelcache:/models
+    # See worker-io: root-owned 0755 tmpfs plus a uid-10001 process is an
+    # import-time PermissionError, not a runtime warning.
+    tmpfs: ["/tmp/prometheus:mode=1777"]
     healthcheck:
       test: ["CMD-SHELL", "celery -A nemesis.worker.celery_app:celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
       interval: 30s
@@ -201,6 +227,35 @@ services:
     # process dies, SLA sweeps (§12.3) stop firing silently.
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'celery.*beat' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    mem_limit: 192m
+
+
+  # The transactional outbox relay (Phase 3). Its own process on purpose:
+  # publishing from inside the API would mean every replica publishing every
+  # event, and a Celery beat task cannot be scheduled at a 250 ms cadence
+  # (ADR-0015). A single writer is enforced by a Postgres advisory lock, so
+  # running two of these is safe — the second idles as a warm standby.
+  #
+  # Memory: 192 MB brings the application stack to 6528 MB inside the 8192 MB
+  # WSL2 cap in docs/HARDWARE.md. The `obs` profile still fits on top.
+  relay:
+    <<: *backend-base
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args: {INSTALL_ML: "false", INSTALL_DEV: "false"}
+    environment:
+      <<: *backend-env
+    command: ["python", "-m", "nemesis.outbox.relay"]
+    volumes: [./backend:/app]
+    # Process liveness, like `beat`: the relay serves no HTTP port, and if it
+    # dies the map goes quiet while every other service still reports healthy.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'nemesis.outbox.relay' >/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

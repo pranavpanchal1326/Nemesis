@@ -157,7 +157,10 @@ async def test_scoped_select_is_allowed(session: AsyncSession, tenant_id: uuid.U
 async def test_unscoped_tables_are_not_guarded(session: AsyncSession) -> None:
     """``tenants`` has no tenant column — its primary key *is* the tenant."""
     result = await session.execute(select(Tenant))
-    assert len(result.scalars().all()) == 2
+    # Two customers plus the reserved deployment tenant that Phase 3's migration
+    # seeds so `events.tenant_id`'s foreign key is satisfiable for the
+    # system-level chain.
+    assert len(result.scalars().all()) == 3
 
 
 async def test_explicit_exemption_is_honoured(session: AsyncSession) -> None:

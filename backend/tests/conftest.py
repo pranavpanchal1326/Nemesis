@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
@@ -149,6 +150,8 @@ _TRUNCATED_TABLES = (
     "complaint_clusters",
     "work_orders",
     "budget_allocations",
+    "outbox_messages",
+    "pipeline_dead_letters",
     "users",
     "departments",
     "contractors",
@@ -185,10 +188,24 @@ async def tenants(migrated_engine: AsyncEngine) -> AsyncIterator[tuple[uuid.UUID
     """
     from sqlalchemy import text as sql_text
 
+    from nemesis.domain.constants import SYSTEM_TENANT_ID, SYSTEM_TENANT_SLUG
+
     first, second = uuid.uuid4(), uuid.uuid4()
     async with migrated_engine.begin() as conn:
         await conn.execute(
             sql_text(f"TRUNCATE {', '.join(_TRUNCATED_TABLES)} RESTART IDENTITY CASCADE")
+        )
+        # Re-seeded after every truncate. The Phase 3 migration creates it, but
+        # truncating `tenants` removes it — and a suite that quietly dropped it
+        # would make `record_system_degradation` fail with a foreign key
+        # violation in tests only, which is the exact defect that migration
+        # exists to fix, reintroduced by the fixture that is supposed to prove
+        # it is fixed.
+        await conn.execute(
+            sql_text(
+                "INSERT INTO tenants (id, slug, name, plan, is_active) "
+                "VALUES (CAST(:id AS uuid), :slug, 'NEMESIS platform', 'internal', false)"
+            ).bindparams(id=SYSTEM_TENANT_ID, slug=SYSTEM_TENANT_SLUG)
         )
         for tenant_uuid, slug in ((first, "pilot-city"), (second, "campus")):
             await conn.execute(
@@ -244,6 +261,57 @@ async def bound_session(settings: Settings) -> AsyncIterator[None]:
         yield
     finally:
         await session_module.dispose_engine()
+
+
+@pytest.fixture
+async def app_settings(settings: Settings) -> Settings:
+    """Settings for an application under test, with the throwaway database.
+
+    Rate limiting is left **on**. Turning it off for convenience would mean the
+    limiter's own tests are the only thing that ever exercises it, and every
+    other endpoint test would pass against a code path production does not run.
+    """
+    return settings.model_copy(update={"upload_dir": Path(tempfile.mkdtemp(prefix="nemesis-up-"))})
+
+
+@pytest.fixture
+async def api_client(
+    app_settings: Settings,
+    migrated_database_url: str,
+    tenants: tuple[uuid.UUID, uuid.UUID],
+) -> AsyncIterator[AsyncClient]:
+    """A client whose handlers talk to the *test* database.
+
+    Distinct from the `client` fixture, which builds the app from process-global
+    settings and is right for the probe and error-contract tests. A domain
+    endpoint opens `session_scope()`, which resolves the module-global engine —
+    so without binding that engine here, every domain test would silently
+    exercise the application database, which is Phase 0 defect #7 in a new
+    place.
+    """
+    from nemesis.api.ratelimit import close_limiter
+    from nemesis.db import session as session_module
+    from nemesis.db.session import dispose_engine
+    from nemesis.flags import close_flags
+    from nemesis.main import create_app
+    from nemesis.realtime.service import close_realtime
+    from nemesis.tenancy.guard import install_tenant_guard
+
+    await dispose_engine()
+    engine = create_async_engine(app_settings.database_url, pool_pre_ping=True)
+    install_tenant_guard(engine.sync_engine)
+    session_module._engine = engine
+    session_module._sessionmaker = None
+
+    app = create_app(app_settings)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            yield ac
+    finally:
+        await close_realtime()
+        await close_limiter()
+        await close_flags()
+        await dispose_engine()
 
 
 @pytest.fixture

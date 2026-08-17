@@ -412,6 +412,19 @@ def _obs_verify(_: list[str]) -> int:
     return 0
 
 
+@task("gate-phase3", "Phase 3 gate: submission -> outbox -> relay -> WebSocket, and a SIGKILL drill")
+def _gate_phase3(_: list[str]) -> int:
+    """Runs against the live stack, because the claims are about processes.
+
+    The pytest suite proves the logic in one process. Two of the gate clauses —
+    "a rolled-back transaction never emits a WebSocket event" reaching an actual
+    browser, and "SIGKILL mid-pipeline loses nothing" — are about a relay in one
+    container and a worker in another, and neither is reachable from a test
+    process. This kills a container on purpose; it is not part of `nem check`.
+    """
+    return run([sys.executable, "scripts/gate_phase3.py"])
+
+
 @task("flag", "Feature flags — `nem flag list` / `nem flag kill <name> --actor X --reason Y`")
 def _flag(args: list[str]) -> int:
     return run([*IN_API, "python", "-m", "nemesis.flags", *(args or ["list"])])

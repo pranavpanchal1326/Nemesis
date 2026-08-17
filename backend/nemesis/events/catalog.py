@@ -176,6 +176,43 @@ class ClassificationScoredV1(EventPayload):
     detected_language: str | None = None
 
 
+@register_event("pipeline_stage_degraded", version=1, entity_type=EntityType.COMPLAINT)
+class PipelineStageDegradedV1(EventPayload):
+    """§24.2: a stage took its fallback path instead of doing its job.
+
+    **Not in §9.4, and deliberately added anyway.** ``system_degradation``
+    already records that a dependency failed, but it lives on the ``system``
+    chain — which is correct for "Ollama was unreachable for nine minutes" and
+    useless for "*this* complaint was processed without a classifier". §24.2
+    requires the degraded report to reach ``pending_classification``, and a
+    status is projected state: reaching it without an event on the complaint's
+    own chain would mean mutating a row the log does not explain, which is the
+    one thing §9.1 forbids.
+
+    So both are emitted, and they are not redundant. The system event answers
+    "what broke"; this one answers "which citizen reports were affected", six
+    months later, from the complaint's own history.
+
+    ``fallback_taken`` is a plain string carrying a ``DegradationFallback``
+    value rather than a ``Literal``. A closed set here would make adding a
+    fourth fallback a payload version bump plus an upcaster, for a change that
+    invalidates nothing already written — and the projector is total over
+    unrecognised values (it records the degradation and leaves the status
+    alone), so the open type costs no determinism.
+    """
+
+    stage: str
+    failure_mode: str
+    fallback_taken: str = Field(
+        description="A DegradationFallback value: what was done instead of the stage's work"
+    )
+    #: Attempts made before giving up, so the retry budget that was actually
+    #: spent is recoverable from the log rather than only from worker logs that
+    #: have long since rotated away.
+    attempts: int = Field(ge=1)
+    correlation_id: str | None = None
+
+
 @register_event("severity_scored", version=1, entity_type=EntityType.COMPLAINT)
 class SeverityScoredV1(EventPayload):
     """§13.5 rubric evaluation — see the module docstring on the type name.

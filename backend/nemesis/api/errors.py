@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -27,13 +27,24 @@ log = get_logger(__name__)
 
 PROBLEM_CONTENT_TYPE = "application/problem+json"
 
-# Spelled out rather than taken from `starlette.status`, which renamed this
-# constant (`..._UNPROCESSABLE_ENTITY` → `..._UNPROCESSABLE_CONTENT`) and
-# deprecated the old name. Under `filterwarnings = ["error"]` the deprecation
-# raised *inside* the validation handler, turning every 422 into a 500 — a
-# failure mode that only appears when the handler runs. The status code itself
-# is stable; the library's name for it is not.
+# Spelled out rather than taken from `starlette.status`, which renamed these
+# constants and deprecated the old names. Under `filterwarnings = ["error"]` a
+# deprecation raises *inside* the handler, turning the error response into a
+# 500 — a failure mode that only appears on the path that is already an error,
+# which is the path least likely to be exercised before production.
+#
+# Phase 0 hit this with 422 and fixed that one constant. Phase 3 hit it again
+# with 413 the first time an upload exceeded its cap, because the fix had been
+# applied to the symptom rather than to the class. Every status code this API
+# returns from an error path is now named here: the numbers are stable, and the
+# library's names for them demonstrably are not.
+HTTP_400_BAD_REQUEST = 400
+HTTP_404_NOT_FOUND = 404
+HTTP_413_CONTENT_TOO_LARGE = 413
+HTTP_415_UNSUPPORTED_MEDIA_TYPE = 415
 HTTP_422_UNPROCESSABLE = 422
+HTTP_429_TOO_MANY_REQUESTS = 429
+HTTP_500_INTERNAL_SERVER_ERROR = 500
 
 # Stable, documentable type URIs. Clients branch on these, never on prose.
 PROBLEM_BASE = "https://nemesis.dev/problems"
@@ -148,7 +159,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             error_type=type(exc).__name__,
         )
         return _problem_response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
             title="Internal server error",
             detail="An unexpected error occurred. Quote the correlation ID when reporting this.",
             problem_type=f"{PROBLEM_BASE}/internal-error",

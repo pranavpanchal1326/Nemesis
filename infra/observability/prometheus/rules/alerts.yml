@@ -375,3 +375,77 @@ groups:
             still succeeding — that is what the default partition is for — but
             the remedy gets more expensive the longer it waits.
           runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/event-partition-maintenance.md
+
+  # ------------------------------------------------------------------------
+  # Realtime transport (Phase 3, §26.3 / §27.3)
+  # ------------------------------------------------------------------------
+  - name: nemesis-realtime
+    rules:
+      # A relay that is alive, healthy, and hours behind is the failure this
+      # exists for: every liveness signal stays green and the product is broken.
+      # Nothing is lost — the outbox is a durable queue and the events are in
+      # the log — so this is a warning about delivery, not about data.
+      - alert: NemesisOutboxBacklogGrowing
+        expr: nemesis_outbox_pending_messages > 500
+        for: 10m
+        labels:
+          severity: warning
+          blueprint: "26.3"
+        annotations:
+          summary: "{{ $value }} outbox rows are waiting to be published"
+          description: >-
+            The relay is not keeping up, or is not running. Connected clients
+            still receive heartbeats and no events, which looks to a user like a
+            frozen map rather than an outage.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/outbox-relay-stalled.md
+
+      # The number §26.3's "realtime" claim actually rests on. Measured from the
+      # event's own occurred_at, so queueing delay is included rather than
+      # hidden behind a per-publish timer.
+      - alert: NemesisOutboxDispatchLagHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(nemesis_outbox_dispatch_lag_seconds_bucket[5m]))) > 15
+        for: 10m
+        labels:
+          severity: warning
+          blueprint: "26.3"
+        annotations:
+          summary: "Realtime publish lag p95 is {{ $value | humanizeDuration }}"
+          description: >-
+            Events are reaching clients late enough that the §19.2 merge
+            animation no longer corresponds to anything a user is looking at.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/outbox-relay-stalled.md
+
+      # Shedding a slow client is the hub working as designed — §27.3's fallback
+      # is that the client reconnects and polls. A sustained *rate* of shedding
+      # is different: it means the hub is producing faster than clients can
+      # consume, which is a capacity signal, not a client-side one.
+      - alert: NemesisWebSocketClientsShedding
+        expr: sum(rate(nemesis_websocket_clients_shed_total[5m])) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          blueprint: "27.3"
+        annotations:
+          summary: "Clients are being shed at {{ $value | printf \"%.2f\" }}/s"
+          description: >-
+            Connections are filling their bounded queues faster than they drain.
+            Individually this is a throttled browser tab; sustained, it is the
+            hub outrunning its consumers.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/websocket-hub-disconnect.md
+
+      # §24.2 requires a failing stage to degrade the complaint rather than lose
+      # it, and a dead letter is the record of that. An open queue that only
+      # grows means the degraded path is working and nobody is working the queue.
+      - alert: NemesisPipelineDeadLettersOpen
+        expr: sum(nemesis_pipeline_dead_letters_open) > 25
+        for: 30m
+        labels:
+          severity: warning
+          blueprint: "24.2"
+        annotations:
+          summary: "{{ $value }} complaints are parked in the dead-letter queue"
+          description: >-
+            Complaints have been degraded rather than lost, which is correct —
+            and they stay parked until a human resolves them. A growing queue is
+            the signal that the degraded path has become the normal path.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/pipeline-stage-failures.md

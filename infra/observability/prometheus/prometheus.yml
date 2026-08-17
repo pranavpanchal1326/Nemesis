@@ -33,14 +33,23 @@ scrape_configs:
           service: nemesis-api
           component: api
 
-  # NOTE — the Celery workers are not scraped, and this is a known, tracked gap
-  # rather than an oversight. A Celery prefork worker serves no HTTP port, and
-  # exporting from it correctly requires prometheus_client multiprocess mode
-  # (a shared PROMETHEUS_MULTIPROC_DIR plus a multiprocess_mode on every Gauge).
-  # Today `nemesis/pipeline/` is empty, so there are exactly zero worker-side
-  # metrics to miss. This must land in Phase 3 alongside the first worker task —
-  # it is recorded in docs/PHASES.md so it cannot be forgotten at the moment it
-  # starts to matter.
+  # Celery workers (Phase 3). A prefork worker serves no HTTP port and is many
+  # processes, so each container runs a small exporter over a
+  # `prometheus_client` multiprocess registry that aggregates every child's
+  # mmap file. See nemesis/observability/worker_metrics.py — Phase 1a recorded
+  # this as the one thing that had to land alongside the first worker task,
+  # because the pipeline KPI panels and alert rules already existed and would
+  # otherwise have shown no data indefinitely.
+  - job_name: nemesis-workers
+    static_configs:
+      - targets: [worker-io:9100]
+        labels:
+          service: nemesis-worker-io
+          component: worker
+      - targets: [worker-ml:9100]
+        labels:
+          service: nemesis-worker-ml
+          component: worker
 
   - job_name: otel-collector
     static_configs:

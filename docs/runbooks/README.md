@@ -76,6 +76,7 @@ fault-injection tests in Phase 25.
 | [slo-latency-budget-breach.md](slo-latency-budget-breach.md) | §27.1 processing budgets | warning |
 | [safety-path-degraded.md](safety-path-degraded.md) | §11.2 fail-safe latency | **critical** |
 | [pipeline-stage-failures.md](pipeline-stage-failures.md) | A stage failing rather than degrading | warning |
+| [outbox-relay-stalled.md](outbox-relay-stalled.md) | Realtime delivery stopped; nothing lost | warning |
 | [http-error-rate.md](http-error-rate.md) | 5xx ratio | critical |
 | [readiness-failing.md](readiness-failing.md) | 503 with healthy dependencies | warning |
 | [system-degradation.md](system-degradation.md) | Catch-all for unclassified fallbacks | warning |

@@ -203,3 +203,18 @@ class Complaint(
 
     #: Scheme or fund tag for the §17.6 ward budget view. Tenant data, so text.
     funding_source: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    #: §24.2. Which stage took its fallback path, and which fallback.
+    #:
+    #: Materialised as columns rather than left in the projection, because
+    #: §26.2 has to answer them and §27.3 makes that endpoint a 5-second poll per
+    #: client. Without them the handler had to replay the entire chain on every
+    #: read — which is the exact cost this table exists to avoid, paid on the
+    #: hottest read in the system.
+    #:
+    #: Both are written only by the projector, like every other column here.
+    #: `NULL` means the pipeline has not degraded, which is distinguishable from
+    #: "degraded and we did not record why" precisely because the projector sets
+    #: them together or not at all.
+    degraded_stage: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    degraded_fallback: Mapped[str | None] = mapped_column(String(32), nullable=True)

@@ -297,13 +297,11 @@ async def test_system_degradation_is_recorded_on_its_own_chain(
     processed during a degradation was processed *differently*."""
     from nemesis.pipeline.integrity import SYSTEM_TENANT_ID, record_system_degradation
 
-    async with migrated_engine.begin() as conn:
-        await conn.execute(
-            text(
-                "INSERT INTO tenants (id, slug, name) VALUES (:id, 'system', 'System')"
-            ).bindparams(id=SYSTEM_TENANT_ID)
-        )
-
+    # No manual insert. This test used to create the reserved tenant itself,
+    # which made it pass while the production path could not: `events.tenant_id`
+    # has a foreign key, and nothing outside this test had ever created the row.
+    # Phase 3 seeds it by migration and the `tenants` fixture restores it after
+    # every truncate, so the append here now exercises what actually ships.
     await record_system_degradation(
         component="ollama",
         failure_mode="connect_timeout",
@@ -337,14 +335,35 @@ def test_scheduled_tasks_are_actually_registered_with_celery() -> None:
     """
     from nemesis.worker.celery_app import celery_app
 
+    # Loaded the way a worker loads them — through `include`, not by importing
+    # the task modules here. Importing them by hand would register the tasks and
+    # prove nothing about whether a real worker ever would, which is precisely
+    # the gap that let `pipeline/integrity.py` contribute zero tasks silently.
+    celery_app.loader.import_default_modules()
+
     registered = set(celery_app.tasks)
     assert "nemesis.integrity.sweep_chains" in registered
     assert "nemesis.integrity.maintain_partitions" in registered
+
+    assert "nemesis.integrity.purge_outbox" in registered
+    # The Phase 3 pipeline entry point. Registered by name for the same reason:
+    # a stage task the worker never loaded fails as "nothing happened".
+    assert "nemesis.pipeline.run_stage" in registered
+
+    # Redis implements `task_acks_late` as a visibility timeout, not as an
+    # acknowledgement, so an unset value means a worker killed mid-task has its
+    # work redelivered an hour later — with nothing anywhere saying so. It must
+    # also exceed the task time limit, or a task still legitimately running is
+    # redelivered and runs concurrently with itself.
+    visibility = celery_app.conf.broker_transport_options.get("visibility_timeout")
+    assert visibility is not None, "visibility_timeout is unset; the default is 3600 seconds"
+    assert visibility > celery_app.conf.task_time_limit
 
     scheduled = {entry["task"] for entry in celery_app.conf.beat_schedule.values()}
     assert scheduled == {
         "nemesis.integrity.sweep_chains",
         "nemesis.integrity.maintain_partitions",
+        "nemesis.integrity.purge_outbox",
     }
 
 
