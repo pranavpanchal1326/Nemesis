@@ -1,0 +1,238 @@
+{
+  "name": "campus",
+  "version": "1.0.0",
+  "description": "A university or research campus: faculties and buildings, facilities defects, and a term-time working week. Shares no defect category with the municipal set.",
+  "locales": ["en"],
+
+  "calendars": [
+    {
+      "code": "term-time",
+      "name": "Term-time facilities hours",
+      "is_default": true,
+      "working_hours": {
+        "1": [{ "start": "08:30", "end": "17:30" }],
+        "2": [{ "start": "08:30", "end": "17:30" }],
+        "3": [{ "start": "08:30", "end": "17:30" }],
+        "4": [{ "start": "08:30", "end": "17:30" }],
+        "5": [{ "start": "08:30", "end": "16:00" }]
+      },
+      "exceptions": [
+        {
+          "starts_on": "2026-12-19",
+          "ends_on": "2027-01-04",
+          "label": "winter closure",
+          "is_working": false,
+          "source": "Published academic calendar"
+        },
+        {
+          "starts_on": "2026-05-01",
+          "ends_on": "2026-06-30",
+          "label": "examination period",
+          "is_working": true,
+          "sla_multiplier": "1.400",
+          "source": "Facilities policy: disruptive work deferred during examinations"
+        }
+      ]
+    },
+    {
+      "code": "security-desk",
+      "name": "Campus security desk",
+      "is_continuous": true
+    }
+  ],
+
+  "departments": [
+    { "code": "EST", "name": "Estates and Facilities", "kind": "division", "is_assignable": false },
+    {
+      "code": "EST-MECH",
+      "name": "Mechanical and Lifts",
+      "kind": "team",
+      "parent_code": "EST",
+      "calendar_code": "term-time"
+    },
+    {
+      "code": "EST-ELEC",
+      "name": "Electrical and HVAC",
+      "kind": "team",
+      "parent_code": "EST",
+      "calendar_code": "term-time"
+    },
+    {
+      "code": "EST-CLEAN",
+      "name": "Cleaning and Waste",
+      "kind": "team",
+      "parent_code": "EST",
+      "calendar_code": "term-time"
+    },
+    { "code": "IT", "name": "IT Services", "kind": "division", "calendar_code": "term-time" },
+    { "code": "EHS", "name": "Environment, Health and Safety", "kind": "division", "calendar_code": "security-desk" },
+    { "code": "SEC", "name": "Campus Security", "kind": "division", "calendar_code": "security-desk" }
+  ],
+
+  "shifts": [
+    {
+      "department_code": "SEC",
+      "code": "night-watch",
+      "name": "Night watch",
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "starts_at": "19:00",
+      "ends_at": "07:00"
+    }
+  ],
+
+  "zones": [
+    { "code": "CAMPUS", "name": "Main Campus", "kind": "campus" },
+    { "code": "SCI", "name": "Science Precinct", "kind": "precinct", "parent_code": "CAMPUS" },
+    { "code": "ENG", "name": "Engineering Precinct", "kind": "precinct", "parent_code": "CAMPUS" },
+    { "code": "RES", "name": "Residences", "kind": "precinct", "parent_code": "CAMPUS" },
+    { "code": "BLD-CHEM", "name": "Chemistry Building", "kind": "building", "parent_code": "SCI" },
+    { "code": "BLD-PHYS", "name": "Physics Building", "kind": "building", "parent_code": "SCI" },
+    { "code": "BLD-WKSHP", "name": "Engineering Workshop", "kind": "building", "parent_code": "ENG" },
+    { "code": "BLD-HALL-A", "name": "Hall A", "kind": "building", "parent_code": "RES" }
+  ],
+
+  "taxonomy": [
+    {
+      "key": "vertical_transport",
+      "display_name": "Lifts and vertical transport",
+      "is_selectable": false,
+      "sort_order": 10,
+      "routing_hints": { "department_code": "EST-MECH" }
+    },
+    {
+      "key": "elevator_fault",
+      "parent_key": "vertical_transport",
+      "display_name": "Elevator out of service",
+      "icon": "elevator",
+      "sort_order": 11,
+      "severity_semantics": { "floor": 4.0, "multiplier": 1.2 },
+      "routing_hints": { "department_code": "EST-MECH", "default_sla_tier": "high" }
+    },
+    {
+      "key": "elevator_entrapment",
+      "parent_key": "vertical_transport",
+      "display_name": "Person trapped in an elevator",
+      "sort_order": 12,
+      "severity_semantics": { "floor": 10.0, "multiplier": 1.0, "bypasses_scoring": true },
+      "routing_hints": { "department_code": "SEC", "default_sla_tier": "urgent" }
+    },
+    {
+      "key": "laboratory",
+      "display_name": "Laboratory safety",
+      "is_selectable": false,
+      "sort_order": 20,
+      "routing_hints": { "department_code": "EHS" }
+    },
+    {
+      "key": "lab_spill",
+      "parent_key": "laboratory",
+      "display_name": "Chemical spill",
+      "icon": "hazard",
+      "sort_order": 21,
+      "severity_semantics": { "floor": 9.0, "multiplier": 1.0, "bypasses_scoring": true },
+      "routing_hints": { "department_code": "EHS", "default_sla_tier": "urgent" }
+    },
+    {
+      "key": "fume_hood_fault",
+      "parent_key": "laboratory",
+      "display_name": "Fume hood not extracting",
+      "sort_order": 22,
+      "severity_semantics": { "floor": 6.0, "multiplier": 1.1 },
+      "routing_hints": { "department_code": "EST-ELEC", "default_sla_tier": "high" }
+    },
+    {
+      "key": "hvac_failure",
+      "display_name": "Heating or cooling failure",
+      "icon": "climate",
+      "sort_order": 30,
+      "severity_semantics": { "floor": 2.0, "multiplier": 1.0 },
+      "routing_hints": { "department_code": "EST-ELEC", "default_sla_tier": "medium" }
+    },
+    {
+      "key": "wifi_outage",
+      "display_name": "Network or Wi-Fi outage",
+      "sort_order": 40,
+      "routing_hints": { "department_code": "IT", "default_sla_tier": "high" }
+    },
+    {
+      "key": "projector_fault",
+      "display_name": "Teaching room AV fault",
+      "sort_order": 41,
+      "severity_semantics": { "floor": 3.0, "multiplier": 1.0 },
+      "routing_hints": { "department_code": "IT", "default_sla_tier": "high" }
+    },
+    {
+      "key": "washroom_unclean",
+      "display_name": "Washroom needs attention",
+      "sort_order": 50,
+      "routing_hints": { "department_code": "EST-CLEAN", "default_sla_tier": "medium" }
+    },
+    {
+      "key": "bike_rack_damage",
+      "display_name": "Damaged bicycle rack",
+      "sort_order": 51,
+      "routing_hints": { "department_code": "EST", "default_sla_tier": "low" }
+    }
+  ],
+
+  "prompt_sets": [
+    {
+      "node_key": "elevator_fault",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "campus-1.0.0",
+      "prompts": [
+        "a photo of an elevator with an out of service sign",
+        "a lift door stuck open with an error display",
+        "an elevator control panel showing a fault code"
+      ],
+      "negative_prompts": ["a photo of a working elevator with lit floor buttons"]
+    },
+    {
+      "node_key": "lab_spill",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "campus-1.0.0",
+      "prompts": [
+        "a photo of a chemical spill on a laboratory floor",
+        "a broken reagent bottle with liquid spreading on a lab bench",
+        "spilled coloured liquid inside a fume cupboard"
+      ],
+      "negative_prompts": ["a photo of a tidy laboratory bench with sealed bottles"]
+    },
+    {
+      "node_key": "hvac_failure",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "campus-1.0.0",
+      "prompts": [
+        "a photo of an air conditioning unit leaking water",
+        "a ceiling air vent with visible ice or condensation",
+        "a thermostat display showing an error"
+      ],
+      "negative_prompts": ["a photo of a clean wall-mounted air conditioner running normally"]
+    },
+    {
+      "node_key": "projector_fault",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "campus-1.0.0",
+      "prompts": [
+        "a photo of a lecture room projector showing no signal",
+        "a distorted or discoloured projected image on a screen"
+      ],
+      "negative_prompts": ["a photo of a clear projected slide on a lecture screen"]
+    },
+    {
+      "node_key": "washroom_unclean",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "campus-1.0.0",
+      "prompts": [
+        "a photo of an unclean washroom needing attention",
+        "an overflowing washroom waste bin"
+      ],
+      "negative_prompts": ["a photo of a clean tiled washroom"]
+    }
+  ]
+}

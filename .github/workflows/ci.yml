@@ -264,6 +264,14 @@ jobs:
       - name: Event catalog coverage (§9.4)
         run: python scripts/check_event_catalog.py
 
+      # Phase 5 gate clause 2. Critique-log defect #1 is a hardcoded domain
+      # model, and the control plane only stays the answer to it if the next
+      # hardcoded category fails the build instead of passing review. The
+      # category list is read from the seeded templates, so a category added to
+      # a template is covered without touching the check.
+      - name: Domain literals (Phase 5)
+        run: python scripts/check_domain_literals.py
+
       # A rule file that does not parse means Prometheus keeps serving the LAST
       # GOOD config and logs the failure — the stack looks healthy and every
       # alert has silently stopped working. That failure mode is why this is a

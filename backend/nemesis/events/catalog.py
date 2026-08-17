@@ -348,6 +348,102 @@ class CitizenDisputedV1(EventPayload):
 
 
 # ---------------------------------------------------------------------------
+# Tenant chain — the control plane's own history (Phase 5)
+# ---------------------------------------------------------------------------
+#
+# **Why the control plane writes to the event log at all.** A tenant's taxonomy
+# is not application state that can be re-derived; it is the definition against
+# which every classification, route, and SLA was decided. "Why was this
+# complaint categorised as `lab_spill` when that category no longer exists?" is a
+# question a citizen or an auditor can legitimately ask years later, and the only
+# thing that can answer it is a record of what the taxonomy was at the time.
+#
+# **Why they are not in §9.4.** The blueprint's catalog was written for a
+# single-tenant deployment with a fixed domain model, so it has no vocabulary for
+# a control plane. `check_event_catalog.py` requires every §9.4 type to be
+# registered or explicitly deferred; it does not forbid types the blueprint never
+# imagined, which is the correct asymmetry — the blueprint is a floor.
+#
+# **Why one chain per tenant rather than one per node.** These events are
+# per-tenant configuration history, and their value is being readable *in order*:
+# "the taxonomy changed, then the calendar changed, then everything scored
+# differently". A chain per taxonomy node would make that ordering unrecoverable
+# without a global sort across thousands of chains.
+
+
+@register_event("tenant_provisioned", version=1, entity_type=EntityType.TENANT)
+class TenantProvisionedV1(EventPayload):
+    """A tenant was created, and from what.
+
+    ``template`` is recorded because the seeded library is the thing that will
+    change: a campus onboarded from template v1 and one onboarded from v3 have
+    different defaults, and six months later that difference is the explanation
+    for a support question nobody can otherwise answer.
+    """
+
+    slug: str
+    name: str
+    plan: str
+    primary_locale: str
+    locales: list[str]
+    timezone: str
+    data_residency: str
+    #: ``None`` when a tenant is provisioned bare, which is a supported and
+    #: distinct case from "provisioned from a template that happened to be empty".
+    template: str | None = None
+    template_version: str | None = None
+
+
+@register_event("taxonomy_published", version=1, entity_type=EntityType.TENANT)
+class TaxonomyPublishedV1(EventPayload):
+    """The tenant's taxonomy reached a new revision.
+
+    ``content_hash`` is the canonical hash of the whole taxonomy, not of the
+    change. That makes the event answer the question actually asked at audit
+    time — "what was the taxonomy when this complaint was classified" — with one
+    comparison, instead of requiring a replay that folds every prior revision.
+
+    The changed keys are carried alongside because a revision that touched one
+    node and a revision that rewrote the tree are operationally different events,
+    and a hash alone cannot distinguish them.
+    """
+
+    revision: int = Field(ge=1)
+    node_count: int = Field(ge=0)
+    content_hash: str = Field(min_length=64, max_length=64)
+    changed_keys: list[str] = Field(default_factory=list)
+    #: 'created' | 'updated' | 'deactivated' | 'imported' — free text for the
+    #: same reason ``pipeline_stage_degraded.fallback_taken`` is: a closed set
+    #: here makes a fifth kind of change a payload version bump plus an upcaster,
+    #: for a change that invalidates nothing already written.
+    change_kind: str
+
+
+@register_event("organisation_changed", version=1, entity_type=EntityType.TENANT)
+class OrganisationChangedV1(EventPayload):
+    """A department, zone, shift, calendar, or certification was altered.
+
+    One event type covering five tables, rather than five types. They share a
+    shape, they share a chain, and they are read together — the question is
+    always "what changed about this tenant's organisation", never "show me only
+    the shift edits". Five near-identical schemas would be five things to keep in
+    step and five upcasters to write the first time the shape moves.
+    """
+
+    #: Which table — 'department', 'zone', 'shift', 'calendar', 'certification'.
+    subject: str
+    #: The tenant-facing identifier (a code), not the UUID. An operator reading
+    #: this during an incident knows the code; the UUID is in ``subject_id``.
+    subject_key: str
+    subject_id: uuid.UUID
+    change_kind: str
+    #: Field names only, never values. §22 applies to the audit trail too, and a
+    #: department's contact details are personal data that must not be duplicated
+    #: into an append-only log Phase 26 then has to erase from.
+    changed_fields: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
 # Cross-cutting
 # ---------------------------------------------------------------------------
 

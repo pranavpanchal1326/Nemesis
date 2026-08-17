@@ -15,6 +15,7 @@ one this module exists to prevent.
 from __future__ import annotations
 
 from nemesis.db.base import Base
+from nemesis.db.models.calendar import BusinessCalendar, CalendarException
 from nemesis.db.models.complaint import Complaint, ComplaintCluster
 from nemesis.db.models.event import (
     ArchivedPartition,
@@ -23,8 +24,17 @@ from nemesis.db.models.event import (
     EventIdempotency,
     EventSnapshot,
 )
-from nemesis.db.models.organisation import Contractor, Department, User
+from nemesis.db.models.i18n import Translation
+from nemesis.db.models.organisation import (
+    Contractor,
+    ContractorCertification,
+    Department,
+    Shift,
+    User,
+    Zone,
+)
 from nemesis.db.models.outbox import OutboxMessage, PipelineDeadLetter
+from nemesis.db.models.taxonomy import TaxonomyNode, TaxonomyPromptSet
 from nemesis.db.models.tenant import Tenant
 from nemesis.db.models.work_order import BudgetAllocation, WorkOrder
 from nemesis.tenancy.registry import TENANT_COLUMN, register_tenant_scoped_table
@@ -36,9 +46,12 @@ for _table in Base.metadata.tables.values():
 __all__ = [
     "ArchivedPartition",
     "BudgetAllocation",
+    "BusinessCalendar",
+    "CalendarException",
     "Complaint",
     "ComplaintCluster",
     "Contractor",
+    "ContractorCertification",
     "Department",
     "Event",
     "EventChainHead",
@@ -46,7 +59,12 @@ __all__ = [
     "EventSnapshot",
     "OutboxMessage",
     "PipelineDeadLetter",
+    "Shift",
+    "TaxonomyNode",
+    "TaxonomyPromptSet",
     "Tenant",
+    "Translation",
     "User",
     "WorkOrder",
+    "Zone",
 ]

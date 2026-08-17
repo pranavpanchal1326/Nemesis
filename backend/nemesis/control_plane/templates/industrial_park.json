@@ -1,0 +1,208 @@
+{
+  "name": "industrial_park",
+  "version": "1.0.0",
+  "description": "A managed industrial estate: estates and units, process-safety and utilities defects, and continuous shift operation.",
+  "locales": ["en"],
+
+  "calendars": [
+    {
+      "code": "continuous-ops",
+      "name": "Continuous operations",
+      "is_default": true,
+      "is_continuous": true,
+      "exceptions": [
+        {
+          "starts_on": "2026-04-06",
+          "ends_on": "2026-04-12",
+          "label": "annual shutdown",
+          "is_working": false,
+          "source": "Estate management annual maintenance shutdown notice"
+        }
+      ]
+    },
+    {
+      "code": "estate-office",
+      "name": "Estate office hours",
+      "working_hours": {
+        "1": [{ "start": "09:00", "end": "18:00" }],
+        "2": [{ "start": "09:00", "end": "18:00" }],
+        "3": [{ "start": "09:00", "end": "18:00" }],
+        "4": [{ "start": "09:00", "end": "18:00" }],
+        "5": [{ "start": "09:00", "end": "18:00" }]
+      }
+    }
+  ],
+
+  "departments": [
+    { "code": "EM", "name": "Estate Management", "kind": "division", "is_assignable": false },
+    { "code": "HSE", "name": "Health, Safety and Environment", "kind": "division", "parent_code": "EM", "calendar_code": "continuous-ops" },
+    { "code": "UTIL", "name": "Utilities and Power", "kind": "division", "parent_code": "EM", "calendar_code": "continuous-ops" },
+    { "code": "MAINT", "name": "Mechanical Maintenance", "kind": "division", "parent_code": "EM", "calendar_code": "continuous-ops" },
+    { "code": "ETP", "name": "Effluent Treatment", "kind": "division", "parent_code": "EM", "calendar_code": "continuous-ops" },
+    { "code": "ADMIN", "name": "Estate Administration", "kind": "division", "parent_code": "EM", "calendar_code": "estate-office" }
+  ],
+
+  "shifts": [
+    {
+      "department_code": "UTIL",
+      "code": "A",
+      "name": "A shift",
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "starts_at": "06:00",
+      "ends_at": "14:00"
+    },
+    {
+      "department_code": "UTIL",
+      "code": "B",
+      "name": "B shift",
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "starts_at": "14:00",
+      "ends_at": "22:00"
+    },
+    {
+      "department_code": "UTIL",
+      "code": "C",
+      "name": "C shift",
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "starts_at": "22:00",
+      "ends_at": "06:00"
+    }
+  ],
+
+  "zones": [
+    { "code": "PARK", "name": "Industrial Park", "kind": "park" },
+    { "code": "EST-A", "name": "Estate A", "kind": "estate", "parent_code": "PARK" },
+    { "code": "EST-B", "name": "Estate B", "kind": "estate", "parent_code": "PARK" },
+    { "code": "U-A-101", "name": "Unit A-101", "kind": "unit", "parent_code": "EST-A" },
+    { "code": "U-A-102", "name": "Unit A-102", "kind": "unit", "parent_code": "EST-A" },
+    { "code": "U-B-201", "name": "Unit B-201", "kind": "unit", "parent_code": "EST-B" },
+    { "code": "COMMON", "name": "Common Infrastructure", "kind": "estate", "parent_code": "PARK" }
+  ],
+
+  "taxonomy": [
+    {
+      "key": "process_safety",
+      "display_name": "Process safety",
+      "is_selectable": false,
+      "sort_order": 10,
+      "routing_hints": { "department_code": "HSE" }
+    },
+    {
+      "key": "gas_leak",
+      "parent_key": "process_safety",
+      "display_name": "Gas or vapour leak",
+      "icon": "hazard",
+      "sort_order": 11,
+      "severity_semantics": { "floor": 10.0, "multiplier": 1.0, "bypasses_scoring": true },
+      "routing_hints": { "department_code": "HSE", "default_sla_tier": "urgent" }
+    },
+    {
+      "key": "effluent_discharge",
+      "parent_key": "process_safety",
+      "display_name": "Untreated effluent discharge",
+      "sort_order": 12,
+      "severity_semantics": { "floor": 8.0, "multiplier": 1.0, "bypasses_scoring": true },
+      "routing_hints": { "department_code": "ETP", "default_sla_tier": "urgent" }
+    },
+    {
+      "key": "spill_containment_breach",
+      "parent_key": "process_safety",
+      "display_name": "Spill containment breach",
+      "sort_order": 13,
+      "severity_semantics": { "floor": 7.0, "multiplier": 1.2 },
+      "routing_hints": { "department_code": "HSE", "default_sla_tier": "high" }
+    },
+    {
+      "key": "utilities",
+      "display_name": "Utilities",
+      "is_selectable": false,
+      "sort_order": 20,
+      "routing_hints": { "department_code": "UTIL" }
+    },
+    {
+      "key": "power_trip",
+      "parent_key": "utilities",
+      "display_name": "Power trip or outage",
+      "sort_order": 21,
+      "severity_semantics": { "floor": 5.0, "multiplier": 1.3 },
+      "routing_hints": { "department_code": "UTIL", "default_sla_tier": "high" }
+    },
+    {
+      "key": "compressed_air_loss",
+      "parent_key": "utilities",
+      "display_name": "Loss of compressed air",
+      "sort_order": 22,
+      "severity_semantics": { "floor": 4.0, "multiplier": 1.1 },
+      "routing_hints": { "department_code": "UTIL", "default_sla_tier": "high" }
+    },
+    {
+      "key": "conveyor_fault",
+      "display_name": "Conveyor or material handling fault",
+      "sort_order": 30,
+      "severity_semantics": { "floor": 3.0, "multiplier": 1.0 },
+      "routing_hints": { "department_code": "MAINT", "default_sla_tier": "medium" }
+    },
+    {
+      "key": "forklift_hazard",
+      "display_name": "Forklift or traffic hazard",
+      "sort_order": 31,
+      "severity_semantics": { "floor": 6.0, "multiplier": 1.0 },
+      "routing_hints": { "department_code": "HSE", "default_sla_tier": "high" }
+    },
+    {
+      "key": "signage_missing",
+      "display_name": "Missing or illegible safety signage",
+      "sort_order": 40,
+      "routing_hints": { "department_code": "ADMIN", "default_sla_tier": "low" }
+    }
+  ],
+
+  "prompt_sets": [
+    {
+      "node_key": "effluent_discharge",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "industrial_park-1.0.0",
+      "prompts": [
+        "a photo of discoloured industrial effluent flowing into a drain",
+        "foaming chemical waste water in an open channel",
+        "a discharge pipe releasing coloured liquid into a watercourse"
+      ],
+      "negative_prompts": ["a photo of clear water in a clean drainage channel"]
+    },
+    {
+      "node_key": "conveyor_fault",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "industrial_park-1.0.0",
+      "prompts": [
+        "a photo of a conveyor belt that has come off its rollers",
+        "a jammed industrial conveyor with spilled material",
+        "a torn conveyor belt in a factory"
+      ],
+      "negative_prompts": ["a photo of a conveyor belt running normally with boxes on it"]
+    },
+    {
+      "node_key": "forklift_hazard",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "industrial_park-1.0.0",
+      "prompts": [
+        "a photo of a forklift blocking a pedestrian walkway",
+        "an unsecured pallet load leaning dangerously in a warehouse aisle"
+      ],
+      "negative_prompts": ["a photo of a forklift parked in a marked bay"]
+    },
+    {
+      "node_key": "signage_missing",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "industrial_park-1.0.0",
+      "prompts": [
+        "a photo of a faded or unreadable industrial safety sign",
+        "an empty sign bracket where a hazard sign is missing"
+      ],
+      "negative_prompts": ["a photo of a clear yellow hazard warning sign"]
+    }
+  ]
+}

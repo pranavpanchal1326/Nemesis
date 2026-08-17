@@ -39,7 +39,9 @@ PROBLEM_CONTENT_TYPE = "application/problem+json"
 # returns from an error path is now named here: the numbers are stable, and the
 # library's names for them demonstrably are not.
 HTTP_400_BAD_REQUEST = 400
+HTTP_403_FORBIDDEN = 403
 HTTP_404_NOT_FOUND = 404
+HTTP_409_CONFLICT = 409
 HTTP_413_CONTENT_TOO_LARGE = 413
 HTTP_415_UNSUPPORTED_MEDIA_TYPE = 415
 HTTP_422_UNPROCESSABLE = 422
