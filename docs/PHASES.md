@@ -357,6 +357,14 @@ The spine everything writes through. The phase worth over-engineering.
 - Projectors rebuilding current state from the log, with snapshotting so replay
   stays O(1) in history length, and a `projector_version` so a snapshot from an
   older build is discarded rather than trusted
+- **The materialiser that makes those projections queryable**: idempotent,
+  tenant-scoped upserts into `complaints`, `complaint_clusters`, and
+  `work_orders`, with the projected log position stored as the row's `version`
+  so a stale writer is refused by the database rather than by an ordering
+  assumption the caller cannot actually make. `rebuild_tenant()` reconstructs
+  every row for a tenant from the log alone — which is both the gate and the
+  real recovery procedure, since a corrupted projection is repairable precisely
+  because it was never the source of truth
 - `verify_chain()` reporting the **exact offset and kind** of a break, plus the
   hourly integrity sweep §17.4 leaves ROADMAP — **closing that gap rather than
   disclosing it**. It never repairs: a chain that repairs itself has no
@@ -373,9 +381,11 @@ The spine everything writes through. The phase worth over-engineering.
 **Gate — met**
 - ✅ **1000 concurrent appends across 50 entities → zero chain forks**, each in
   its own transaction on its own connection, verified chain by chain afterwards
-- ✅ Full replay from an empty projection reproduces state **byte-identically**,
-  asserted as a canonical-hash equality; snapshotted replay proven equal to
-  unsnapshotted
+- ✅ Full replay from an empty projection reproduces current state
+  **byte-identically** — asserted twice, and the second one is the claim §9.1
+  actually makes: the current-state *tables* are truncated, rebuilt from the log
+  alone, and compared column by column. The projection-level version is a
+  canonical-hash equality; snapshotted replay is proven equal to unsnapshotted
 - ✅ A deliberately tampered row is detected **at the exact offset**, and its
   neighbours are not — the verifier continues from the stored hash rather than
   the recomputed one, so one altered row does not cascade into a whole-chain
@@ -446,6 +456,17 @@ The spine everything writes through. The phase worth over-engineering.
     was empty and nothing worker-side imported metrics. Found only because
     defect #9's fix made the import explicit and the worker refused to start —
     the loud failure mode doing exactly what it was chosen for
+12. **The phase was reported complete while the projection layer wrote nothing
+    to the current-state tables.** The projectors, snapshots, and replay were
+    built and proven deterministic, but no code materialised them into
+    `complaints`, `complaint_clusters`, or `work_orders` — the tables were
+    migrated, indexed, and permanently empty. The gate clause had been proven
+    against the projection rather than against the tables §9.1 defines as
+    current state, which is a weaker claim wearing the same words. Caught by
+    re-reading the ships-list against the code rather than by any test, which is
+    the uncomfortable part: **no gate can catch scope that was never
+    implemented.** The gate now truncates the tables and rebuilds them from the
+    log
 
 **Carried forward, not silently absorbed:** the HNSW parameters are measured but
 **provisional**. The benchmark uses synthetic clustered vectors, and the low
