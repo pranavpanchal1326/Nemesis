@@ -13,6 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from nemesis.api.v1.complaints import router as complaints_router
+from nemesis.api.v1.control_plane import router as control_plane_router
 from nemesis.api.v1.realtime import router as realtime_router
 
 #: Mounted by the application factory. The realtime router carries no prefix —
@@ -20,5 +21,10 @@ from nemesis.api.v1.realtime import router as realtime_router
 #: namespace, and moving it would break the contract the blueprint states.
 api_v1 = APIRouter(prefix="/api/v1")
 api_v1.include_router(complaints_router)
+# Phase 5. Versioned like everything else: the control plane is an API product
+# with the same compatibility obligation as the citizen-facing endpoints, and a
+# solutions engineer's onboarding script is exactly the kind of consumer §16.3's
+# deprecation clock exists to protect.
+api_v1.include_router(control_plane_router)
 
 __all__ = ["api_v1", "realtime_router"]

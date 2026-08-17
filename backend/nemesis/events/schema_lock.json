@@ -60,6 +60,12 @@
       "has_upcaster": false,
       "model": "ExifCheckCompletedV1"
     },
+    "organisation_changed@1": {
+      "entity_type": "tenant",
+      "fingerprint": "f0586cac171ae10acb83480487f0ddf952c64c675f63e9984c65764363a176da",
+      "has_upcaster": false,
+      "model": "OrganisationChangedV1"
+    },
     "pipeline_stage_degraded@1": {
       "entity_type": "complaint",
       "fingerprint": "1356f6f3c419e48e6d968837077d13a71b9f275b7c431cdf40a55221f5111301",
@@ -89,6 +95,18 @@
       "fingerprint": "ba49d39bf97692a830e744a7bccc5e4c5ef4de1516b2c7ae63780988d9a4d7d6",
       "has_upcaster": false,
       "model": "SystemDegradationV1"
+    },
+    "taxonomy_published@1": {
+      "entity_type": "tenant",
+      "fingerprint": "447568150c9b63d84b4edaacf86f923e904976876ebc2345de9da04f74376668",
+      "has_upcaster": false,
+      "model": "TaxonomyPublishedV1"
+    },
+    "tenant_provisioned@1": {
+      "entity_type": "tenant",
+      "fingerprint": "50842bf6c7891cd1c0358b57757af732451a5a2e1717f4639c435c76bdca0cf8",
+      "has_upcaster": false,
+      "model": "TenantProvisionedV1"
     },
     "work_order_assigned@1": {
       "entity_type": "work_order",

@@ -177,6 +177,7 @@ class TestProductionSafetyGuards:
             Settings(
                 app_env="pilot",
                 jwt_secret="a-real-generated-secret",  # type: ignore[arg-type]
+                control_plane_token="a-real-generated-token",  # type: ignore[arg-type]
                 cors_allow_origins=("*",),
             )
 

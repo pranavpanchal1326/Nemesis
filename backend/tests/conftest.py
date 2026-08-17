@@ -153,6 +153,19 @@ _TRUNCATED_TABLES = (
     "outbox_messages",
     "pipeline_dead_letters",
     "users",
+    # Phase 5 control-plane tables. Listed before `departments` and
+    # `contractors` only for readability — CASCADE makes the order irrelevant —
+    # but listed at all is not optional: a table left out here leaks rows
+    # between tests, and the symptom is a unique-constraint failure in whichever
+    # test happens to run second.
+    "contractor_certifications",
+    "taxonomy_prompt_sets",
+    "taxonomy_nodes",
+    "shifts",
+    "calendar_exceptions",
+    "business_calendars",
+    "translations",
+    "zones",
     "departments",
     "contractors",
     "tenants",

@@ -14,7 +14,7 @@ the exact hardcoding defect the program plan's critique log opens with.
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, String, Text
+from sqlalchemy import Boolean, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -53,6 +53,19 @@ class Tenant(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     data_residency: Mapped[str] = mapped_column(String(32), nullable=False, server_default="in")
 
     branding: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, server_default="{}")
+
+    #: Which seeded template this tenant was provisioned from, and at what
+    #: version. Recorded because the library is the thing that drifts: a campus
+    #: onboarded in March and one onboarded in September have different defaults,
+    #: and without this the difference is invisible to support.
+    provisioned_from_template: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    template_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    #: Monotonic counter over taxonomy mutations, bumped in the same transaction
+    #: as the change and stamped into ``taxonomy_published``. A counter rather
+    #: than a timestamp because two edits in the same millisecond must still be
+    #: orderable, and because "revision 7" is what an operator quotes.
+    taxonomy_revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     #: Suspension is reversible and auditable; deletion is neither. An offboarded
     #: tenant is deactivated here and erased through the Phase 26 procedure.

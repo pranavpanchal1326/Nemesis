@@ -114,7 +114,23 @@ class ModelSettings(BaseModel):
 
     whisper_model: str = "small"
     whisper_compute_type: str = "int8"
-    whisper_languages: tuple[str, ...] = ("hi", "mr", "en")
+
+    whisper_prefetch_languages: tuple[str, ...] = ("hi", "mr", "en")
+    """Which languages the offline model cache is *warmed* for — not which
+    languages the system supports.
+
+    Renamed from ``whisper_languages`` in Phase 5, because the old name asserted
+    something this field never controlled and critique-log defect #1 explicitly
+    names ("languages pinned to hi/mr/en"). The supported set is
+    ``tenants.locales``, which is tenant data; this is a hint to
+    ``scripts/fetch_models.py`` about which weights to pull into the air-gapped
+    cache, and its only consumer is that script. A tenant declaring Tamil does
+    not need this changed — faster-whisper's multilingual model already handles
+    it — it changes only what is verified at fetch time.
+
+    ``scripts/`` is outside the domain packages ``check_domain_literals.py``
+    scans, deliberately: what weights to download is a packaging decision, not a
+    statement about what a complaint can be written in."""
 
     # MediaPipe 1.x removed the legacy `mp.solutions` API; the Tasks API loads an
     # explicit .tflite bundle, so the artefact is a real dependency to fetch and
@@ -297,6 +313,28 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_ttl_seconds: int = Field(default=3600, gt=0)
 
+    control_plane_token: SecretStr = SecretStr("dev-only-insecure-control-plane-token-change-me")
+    """Shared secret guarding every control-plane *write* (Phase 5).
+
+    **This is not authentication and is not pretending to be.** Phase 13 owns
+    identity; until it lands there is no token to read an operator claim from,
+    and the same argument ``api.deps`` makes about ``X-Tenant-ID`` applies here.
+
+    The alternative was ADR-0009's answer for feature flags — CLI-only mutation
+    — and it was rejected for this surface specifically: the Phase 5 gate is
+    that a solutions engineer onboards a customer *without opening an editor*,
+    and "shell into the container" is a worse version of the thing the phase
+    exists to remove. A shared secret is a real, if blunt, control: it stops an
+    unauthenticated caller creating tenants, and it is one dependency for Phase
+    13 to delete.
+
+    What it deliberately does not do is authorise anything per-operator, which
+    is why every control-plane mutation still writes an event naming what
+    changed. Reads are token-free and tenant-scoped like the rest of the API.
+
+    The production validator below refuses to boot a pilot with this default,
+    exactly as it does for the JWT secret."""
+
     # --- nested groups -----------------------------------------------------
     ingest: IngestSettings = IngestSettings()
     rate_limit: RateLimitSettings = RateLimitSettings()
@@ -320,6 +358,12 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "refusing to start: the development JWT secret is still set. "
                     "Set NEMESIS_JWT_SECRET to a generated value."
+                )
+            if "change-me" in self.control_plane_token.get_secret_value():
+                raise ValueError(
+                    "refusing to start: the development control-plane token is still "
+                    "set. It guards tenant provisioning and every taxonomy write. "
+                    "Set NEMESIS_CONTROL_PLANE_TOKEN to a generated value."
                 )
             if "*" in self.cors_allow_origins:
                 raise ValueError(

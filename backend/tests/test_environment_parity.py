@@ -90,11 +90,20 @@ class TestProductionSafetyGuards:
         with pytest.raises(ValueError, match="development JWT secret"):
             Settings(app_env="pilot", jwt_secret=SecretStr("dev-only-insecure-secret-change-me"))
 
+    def test_pilot_refuses_the_development_control_plane_token(self) -> None:
+        """Phase 5. The token guards tenant provisioning and every taxonomy
+        write, so shipping the well-known default is the same class of mistake
+        as shipping the development signing key — and it is easier to make,
+        because a local stack works perfectly without ever setting it."""
+        with pytest.raises(ValueError, match="development control-plane token"):
+            Settings(app_env="pilot", jwt_secret=SecretStr("a-real-generated-value"))
+
     def test_pilot_refuses_wildcard_cors(self) -> None:
         with pytest.raises(ValueError, match="wildcard CORS"):
             Settings(
                 app_env="pilot",
                 jwt_secret=SecretStr("a-real-generated-value"),
+                control_plane_token=SecretStr("a-real-generated-token"),
                 cors_allow_origins=("*",),
             )
 
@@ -102,6 +111,7 @@ class TestProductionSafetyGuards:
         settings = Settings(
             app_env="pilot",
             jwt_secret=SecretStr("a-real-generated-value"),
+            control_plane_token=SecretStr("a-real-generated-token"),
             cors_allow_origins=("https://nemesis.example.gov.in",),
         )
         assert settings.is_production_like

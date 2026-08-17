@@ -256,6 +256,9 @@ def _check(_: list[str]) -> int:
             # the blueprint that the catalog check parses.
             ("tenant scoping", [sys.executable, "scripts/check_tenant_scoping.py"]),
             ("event catalog", [sys.executable, "scripts/check_event_catalog.py"]),
+            # Phase 5 gate clause 2: no domain module contains a category, role,
+            # ward, or language literal. Host-side AST, same as the two above.
+            ("domain literals", [sys.executable, "scripts/check_domain_literals.py"]),
         ]
     )
 
@@ -423,6 +426,25 @@ def _gate_phase3(_: list[str]) -> int:
     process. This kills a container on purpose; it is not part of `nem check`.
     """
     return run([sys.executable, "scripts/gate_phase3.py"])
+
+
+@task("gate-phase5", "Phase 5 gate: onboard a tenant with an invented taxonomy over HTTP")
+def _gate_phase5(_: list[str]) -> int:
+    """Runs against the live stack, because the claim is about a deployment.
+
+    The pytest suite proves the control plane's logic against a throwaway
+    database. This proves the sentence the gate actually makes: a solutions
+    engineer with an HTTP client and a token onboards a customer whose
+    vocabulary appears nowhere in this repository, and that customer accepts a
+    complaint while sharing a process with another customer that cannot see any
+    of it.
+    """
+    return run([sys.executable, "scripts/gate_phase5.py"])
+
+
+@task("control-plane", "Control-plane CLI — `nem control-plane templates`")
+def _control_plane(args: list[str]) -> int:
+    return run([*IN_API, "python", "-m", "nemesis.control_plane", *(args or ["templates"])])
 
 
 @task("flag", "Feature flags — `nem flag list` / `nem flag kill <name> --actor X --reason Y`")

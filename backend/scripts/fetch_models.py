@@ -170,7 +170,7 @@ def fetch_whisper() -> str:
     del model
     return (
         f"{cfg.whisper_model} ({cfg.whisper_compute_type}), "
-        f"languages={','.join(cfg.whisper_languages)}"
+        f"languages={','.join(cfg.whisper_prefetch_languages)}"
     )
 
 
