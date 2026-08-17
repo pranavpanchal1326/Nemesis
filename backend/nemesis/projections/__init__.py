@@ -25,6 +25,13 @@ from nemesis.projections.replay import (
     to_projection_event,
     write_snapshot_if_due,
 )
+from nemesis.projections.writer import (
+    ProjectionWriteError,
+    is_materialised,
+    rebuild_entity,
+    rebuild_tenant,
+    write_projection,
+)
 
 __all__ = [
     "PROJECTOR_VERSION",
@@ -32,12 +39,17 @@ __all__ = [
     "ProjectedState",
     "ProjectionError",
     "ProjectionEvent",
+    "ProjectionWriteError",
     "ReplayResult",
     "has_projector",
+    "is_materialised",
     "project",
+    "rebuild_entity",
+    "rebuild_tenant",
     "replay_entity",
     "state_hash",
     "to_projection_event",
     "unhandled_event_types",
+    "write_projection",
     "write_snapshot_if_due",
 ]
