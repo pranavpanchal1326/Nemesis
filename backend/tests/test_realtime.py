@@ -282,26 +282,33 @@ async def test_a_dead_listener_is_restarted_while_clients_are_connected(
     async def _dies_immediately() -> None:
         return None
 
-    service._listener = asyncio.create_task(_dies_immediately())
-    await service._listener
+    dead = asyncio.create_task(_dies_immediately())
+    service._listener = dead
+    await dead
 
     beat = asyncio.create_task(service._beat())
     try:
         for _ in range(200):
             await asyncio.sleep(0.01)
-            if service._listener is not None and not service._listener.done():
+            if service._listener is not dead:
                 break
     finally:
         beat.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await beat
 
+    # Identity, not liveness. The replacement listener is asserted to have been
+    # *created*, because with a stubbed subscription it has nothing to read and
+    # exits again immediately — which is also what a permanently unreachable
+    # Redis produces. The supervisor is meant to keep replacing it on every beat
+    # in that case rather than to make it stay alive, so liveness is the wrong
+    # thing to assert and would only pass against a healthy broker.
     assert service._listener is not None
-    assert not service._listener.done(), "the dead listener was never replaced"
+    assert service._listener is not dead, "the dead listener was never replaced"
     # Re-subscribed as well as restarted. A read loop resumed on a pub/sub object
     # whose socket is gone runs forever and yields nothing — the same deafness,
     # now with a log line claiming it was fixed.
-    assert resubscribed == [tenant]
+    assert resubscribed and resubscribed[0] == tenant
 
     service._listener.cancel()
     with contextlib.suppress(asyncio.CancelledError):

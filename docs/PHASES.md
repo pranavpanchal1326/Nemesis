@@ -196,6 +196,44 @@ that satisfies more of these wins.
 10. MediaPipe then failed at *runtime* on `libEGL.so.1` — its Tasks runtime links a GPU delegate at load even for CPU inference. The image built cleanly and only broke at first use
 11. `trailing-whitespace` silently rewrote 12 lines of the hand-tuned `README.md`, including the centred navigation block. Reverted and the hook scoped away from it — presentation whitespace is an authoring decision, not lint
 
+10. **The read endpoint replayed the whole event log on every 200**, while its
+    own docstring claimed it read the projection. §27.3 turns that endpoint into
+    a 5-second poll per client whenever the WebSocket is unavailable, so the
+    cost the entire Phase 2 projection layer exists to avoid was being paid on
+    the hottest read in the system — and the comment above it said the opposite,
+    which is the part that would have kept anyone from looking. Fixed by
+    materialising the two projected degradation fields as columns and serving
+    the response from one query; `§26.2`'s `work_order_id`, which had been
+    permanently `null`, is now resolved by a correlated subquery. The test
+    breaks `replay_entity` outright, so the handler reaching for it again fails
+    rather than merely getting slower
+11. **The submission handler blocked the event loop on task dispatch.**
+    `apply_async` is synchronous Redis I/O; called directly from an async
+    handler it stalls not just that request but every other request the process
+    is serving, against a §27.1 budget of two seconds for the acknowledgment. A
+    merely slow broker would have become a process-wide latency spike
+12. **A dead realtime listener was never restarted.** If the Redis read loop
+    died — a restart, a dropped connection — nothing recreated it until the
+    *next* client connected. Already-connected clients kept receiving heartbeats
+    from a separate task and stopped receiving events, so the socket looked
+    healthy from both ends and was deaf, which is strictly worse than a dropped
+    connection a client knows to reconnect from. The heartbeat now supervises
+    the listener and re-subscribes before restarting it, because a read loop
+    resumed on a pub/sub object whose socket is gone yields nothing forever —
+    the same deafness with a log line claiming it was fixed
+13. **`get_limiter` ignored its arguments after the first call**, so a process
+    building a second application with different limits silently used the
+    first's budgets. Invisible in production, where there is one configuration,
+    and wrong in exactly the case that catches it: a test asserting against a
+    configuration nothing is running
+14. **The tenancy guard refused the read endpoint's outer join**, correctly: a
+    column-to-column `tenant_id` comparison in an ON clause scopes the join, not
+    the table. Recorded because it is the guard earning its keep on new code
+    written by someone who had just spent a day inside ADR-0014 — and the fix
+    (a correlated subquery carrying its own explicit predicate) is better SQL
+    than the join was, since a cluster can carry more than one work order and
+    the join needed an ordering and a limit on the outer query to survive it
+
 **Carried forward, not silently absorbed:** `blaze_face_short_range` detects faces within ~2 m, but street photography contains small distant bystanders — exactly the population §22.1 requires blurring. MediaPipe 1.x ships no full-range alternative. Phase 8 must measure distant-face recall and remediate; `face_detector_min_confidence` is already biased to 0.4 on the reasoning that a missed face is a privacy breach while a false positive only blurs pavement.
 
 ## Phase 1a — Engineering operating system (local-first) ✅ · SRE
@@ -400,7 +438,8 @@ The spine everything writes through. The phase worth over-engineering.
   **267 tests passing** · **94.17% coverage** against an 85% floor · all seven
   check scripts green
 
-**Defects the gate caught** (each now covered by a regression test or a fix):
+**Defects the gate and the post-implementation audit caught** (each now
+covered by a regression test or a fix):
 1. **The canonicaliser rejected strings it had just produced.** Integers were
    bounded by `MAX_SAFE_INTEGER`, but `2**53` as a float canonicalises to
    `9007199254740992`, which `json.loads` reads back as an `int` one past that
@@ -599,12 +638,13 @@ each hop survivable.
   while the worker is dead is durably queued, the replacement completes it
   exactly once, and an untouched complaint gains no duplicate
 - ✅ ruff clean · ruff format clean · **mypy --strict clean (74 modules)** ·
-  **361 tests passing** · **87.68% coverage** against an 85% floor ·
+  **367 tests passing** · **88.54% coverage** against an 85% floor ·
   `alembic check` clean · all five check scripts green · promtool validates 24
   rules · **14/14 live gate checks passed** on three consecutive runs against
   the running seven-service stack
 
-**Defects the gate caught** (each now covered by a regression test or a fix):
+**Defects the gate and the post-implementation audit caught** (each now
+covered by a regression test or a fix):
 1. **`record_system_degradation` could never have worked.** `events.tenant_id`
    carries a foreign key to `tenants`, and Phase 2's reserved `SYSTEM_TENANT_ID`
    was a Python constant with no row behind it — so every degradation record
@@ -691,6 +731,14 @@ each hop survivable.
   of the pipeline and the wrong cost for describing a degradation
 - **The human review queue that works the dead-letter table is Phase 8's.** Phase
   3 ships the table, the events, and the metrics; §11.4's reviewer UI is not here
+- **A rejected submission can orphan an already-stored file in quarantine.**
+  Left deliberately: the store is content-addressed, so deleting "the file
+  this request wrote" can delete the file a *different* complaint
+  references, because identical bytes are one file. Trading an orphan for the
+  possible deletion of another citizen's evidence is not a trade worth making
+  at the request layer. Phase 8 already walks quarantine to blur and promote,
+  and reclaiming what the log does not reference belongs in that sweep, where
+  the log is the authority on what is referenced
 
 ## Phase 4 — Public API, versioning & integration platform · PLT
 
