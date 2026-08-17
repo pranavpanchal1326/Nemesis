@@ -75,3 +75,6 @@ The concrete signal that should reopen this decision.
 | [0015](0015-transactional-outbox-with-a-dedicated-relay.md) | Realtime events publish from a transactional outbox, drained by a dedicated relay | Accepted | PLT |
 | [0016](0016-realtime-payloads-are-default-deny.md) | A published event payload is empty unless a shape is declared for it | Accepted | PLT · SEC |
 | [0017](0017-the-rate-limiter-fails-open.md) | The submission rate limiter fails open, and counts every time it does | Accepted | PLT · SEC |
+| [0018](0018-two-hierarchies-responsibility-and-place.md) | Two organisation hierarchies: responsibility and place | Accepted | PLT |
+| [0019](0019-taxonomy-keys-are-immutable-contracts.md) | A taxonomy key is an immutable contract; the display name is a translation | Accepted | PLT |
+| [0020](0020-control-plane-writes-carry-a-shared-token.md) | Control-plane writes carry a shared token, and every one of them writes an event | Accepted | PLT · SEC |

@@ -92,6 +92,48 @@ Verify: a token minted before the rotation must now be rejected. Overlapping
 key support (`kid`-based rotation without a logout) is a Phase 13 item; until
 then the interruption is the honest cost.
 
+### `NEMESIS_CONTROL_PLANE_TOKEN`
+
+**Blast radius: the meaning of every complaint, for every tenant.** This guards
+tenant provisioning and every control-plane write — taxonomy, organisation,
+zones, calendars, translations, contractor certifications. Holding it does not
+let somebody read a citizen's report, and that is not the reassurance it sounds
+like: it lets them *redefine what reports mean*. Deactivate a category and new
+complaints stop being classifiable into it. Change a routing hint and work goes
+to the wrong department. Move a holiday and every SLA deadline computed after
+that point shifts, including the ones a contractor is measured against.
+
+The local value is published in this repository, and `app_env=pilot` refuses to
+boot while it is still set — a guard, not a substitute for rotation.
+
+**This is a shared secret, not authentication**, and it is deliberately blunt:
+there is no per-operator identity behind it until Phase 13, which is why every
+control-plane mutation also writes an event to the tenant's hash chain. After a
+suspected exposure, rotating is the first step and **reading that chain is the
+second** — the token tells you nothing about who used it, and the events tell
+you exactly what was changed and when.
+
+**Rotate on:** any suspected exposure, any personnel change with operator
+access, and immediately when Phase 13 replaces this mechanism.
+
+```bash
+python -c "import secrets;print(secrets.token_urlsafe(64))"
+```
+
+Set `NEMESIS_CONTROL_PLANE_TOKEN`, restart `api`. Nothing is invalidated except
+the token itself — no sessions drop, and no tenant is affected — so unlike the
+JWT rotation this one has no user-visible cost and no reason to delay.
+
+Verify: a `POST /api/v1/control-plane/tenants` carrying the old token must
+return 403, and one carrying the new token must return 201. Then audit what the
+old token did:
+
+```bash
+docker compose exec -T postgres psql -U nemesis -d nemesis -tAc \
+  "SELECT tenant_id, occurred_at, event_type, payload FROM events \
+   WHERE entity_type = 'tenant' ORDER BY occurred_at DESC LIMIT 50"
+```
+
 ### `POSTGRES_PASSWORD`
 
 **Blast radius: full read/write access to every complaint, event, and citizen
