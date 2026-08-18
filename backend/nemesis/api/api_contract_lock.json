@@ -88,6 +88,195 @@
         }
       }
     },
+    "GET /api/v1/control-plane/policies": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "activated_at": {
+            "required": true,
+            "type": "null|string"
+          },
+          "approved_at": {
+            "required": true,
+            "type": "null|string"
+          },
+          "based_on_revision": {
+            "required": true,
+            "type": "integer|null"
+          },
+          "change_reason": {
+            "required": true,
+            "type": "string"
+          },
+          "change_summary": {
+            "required": true,
+            "type": "null|string"
+          },
+          "content_hash": {
+            "required": true,
+            "type": "string"
+          },
+          "created_at": {
+            "required": true,
+            "type": "string"
+          },
+          "effective_from": {
+            "required": true,
+            "type": "null|string"
+          },
+          "effective_until": {
+            "required": true,
+            "type": "null|string"
+          },
+          "kind": {
+            "required": true,
+            "type": "object:PolicyKind"
+          },
+          "rejection_reason": {
+            "required": true,
+            "type": "null|string"
+          },
+          "revision": {
+            "required": true,
+            "type": "integer"
+          },
+          "rolled_back_from_revision": {
+            "required": true,
+            "type": "integer|null"
+          },
+          "status": {
+            "required": true,
+            "type": "object:PolicyStatus"
+          },
+          "submitted_at": {
+            "required": true,
+            "type": "null|string"
+          }
+        }
+      }
+    },
+    "GET /api/v1/control-plane/policies/facts": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "description": {
+            "required": true,
+            "type": "string"
+          },
+          "kind": {
+            "required": true,
+            "type": "string"
+          },
+          "name": {
+            "required": true,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "GET /api/v1/control-plane/policies/{kind}/active": {
+      "required_params": [
+        "kind"
+      ],
+      "response": {
+        "body": {
+          "required": true,
+          "type": "object"
+        },
+        "content_hash": {
+          "required": true,
+          "type": "string"
+        },
+        "is_baseline": {
+          "required": true,
+          "type": "boolean"
+        },
+        "kind": {
+          "required": true,
+          "type": "object:PolicyKind"
+        },
+        "revision": {
+          "required": true,
+          "type": "integer|null"
+        },
+        "stamp": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "GET /api/v1/control-plane/policies/{kind}/{revision}": {
+      "required_params": [
+        "kind",
+        "revision"
+      ],
+      "response": {
+        "activated_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "approved_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "based_on_revision": {
+          "required": true,
+          "type": "integer|null"
+        },
+        "body": {
+          "required": true,
+          "type": "object"
+        },
+        "change_reason": {
+          "required": true,
+          "type": "string"
+        },
+        "change_summary": {
+          "required": true,
+          "type": "null|string"
+        },
+        "content_hash": {
+          "required": true,
+          "type": "string"
+        },
+        "created_at": {
+          "required": true,
+          "type": "string"
+        },
+        "effective_from": {
+          "required": true,
+          "type": "null|string"
+        },
+        "effective_until": {
+          "required": true,
+          "type": "null|string"
+        },
+        "kind": {
+          "required": true,
+          "type": "object:PolicyKind"
+        },
+        "rejection_reason": {
+          "required": true,
+          "type": "null|string"
+        },
+        "revision": {
+          "required": true,
+          "type": "integer"
+        },
+        "rolled_back_from_revision": {
+          "required": true,
+          "type": "integer|null"
+        },
+        "status": {
+          "required": true,
+          "type": "object:PolicyStatus"
+        },
+        "submitted_at": {
+          "required": true,
+          "type": "null|string"
+        }
+      }
+    },
     "GET /api/v1/control-plane/taxonomy": {
       "required_params": [],
       "response": {
@@ -769,6 +958,133 @@
       "required_params": [],
       "response": {}
     },
+    "POST /api/v1/control-plane/policies/seed-baselines": {
+      "required_params": [],
+      "response": {
+        "seeded_kinds": {
+          "required": true,
+          "type": "array<object:PolicyKind>"
+        },
+        "skipped_kinds": {
+          "required": true,
+          "type": "array<object:PolicyKind>"
+        }
+      }
+    },
+    "POST /api/v1/control-plane/policies/{kind}": {
+      "required_params": [
+        "kind"
+      ],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/policies/{kind}/rollback": {
+      "required_params": [
+        "kind"
+      ],
+      "response": {
+        "reload": {
+          "required": false,
+          "type": "object:ReloadNotice"
+        },
+        "superseded_revision": {
+          "required": true,
+          "type": "integer|null"
+        },
+        "version": {
+          "required": true,
+          "type": "object:PolicyVersionDetail"
+        }
+      }
+    },
+    "POST /api/v1/control-plane/policies/{kind}/{revision}/activate": {
+      "required_params": [
+        "kind",
+        "revision"
+      ],
+      "response": {
+        "reload": {
+          "required": false,
+          "type": "object:ReloadNotice"
+        },
+        "superseded_revision": {
+          "required": true,
+          "type": "integer|null"
+        },
+        "version": {
+          "required": true,
+          "type": "object:PolicyVersionDetail"
+        }
+      }
+    },
+    "POST /api/v1/control-plane/policies/{kind}/{revision}/{verb}": {
+      "required_params": [
+        "kind",
+        "revision",
+        "verb"
+      ],
+      "response": {
+        "activated_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "approved_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "based_on_revision": {
+          "required": true,
+          "type": "integer|null"
+        },
+        "change_reason": {
+          "required": true,
+          "type": "string"
+        },
+        "change_summary": {
+          "required": true,
+          "type": "null|string"
+        },
+        "content_hash": {
+          "required": true,
+          "type": "string"
+        },
+        "created_at": {
+          "required": true,
+          "type": "string"
+        },
+        "effective_from": {
+          "required": true,
+          "type": "null|string"
+        },
+        "effective_until": {
+          "required": true,
+          "type": "null|string"
+        },
+        "kind": {
+          "required": true,
+          "type": "object:PolicyKind"
+        },
+        "rejection_reason": {
+          "required": true,
+          "type": "null|string"
+        },
+        "revision": {
+          "required": true,
+          "type": "integer"
+        },
+        "rolled_back_from_revision": {
+          "required": true,
+          "type": "integer|null"
+        },
+        "status": {
+          "required": true,
+          "type": "object:PolicyStatus"
+        },
+        "submitted_at": {
+          "required": true,
+          "type": "null|string"
+        }
+      }
+    },
     "POST /api/v1/control-plane/taxonomy": {
       "required_params": [],
       "response": {}
@@ -837,6 +1153,78 @@
         "url": {
           "required": true,
           "type": "string"
+        }
+      }
+    },
+    "PUT /api/v1/control-plane/policies/{kind}/{revision}": {
+      "required_params": [
+        "kind",
+        "revision"
+      ],
+      "response": {
+        "activated_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "approved_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "based_on_revision": {
+          "required": true,
+          "type": "integer|null"
+        },
+        "body": {
+          "required": true,
+          "type": "object"
+        },
+        "change_reason": {
+          "required": true,
+          "type": "string"
+        },
+        "change_summary": {
+          "required": true,
+          "type": "null|string"
+        },
+        "content_hash": {
+          "required": true,
+          "type": "string"
+        },
+        "created_at": {
+          "required": true,
+          "type": "string"
+        },
+        "effective_from": {
+          "required": true,
+          "type": "null|string"
+        },
+        "effective_until": {
+          "required": true,
+          "type": "null|string"
+        },
+        "kind": {
+          "required": true,
+          "type": "object:PolicyKind"
+        },
+        "rejection_reason": {
+          "required": true,
+          "type": "null|string"
+        },
+        "revision": {
+          "required": true,
+          "type": "integer"
+        },
+        "rolled_back_from_revision": {
+          "required": true,
+          "type": "integer|null"
+        },
+        "status": {
+          "required": true,
+          "type": "object:PolicyStatus"
+        },
+        "submitted_at": {
+          "required": true,
+          "type": "null|string"
         }
       }
     },

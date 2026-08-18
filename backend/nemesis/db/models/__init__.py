@@ -41,6 +41,7 @@ from nemesis.db.models.organisation import (
     Zone,
 )
 from nemesis.db.models.outbox import OutboxMessage, PipelineDeadLetter
+from nemesis.db.models.policy import PolicyVersion
 from nemesis.db.models.taxonomy import TaxonomyNode, TaxonomyPromptSet
 from nemesis.db.models.tenant import Tenant
 from nemesis.db.models.work_order import BudgetAllocation, WorkOrder
@@ -68,6 +69,7 @@ __all__ = [
     "EventSnapshot",
     "OutboxMessage",
     "PipelineDeadLetter",
+    "PolicyVersion",
     "Shift",
     "TaxonomyNode",
     "TaxonomyPromptSet",

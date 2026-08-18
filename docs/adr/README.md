@@ -82,3 +82,6 @@ The concrete signal that should reopen this decision.
 | [0022](0022-api-versions-are-locked-by-a-contract-file.md) | A published API version is locked by a contract file, and v2 ships to prove it | Accepted | PLT |
 | [0023](0023-webhook-secrets-are-derived-never-stored.md) | Webhook signing secrets are derived, never stored; targets re-validated at delivery | Accepted | PLT · SEC |
 | [0024](0024-bulk-export-ships-csv-and-ndjson-parquet-waits-for-phase-23.md) | Bulk export ships CSV and NDJSON; Parquet waits for Phase 23 | Accepted | PLT · DATA |
+| [0025](0025-policy-conditions-run-in-an-ast-interpreter-never-eval.md) | Policy conditions run in a hand-written AST interpreter, never `eval` | Accepted | PLT · SEC |
+| [0026](0026-policy-rollback-moves-forward-never-backward.md) | Policy rollback creates a new revision; it never re-activates an old row | Accepted | PLT |
+| [0027](0027-policy-reads-are-cached-with-a-stated-reload-interval.md) | Policy reads are cached per process, and the reload interval is published | Accepted | PLT |

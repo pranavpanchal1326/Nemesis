@@ -96,6 +96,7 @@ integrity of evidence rather than about availability.
 |---|---|---|
 | [event-chain-integrity.md](event-chain-integrity.md) | A chain no longer recomputes, or the sweep that detects that has stopped | **critical** |
 | [taxonomy-misconfiguration.md](taxonomy-misconfiguration.md) | A control-plane change made a tenant's complaints stop making sense | warning |
+| [policy-rollback.md](policy-rollback.md) | A governed policy change made things worse; roll it back | warning |
 | [event-partition-maintenance.md](event-partition-maintenance.md) | Rows stranded in the DEFAULT partition; retention and archival | warning |
 
 ### Public API & integrations (Phase 4)

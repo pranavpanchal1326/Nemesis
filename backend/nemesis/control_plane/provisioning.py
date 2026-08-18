@@ -55,6 +55,7 @@ from nemesis.db.models.tenant import Tenant
 from nemesis.domain.constants import SYSTEM_TENANT_SLUG
 from nemesis.events.store import EventStore
 from nemesis.observability.logging import get_logger
+from nemesis.policy import service as policy_service
 
 log = get_logger(__name__)
 
@@ -145,6 +146,16 @@ async def provision(
         correlation_id=correlation_id,
     )
 
+    # Phase 6. After the taxonomy, because a severity override or a dedup band
+    # names a category — the baselines name none, but a template that carries
+    # its own policy documents will, and the ordering should not depend on which
+    # kind of tenant is being provisioned. A tenant leaves this function
+    # *governed*: the first complaint it accepts is scored by an approved rubric
+    # with a version number, not by a fallback.
+    seeded_policies = await policy_service.seed_baselines(
+        session, tenant_id=tenant_id, actor_id=actor_id, correlation_id=correlation_id
+    )
+
     counts = {
         "taxonomy_nodes": len(plan.taxonomy),
         "departments": len(plan.departments),
@@ -153,6 +164,7 @@ async def provision(
         "calendars": len(plan.calendars),
         "prompt_sets": len(plan.prompt_sets),
         "translation_bundles": len(plan.translations),
+        "policies": len(seeded_policies),
     }
     log.info(
         "tenant_provisioned",

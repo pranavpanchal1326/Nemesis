@@ -459,6 +459,19 @@ def _gate_phase4(_: list[str]) -> int:
     return run([sys.executable, "scripts/gate_phase4.py"])
 
 
+@task("gate-phase6", "Phase 6 gate: change a rubric, an SLA, a keyword, and a route with no deploy")
+def _gate_phase6(_: list[str]) -> int:
+    """Runs against the live stack, because "no deploy" is a claim about one.
+
+    A test process never restarts, so it cannot demonstrate the absence of a
+    restart — the whole sentence would be unfalsifiable. This script changes all
+    four governed knobs over HTTP and then compares the API container's id and
+    start instant from before the run, which is what turns "without a deploy"
+    from an assertion into a measurement.
+    """
+    return run([sys.executable, "scripts/gate_phase6.py"])
+
+
 @task("api-lock", "Re-lock the published API contract after a deliberate change")
 def _api_lock(_: list[str]) -> int:
     """Deliberately separate from `nem check`.
