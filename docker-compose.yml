@@ -262,6 +262,36 @@ services:
       start_period: 20s
     mem_limit: 192m
 
+  # Phase 4. Its own process for the reasons the relay's docstring gives — one
+  # job, a container healthcheck for liveness, a lag metric — plus one specific
+  # to this workload: a delivery blocks on somebody else's server for up to ten
+  # seconds, and putting that inside the API's event loop or a Celery task slot
+  # means a slow receiver consumes capacity the pipeline needs.
+  #
+  # The Celery beat tasks are a bounded safety net, not a substitute. Both take
+  # the same `FOR UPDATE SKIP LOCKED` rows, so running them together is
+  # concurrent rather than duplicative.
+  webhooks:
+    <<: *backend-base
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args: {INSTALL_ML: "false", INSTALL_DEV: "false"}
+    environment:
+      <<: *backend-env
+    command: ["python", "-m", "nemesis.integrations.delivery"]
+    volumes: [./backend:/app]
+    # Process liveness, like `relay` and `beat`: no HTTP port, and if it dies
+    # every partner integration goes quiet while every other service reports
+    # healthy.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'nemesis.integrations.delivery' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    mem_limit: 192m
+
   # ------------------------------------------------------------------------
   # Observability (Phase 1a) — opt-in via the `obs` profile.
   #

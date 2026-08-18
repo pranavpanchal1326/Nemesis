@@ -97,6 +97,21 @@ DEPLOYMENT_REQUIRED: tuple[RequiredSetting, ...] = (
         ),
     ),
     RequiredSetting(
+        env_var="NEMESIS_WEBHOOK_SIGNING_KEY",
+        setting_path="webhook_signing_key",
+        criticality=Criticality.SECRET,
+        local_default="dev-only-insecure-webhook-signing-key-change-me",
+        why=(
+            "Phase 4. Every tenant's webhook signing secret is derived from "
+            "this one key, so the local value — published in this repository — "
+            "lets anyone forge a payload that a tenant's handler will verify as "
+            "genuinely ours. That is worse than a leaked read credential: the "
+            "receiver acts on what it believes we sent. Nothing signing-related "
+            "is stored at rest, which is the trade: no ciphertext to manage, "
+            "and one key whose blast radius is every subscriber at once."
+        ),
+    ),
+    RequiredSetting(
         env_var="NEMESIS_CORS_ALLOW_ORIGINS",
         setting_path="cors_allow_origins",
         criticality=Criticality.POLICY,

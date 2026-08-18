@@ -98,20 +98,66 @@ class TestProductionSafetyGuards:
         with pytest.raises(ValueError, match="development control-plane token"):
             Settings(app_env="pilot", jwt_secret=SecretStr("a-real-generated-value"))
 
+    def test_pilot_refuses_the_development_webhook_signing_key(self) -> None:
+        """Phase 4. Every tenant's webhook secret derives from this one key.
+
+        A well-known value means anybody can forge a payload that a tenant's
+        handler will accept as ours — which is worse than a leaked read
+        credential, because the receiver acts on what it believes we sent.
+        """
+        with pytest.raises(ValueError, match="webhook signing key"):
+            Settings(
+                app_env="pilot",
+                jwt_secret=SecretStr("a-real-generated-value"),
+                control_plane_token=SecretStr("a-real-generated-token"),
+            )
+
+    def test_pilot_refuses_ssrf_permitted_webhook_targets(self) -> None:
+        """Phase 4. A webhook URL is tenant-supplied by construction.
+
+        Allowing private targets in a deployment turns it into an SSRF proxy for
+        its own internal network and its cloud metadata endpoint. The local
+        stack sets it because every test target is a loopback address; a pilot
+        that sets it is opting into being a proxy.
+        """
+        from nemesis.config import WebhookSettings
+
+        with pytest.raises(ValueError, match="private network"):
+            Settings(
+                app_env="pilot",
+                jwt_secret=SecretStr("a-real-generated-value"),
+                control_plane_token=SecretStr("a-real-generated-token"),
+                webhook_signing_key=SecretStr("a-real-generated-signing-key"),
+                webhooks=WebhookSettings(allow_private_network_targets=True),
+            )
+
     def test_pilot_refuses_wildcard_cors(self) -> None:
+        # Every guarded field is passed explicitly, including `webhooks`. The
+        # validator runs in order, so a value inherited from a developer's local
+        # `.env` would trip an *earlier* guard and this test would report a
+        # wildcard-CORS failure that never happened. Found when the local stack
+        # set `allow_private_network_targets` to run the Phase 4 gate.
+        from nemesis.config import WebhookSettings
+
         with pytest.raises(ValueError, match="wildcard CORS"):
             Settings(
                 app_env="pilot",
                 jwt_secret=SecretStr("a-real-generated-value"),
                 control_plane_token=SecretStr("a-real-generated-token"),
+                webhook_signing_key=SecretStr("a-real-generated-signing-key"),
+                webhooks=WebhookSettings(),
                 cors_allow_origins=("*",),
             )
 
     def test_pilot_boots_with_real_values(self) -> None:
+        from nemesis.config import WebhookSettings
+
         settings = Settings(
             app_env="pilot",
             jwt_secret=SecretStr("a-real-generated-value"),
             control_plane_token=SecretStr("a-real-generated-token"),
+            webhook_signing_key=SecretStr("a-real-generated-signing-key"),
+            webhooks=WebhookSettings(),
             cors_allow_origins=("https://nemesis.example.gov.in",),
         )
         assert settings.is_production_like

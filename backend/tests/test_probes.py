@@ -17,7 +17,7 @@ from unittest.mock import patch
 import pytest
 from httpx import AsyncClient
 
-from nemesis.config import Settings
+from nemesis.config import Settings, WebhookSettings
 
 
 class TestLiveness:
@@ -178,6 +178,10 @@ class TestProductionSafetyGuards:
                 app_env="pilot",
                 jwt_secret="a-real-generated-secret",  # type: ignore[arg-type]
                 control_plane_token="a-real-generated-token",  # type: ignore[arg-type]
+                webhook_signing_key="a-real-generated-signing-key",  # type: ignore[arg-type]
+                # Explicit, so a developer's local `.env` cannot trip an earlier
+                # guard and make this report a CORS failure that never happened.
+                webhooks=WebhookSettings(),
                 cors_allow_origins=("*",),
             )
 

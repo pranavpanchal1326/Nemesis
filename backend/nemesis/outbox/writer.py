@@ -116,7 +116,9 @@ async def undispatched_total(session: AsyncSession) -> int:
     return int(total)
 
 
-async def purge_dispatched(session: AsyncSession, *, older_than: datetime) -> int:
+async def purge_dispatched(
+    session: AsyncSession, *, older_than: datetime, safe_below: int | None = None
+) -> int:
     """Delete dispatched rows past the resume window.
 
     Dispatched rows are kept, not deleted on publish, so a client that
@@ -128,18 +130,32 @@ async def purge_dispatched(session: AsyncSession, *, older_than: datetime) -> in
     Deleting an outbox row destroys no history — the event it points at is
     untouched — so unlike §22.4 retention on ``events``, this one is safe to
     automate.
+
+    **``safe_below`` is the Phase 4 correction, and it closes a real hole.** The
+    realtime relay was the only reader when this was written; the webhook
+    fan-out is a second one, and it advances on its own cursor. A row that the
+    relay dispatched hours ago but the fan-out has not read yet is, by the
+    predicate above, eligible for deletion — and deleting it means the events it
+    pointed at are never delivered to any webhook subscriber, with no failed row
+    anywhere to show it, because the delivery was never created.
+
+    Passing the fan-out's cursor as ``safe_below`` keeps those rows. ``None``
+    means "no second reader", which is only correct where there genuinely is
+    none, so the scheduled task passes the cursor rather than defaulting it.
     """
     # tenant-scope-exempt: retention runs on the clock across the whole
     # deployment, exactly as `archived_partitions` maintenance does. A per-tenant
     # purge would hold the loop open for as long as the largest customer's
     # backlog takes and would still have to visit every tenant.
+    predicates = [
+        OutboxMessage.dispatched_at.is_not(None),
+        OutboxMessage.dispatched_at < older_than,
+    ]
+    if safe_below is not None:
+        predicates.append(OutboxMessage.id <= safe_below)
+
     result = await session.execute(
         # tenant-scope-exempt: clock-driven retention across the deployment.
-        delete(OutboxMessage)
-        .where(
-            OutboxMessage.dispatched_at.is_not(None),
-            OutboxMessage.dispatched_at < older_than,
-        )
-        .execution_options(**{TENANT_SCOPE_EXEMPT: True})
+        delete(OutboxMessage).where(*predicates).execution_options(**{TENANT_SCOPE_EXEMPT: True})
     )
     return int(getattr(result, "rowcount", 0) or 0)

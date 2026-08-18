@@ -88,7 +88,7 @@ that satisfies more of these wins.
 | 1b | Cloud environments & promotion pipeline | 0 · Operating System | SRE | 1a + a chosen deploy target |
 | 2 | Event store, schema registry & tenancy ✅ | A · Platform | PLT | 1a |
 | 3 | Ingestion, orchestration & realtime transport ✅ | A · Platform | PLT | 2 |
-| 4 | Public API, versioning & integration platform | A · Platform | PLT | 3 |
+| 4 | Public API, versioning & integration platform ✅ | A · Platform | PLT | 3 |
 | 5 | Tenant, taxonomy & organisation service ✅ | B · Control Plane | PLT | 2 |
 | 6 | Policy & rules engine | B · Control Plane | PLT · DATA | 5 |
 | 7 | Configuration simulation & backtesting | B · Control Plane | DATA | 6 |
@@ -740,23 +740,246 @@ covered by a regression test or a fix):
   and reclaiming what the log does not reference belongs in that sweep, where
   the log is the authority on what is referenced
 
-## Phase 4 — Public API, versioning & integration platform · PLT
+## Phase 4 — Public API, versioning & integration platform ✅ · PLT
 
 §16.3 promises civil society and journalists a durable public interface. That is
 an API product with a compatibility obligation, not an endpoint.
 
-**Ships**
-- Versioned public read API (§26.4) over privacy-scrubbed aggregates, with published deprecation windows
-- API keys, per-key quotas, and usage analytics
-- **Outbound webhooks** with signed payloads, retry with exponential backoff, and a delivery log tenants can inspect
-- Developer portal: generated reference, changelog, and a sandbox tenant with synthetic data
-- Bulk export (CSV/Parquet) for RTI applicants and researchers
-- Contract tests asserting that a published version never breaks
+**Shipped**
+- **The §26.4 public API, opt-in per tenant and k-anonymous** (ADR-0021). Two
+  things §26.4 does not say, because it was written for a single-tenant
+  deployment, and both are disclosure decisions rather than engineering ones.
+  The tenant slug is in the path — a UUID would make every URL uncitable, and
+  §16.2's "bookmark-able by journalists" is the requirement. And
+  `public_api_enabled` **defaults to false**: the code being *capable* of
+  publishing a customer's figures is not the customer having agreed to, and a
+  permissive default would have made the first silently mean the second for
+  every tenant already provisioned
+- **Suppression below a floor, because "privacy-scrubbed" cannot mean anything
+  else.** A ward summary over two complaints is not an aggregate — it is one
+  citizen's report with a category, a place, and a time, every field
+  individually scrubbed and the row still identifying a person to anyone who was
+  on that street. Buckets below the floor are withheld **and say so**: zero
+  reports is a real public fact and between one and the floor is not, and a
+  consumer that cannot tell a withheld bucket from an absent one will read the
+  second from the first. The withheld *count* is published for the same reason.
+  The floor is clamped up, never down — a tenant configured at 1 has turned an
+  aggregate endpoint into a per-complaint feed, and failing the request instead
+  would take a transparency page offline over a configuration mistake
+- **Budgets deliberately not suppressed, contractors deliberately are.** A
+  budget line is public finance about a municipality; withholding it because one
+  scheme funded a ward hides what an RTI applicant came for. A contractor with
+  two jobs and one dispute has a published "33% dispute rate" that is noise
+  presented as a finding about a named company — §16.4 ships the appeal path in
+  the same phase, and the honest first line of that defence is not publishing a
+  figure that cannot mean anything
+- **The scrub is default-deny, extending ADR-0016 from the socket to the
+  world.** A public field exists because a shape declared it, never because a
+  column was forwarded. `public/policy.py` holds the allow-list with a reason
+  per field; `coarsen()` is imported from the realtime envelope rather than
+  reimplemented, so there is one definition of "coarse" in the system
+- **API versioning as executable policy** (ADR-0022). `docs/RELEASE.md`
+  published a twelve-month notice period, and a policy nobody can execute is
+  prose. The registry refuses a deprecation shorter than that **at import
+  time** — the realistic mistake is somebody shortening it because a v2 is ready
+  and twelve months feels theoretical, which it is not to the newsroom that
+  integrated last year. RFC 9745 `Deprecation` and RFC 8594 `Sunset` headers,
+  and a sunset version answers **410 computed from the date rather than the
+  status field**, so a deployment nobody updated still stops serving on schedule
+- **`api_contract_lock.json`, the outward counterpart of `schema_lock.json`.**
+  Removing, renaming, retyping, or un-requiring a published response field fails
+  CI with the consumer harm in the message; additive changes pass, because
+  forcing a version bump for every addition produces a v7 nobody migrated to and
+  a v1 everybody is still on. Nine tests verify the *checker*, not only the
+  lock — one nobody has watched fail might be comparing two empty dicts
+- **v2 ships, and genuinely breaks.** Counts move under `totals`, `/ward/`
+  becomes `/zone/` (ADR-0018's accurate noun). The gate clause is that a v1
+  consumer survives v2, and that cannot be proven against a v2 which does not
+  exist. Both versions share `public/aggregates.py`, so two shapes cannot
+  disagree about a resolution rate — which is the failure a reader comparing two
+  URLs would find before we did
+- **API keys with a scanner-visible marker.** `nem_<prefix>_<secret>`, 256 bits
+  from `secrets.token_bytes`, stored as an unsalted SHA-256 — deliberately not
+  bcrypt: password hashing makes a *low-entropy* secret expensive to guess, and
+  there is nothing here to guess. What a slow KDF would buy is a hundred
+  milliseconds on the hottest auth path against an attack that is already
+  impossible. The `nem_` prefix makes our own credentials greppable by the
+  secret scanners that would otherwise never flag one committed to a customer's
+  public repository
+- **Usage as a daily rollup, not a request log.** A row per request is an
+  unbounded write on the read path, duplicates what Prometheus holds at better
+  resolution, and would retain a client address §22 has no reason to keep in
+  order to count requests
+- **Webhooks whose signing secrets are derived, never stored** (ADR-0023).
+  `HMAC(deployment_key, endpoint_id || version)`: a database dump contains no
+  signing material, rotation is an integer increment, and there is no
+  key-management problem invented to protect a recomputable value. The
+  timestamp is **inside** the signed string — a signature over the body alone is
+  replayable forever — and the scheme is versioned in the header so replacing
+  SHA-256 is not a flag day across every tenant simultaneously
+- **The SSRF guard resolves rather than pattern-matches**, and re-checks before
+  *every* delivery. `http://spoof.example.com/` resolving to `127.0.0.1` is the
+  whole attack and a regex over the URL cannot see it; DNS answers changing
+  between registration and delivery *is* the rebinding attack. Redirects are not
+  followed — a 302 to an internal address is the guard walked around one hop at
+  a time
+- **Fan-out reads the outbox from a durable cursor**, so the submission
+  transaction never acquires a subscription lookup and realtime stays decoupled
+  from webhooks. The cursor advances in the same transaction as the rows it
+  produces, so a crash re-reads rather than skips — and the unique constraint
+  makes the re-read a no-op. **The retention interaction is the sharp edge and
+  it is closed**: `purge_dispatched` now takes a `safe_below` floor, because
+  deleting a row the fan-out had not read means events no subscriber ever
+  receives, with no failed row anywhere to show it
+- **A retry schedule that is data, not a loop.** Nine attempts spanning ~10.9
+  hours. Written as `2 ** attempt` it is a property nobody can state without
+  doing arithmetic, and the arithmetic is where "exponential backoff" usually
+  turns out to top out at four minutes. Jitter only ever *shortens*, so the
+  published span stays true
+- **Bulk export streaming CSV and NDJSON; Parquet deferred with an ADR**
+  (ADR-0024) rather than dropped quietly — Phase 2's twelfth defect is that no
+  gate can catch scope that was never implemented. The export goes through the
+  same allow-list as the API, because a bulk download is the most attractive way
+  to exfiltrate this dataset and "the export writes a different serialiser" is
+  how a scrub gets bypassed by accident. `reported_date` is a **date**: a
+  second-resolution timestamp beside a coarse location re-identifies, because
+  two people do not photograph the same corner in the same second
+- **A developer portal generated from the running build**, with no external
+  asset of any kind — a public accountability page that fetches a font leaks
+  every reader's address to a third party. It renders the verification function
+  every integrator writes and most write with `==` instead of
+  `compare_digest`; the shipped example is one this repository's own suite
+  executes
+- **A sandbox that is a real tenant with synthetic data**, provisioned through
+  the ordinary control plane. A mock proves the shape and nothing about whether
+  the query works, and one zone is seeded deliberately thin so an integrator
+  meets a *suppressed* response during development rather than when a real quiet
+  ward hits it
+- Five metric families, five alert rules, two runbooks, four ADRs, a dedicated
+  `webhooks` dispatcher service, and `nem gate-phase4` / `nem api-lock` /
+  `nem sandbox`
 
-**Gate**
-- A v1 consumer keeps working after v2 ships, proven by a pinned contract test
-- Webhook delivery survives an endpoint being down for an hour, then drains
-- Every public field is provably free of exact GPS and citizen identifiers
+**Gate — met**
+- ✅ **A v1 consumer keeps working after v2 ships.** Proven twice and both are
+  needed: `test_api_contract.py` pins every published response shape against the
+  running build, and the live gate replays a *recorded consumer's* access
+  pattern — the literal field reads, not a description of them — against v1
+  while v2 serves the breaking reshape from the same process. `/ward/` still
+  404s on v2, which is what makes the v1 assertion mean something
+- ✅ **Webhook delivery survives an endpoint being down for an hour, then
+  drains** — drilled live against a real listener on a real socket that really
+  refuses connections. Attempts accumulate without giving up, the endpoint
+  recovers, the backlog drains, and the payload that lands **verifies against
+  its HMAC** and carries `attempt=3` — proving it is the delivery that was
+  retried rather than a fresh one that happened to succeed. The hour itself is
+  asserted separately as the shipped schedule's 39 160-second span, because
+  waiting sixty minutes inside a gate is how a gate stops being run
+- ✅ **Every public field is provably free of exact GPS and citizen
+  identifiers**, proven in three layers because each catches what the others
+  structurally cannot: the declared response models against the allow-list, the
+  rendered bodies of a real response, and the OpenAPI document across every
+  published path. The live gate seeds a complaint carrying a device fingerprint,
+  citizen prose, and a full-precision coordinate, then asserts none of the four
+  public endpoints, the webhook payload, or the bulk extract contains any of them
+- ✅ ruff clean · ruff format clean · **mypy --strict clean (110 modules)** ·
+  **591 tests passing** · **86.33% coverage** against an 85% floor ·
+  `alembic check` clean · migration applies, reverts, and re-applies on a clean
+  database · all six check scripts green · promtool validates 29 rules ·
+  **25/25 live gate checks passed** on three consecutive runs
+
+**Defects the gate and the post-implementation audit caught** (each now covered
+by a regression test or a fix):
+1. **`allow_private_network_targets` was an off switch, not a relaxation — and
+   the gate found it, not review.** The SSRF guard returned early when the flag
+   was set, so it disabled *every* address check rather than the two it exists
+   for. The flag is only ever set on a local stack, which is exactly where the
+   gate registered `https://169.254.169.254/latest/meta-data/` and **got a
+   201**. The flag exists so a developer can point a webhook at localhost or the
+   Docker gateway; link-local is never a legitimate target on any machine — on a
+   laptop nothing listens on it, and on a cloud instance it is the credential
+   endpoint. The relaxation is now scoped to loopback and RFC 1918, and
+   link-local, multicast, reserved, and unspecified stay refused unconditionally.
+   **A test asserting the guard works would not have caught this**, because the
+   guard did work in the configuration the tests ran under
+2. **The outbox retention sweep could delete events no webhook subscriber would
+   ever receive.** The relay was the only reader when `purge_dispatched` was
+   written; the fan-out is a second one with its own cursor, and a row the relay
+   dispatched hours ago but the fan-out had not read was eligible for deletion.
+   The failure is the worst kind: the deliveries were never *created*, so there
+   is no failed row to find afterwards and nothing anywhere reports a gap.
+   Closed by a `safe_below` floor the retention task reads from the cursor
+3. **The privacy scanner reported every clean response as a GPS leak.** The
+   coordinate pattern matched the fractional seconds of every ISO-8601 timestamp
+   the API emits — `:45.123456` reads as "a number with six decimal places" to a
+   regex that only knows digits — so `generated_at` failed on every correct
+   body. A privacy check that cries wolf on its own output is one people switch
+   off, which would have cost the real finding it exists for (Phase 1a defect #5,
+   in a new place)
+4. **ORM attribute assignment cannot be used by the cross-tenant dispatcher.**
+   A flush emits `UPDATE ... WHERE id = ?` with no tenant predicate, which the
+   tenancy guard refuses and is right to — it is indistinguishable from the
+   unscoped write the guard exists to catch. Every dispatcher write is now an
+   explicit, exempted statement carrying its reason, and `create_endpoint`
+   assigns its own id so creation is one INSERT rather than insert-then-update
+5. **The migration restated the naming convention's prefix**, producing
+   `ck_api_keys_ck_api_keys_quota_is_positive` and, on the longer ones, a name
+   Postgres truncated at 63 characters — which a later migration cannot
+   reference. `alembic check` caught it by reporting drift between the model and
+   the migrated schema, which is that check earning its place
+6. **The production safety tests inherited a developer's local `.env`.** They
+   passed explicit values for every guarded field *except* the new one, so
+   setting `allow_private_network_targets` locally to run the gate tripped an
+   earlier guard and made two tests report a wildcard-CORS failure that never
+   happened. Pre-existing fragility that the new field exposed
+7. **A 404 named the resource kind, and `check_domain_literals` was right to
+   flag it.** Chasing why the check was unhappy about `'contractor'` showed the
+   distinction was worthless — the kind is already in the path the caller sent —
+   and every extra branch in a 404 message is one more place for the
+   404-not-403 discipline to erode by somebody being helpful. One message now
+8. **The `worker-io` and `beat` images went stale the moment `httpx` became a
+   base dependency**, and both entered a crash loop on
+   `ModuleNotFoundError: No module named 'httpx'`. Phase 2's eleventh defect
+   exactly, in a new place — and the loud failure is the design working:
+   `TASK_MODULES` is an explicit list precisely so a task module that cannot
+   import kills the worker at startup rather than registering zero tasks and
+   reporting nothing. A rebuild fixes it; the reason it is recorded is that the
+   *quiet* version of this failure is the one that ships
+9. **The test helper wrote `events` by hand and named a column that does not
+   exist** (`payload_hash` rather than `event_hash`). Rewritten to go through
+   `EventStore` and the outbox writer, so the fan-out reads exactly the rows the
+   pipeline produces — hash chain included — and a schema change breaks the
+   helper loudly instead of quietly testing something else
+
+**Carried forward, not silently absorbed:**
+- **k-anonymity here is a floor, not a proof.** Suppressing small cells does not
+  defend against an adversary querying the same ward daily and differencing the
+  counts. Real differential privacy is a Phase 23 conversation with the analytics
+  platform, and pretending this is that would be the overclaim §17's own framing
+  warns against
+- **`auto_confirmed_resolutions` counts a proxy, and says so.** The
+  auto-confirmation flag lives on the `citizen_confirmed` event, and Phase 15
+  owns the closure loop and the projector that would materialise it. Until then
+  the figure counts closures with no recorded SSIM verification — narrower than
+  the real §44 question, stated rather than presented as the real question
+- **`complaints.ward` is matched to `zones.code` by value.** Phase 5 shipped
+  `zones` as the supersession of the ward label and Phase 12 is what makes
+  routing write the zone reference. Doing the label match now and saying so
+  beats inventing a foreign key the pipeline does not populate, which would
+  produce a public page permanently empty for reasons no reader could diagnose
+- **`PUBLISHED_CURRENCY` is a constant.** Phase 27 owns commercial configuration
+  and is where it becomes tenant data; named in one place so the day a tenant
+  outside India onboards, the failure is a grep hit rather than a silently wrong
+  currency symbol on a public budget page
+- **The public rate limiter is keyed on client address**, which is the weakest
+  identity available and the only one an unauthenticated endpoint has. Behind a
+  shared NAT it throttles an institution; behind a rotating proxy it throttles
+  nobody. The real answer for a serious consumer is a key with a real quota,
+  which is why `api_keys` exists and why the runbook says so rather than
+  crediting a control that did not act
+- **The hour-long outage is drilled against a mock transport in the suite and a
+  real socket in the gate, but never against a genuinely lossy network.**
+  Phase 25's `toxiproxy` suite is where the dispatcher meets packet loss and
+  half-open connections rather than a clean refusal
 
 ---
 

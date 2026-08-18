@@ -39,6 +39,7 @@ PROBLEM_CONTENT_TYPE = "application/problem+json"
 # returns from an error path is now named here: the numbers are stable, and the
 # library's names for them demonstrably are not.
 HTTP_400_BAD_REQUEST = 400
+HTTP_401_UNAUTHORIZED = 401
 HTTP_403_FORBIDDEN = 403
 HTTP_404_NOT_FOUND = 404
 HTTP_409_CONFLICT = 409
@@ -46,6 +47,11 @@ HTTP_413_CONTENT_TOO_LARGE = 413
 HTTP_415_UNSUPPORTED_MEDIA_TYPE = 415
 HTTP_422_UNPROCESSABLE = 422
 HTTP_429_TOO_MANY_REQUESTS = 429
+# Phase 4. A sunset API version answers 410, not 404: "gone" tells a consumer
+# their integration targeted something real that has been withdrawn on the
+# published schedule, which is a different instruction from "you have the URL
+# wrong" and sends them to the changelog rather than to their own code.
+HTTP_410_GONE = 410
 HTTP_500_INTERNAL_SERVER_ERROR = 500
 
 # Stable, documentable type URIs. Clients branch on these, never on prose.

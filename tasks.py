@@ -244,6 +244,11 @@ def _check(_: list[str]) -> int:
             ("types", [*IN_API, "mypy", "nemesis"]),
             ("test", [*COMPOSE, "exec", "-T", "-e", TEST_DSN, "api", "pytest", "--cov"]),
             ("migrations", [*IN_API, "alembic", "check"]),
+            # Phase 4. In the container rather than host-side: the checker
+            # constructs the app to read the contract the code actually serves,
+            # which needs the full dependency set. Same split the event schema
+            # fingerprint check already uses.
+            ("api contract", [*IN_API, "python", "-m", "nemesis.api.contract"]),
             # Host-side and dependency-free, so they run even when the stack is
             # down — and they fail for reasons that are cheap to fix.
             ("runbooks", [sys.executable, "scripts/check_runbooks.py"]),
@@ -440,6 +445,35 @@ def _gate_phase5(_: list[str]) -> int:
     of it.
     """
     return run([sys.executable, "scripts/gate_phase5.py"])
+
+
+@task("gate-phase4", "Phase 4 gate: public API, versioning, and webhook delivery")
+def _gate_phase4(_: list[str]) -> int:
+    """Runs against the live stack, for the same reason the Phase 5 gate does.
+
+    Two of the three clauses are about things a test process cannot reach: a
+    webhook delivered over a real socket to a real listener, and a v1 consumer
+    surviving a v2 that is mounted in the running application rather than
+    constructed in a fixture.
+    """
+    return run([sys.executable, "scripts/gate_phase4.py"])
+
+
+@task("api-lock", "Re-lock the published API contract after a deliberate change")
+def _api_lock(_: list[str]) -> int:
+    """Deliberately separate from `nem check`.
+
+    A check that rewrote its own lock on failure would enforce nothing, so
+    re-locking is a command somebody runs on purpose and justifies in the commit
+    — the same standard `schema_lock.json` sets for event payloads.
+    """
+    return run([*IN_API, "python", "-m", "nemesis.api.contract", "--update"])
+
+
+@task("sandbox", "Provision a developer sandbox tenant with synthetic data")
+def _sandbox(args: list[str]) -> int:
+    """A real tenant, not a mock. See `nemesis.sandbox` for why that matters."""
+    return run([*IN_API, "python", "-m", "nemesis.sandbox", *args])
 
 
 @task("control-plane", "Control-plane CLI — `nem control-plane templates`")

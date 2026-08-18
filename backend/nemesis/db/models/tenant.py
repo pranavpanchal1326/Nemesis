@@ -70,3 +70,27 @@ class Tenant(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     #: Suspension is reversible and auditable; deletion is neither. An offboarded
     #: tenant is deactivated here and erased through the Phase 26 procedure.
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+
+    #: Whether §16.3's unauthenticated public API serves this tenant's
+    #: aggregates. **Default false, and the default is the decision.**
+    #:
+    #: The endpoints are no-auth by design — that is what makes the platform
+    #: infrastructure other tools can build on rather than a closed app. But
+    #: "the code is capable of publishing this" and "this customer agreed to
+    #: publish it" are different statements, and defaulting to true would make
+    #: the first one silently mean the second for every tenant already
+    #: provisioned. A municipality that has not decided its disclosure posture
+    #: is not a municipality that has decided yes.
+    public_api_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+
+    #: Suppression floor for every published aggregate. A "ward summary"
+    #: computed over two complaints is not an aggregate — it is one citizen's
+    #: report with a category and a location attached, which §26.4 forbids on
+    #: this surface. Per-tenant because the right floor depends on population:
+    #: five is defensible for a city ward and far too low for a building with
+    #: nine occupants.
+    public_api_min_aggregate: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="5"
+    )

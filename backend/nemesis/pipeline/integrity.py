@@ -160,7 +160,16 @@ def purge_dispatched_outbox() -> dict[str, Any]:
 async def _purge_dispatched_outbox() -> dict[str, Any]:
     horizon = datetime.now(tz=UTC) - timedelta(hours=OUTBOX_RESUME_WINDOW_HOURS)
     async with session_scope() as session:
-        deleted = await purge_dispatched(session, older_than=horizon)
+        # The webhook fan-out is a second reader of this table with its own
+        # cursor (Phase 4). Deleting past it would silently drop events no
+        # subscriber ever received — and leave nothing behind to show it,
+        # because the delivery rows were never created. The floor is read here
+        # rather than defaulted inside `purge_dispatched`, so a caller that
+        # genuinely has no second reader has to say so.
+        from nemesis.integrations.delivery import sweep_outbox_safe_below
+
+        safe_below = await sweep_outbox_safe_below(session)
+        deleted = await purge_dispatched(session, older_than=horizon, safe_below=safe_below)
         remaining = await undispatched_total(session)
 
     # Published from the purge rather than from the relay: the relay only ever

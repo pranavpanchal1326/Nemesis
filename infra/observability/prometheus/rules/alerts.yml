@@ -449,3 +449,97 @@ groups:
             and they stay parked until a human resolves them. A growing queue is
             the signal that the degraded path has become the normal path.
           runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/pipeline-stage-failures.md
+
+  # ------------------------------------------------------------------
+  # Phase 4 — public API & integration platform (§16.3, §26.4)
+  # ------------------------------------------------------------------
+  - name: nemesis-integrations
+    rules:
+      # The failure this exists for is silent: a stalled fan-out looks exactly
+      # like a quiet system from every other signal, right up until the outbox
+      # retention sweep reaches rows it never read. The sweep now refuses to
+      # delete past the cursor, so the real consequence is unbounded outbox
+      # growth — which this catches first.
+      - alert: NemesisWebhookFanOutStalled
+        expr: sum(nemesis_webhook_deliveries_pending) > 0 and rate(nemesis_webhook_deliveries_total{outcome="delivered"}[15m]) == 0
+        for: 20m
+        labels:
+          severity: warning
+          blueprint: "16.3"
+        annotations:
+          summary: "Webhook deliveries are pending but nothing is being delivered"
+          description: >-
+            Deliveries are queued and the success rate is zero. Either the
+            dispatcher process is not running or every subscriber is refusing.
+            The events themselves are safe — they are in the log — but no
+            partner integration is receiving them.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/webhook-delivery-failing.md
+
+      # A backlog that grows faster than it drains. Distinct from the alert
+      # above: this one fires while deliveries *are* succeeding, which means the
+      # dispatcher is alive and simply outrun.
+      - alert: NemesisWebhookBacklogGrowing
+        expr: sum(nemesis_webhook_deliveries_pending) > 500
+        for: 30m
+        labels:
+          severity: warning
+          blueprint: "16.3"
+        annotations:
+          summary: "{{ $value }} webhook deliveries are queued"
+          description: >-
+            The dispatcher is delivering and still falling behind. Check whether
+            one slow subscriber is consuming the batch, and whether the retry
+            schedule is holding a large number of rows in backoff.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/webhook-delivery-failing.md
+
+      # An endpoint disabled after exhausting its consecutive-failure budget.
+      # A gauge, so it comes back down when a tenant fixes and re-enables it —
+      # the number is "how many subscriptions are we no longer delivering to".
+      - alert: NemesisWebhookEndpointsDisabled
+        expr: sum(nemesis_webhook_endpoints_disabled) > 0
+        for: 15m
+        labels:
+          severity: warning
+          blueprint: "16.3"
+        annotations:
+          summary: "{{ $value }} webhook endpoint(s) have been disabled for repeated failure"
+          description: >-
+            Delivery to these subscriptions has stopped. The tenant is told in
+            the delivery log, but a disabled integration is a customer
+            conversation rather than a metric to watch tick upward.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/webhook-delivery-failing.md
+
+      # Delivery latency as the subscriber experiences it — the number §16.3's
+      # "durable public interface" claim actually rests on, one hop further out
+      # than the outbox lag histogram.
+      - alert: NemesisWebhookDeliveryLagHigh
+        expr: histogram_quantile(0.95, sum(rate(nemesis_webhook_delivery_lag_seconds_bucket[10m])) by (le)) > 300
+        for: 15m
+        labels:
+          severity: warning
+          blueprint: "16.3"
+        annotations:
+          summary: "p95 webhook delivery lag is {{ $value | printf \"%.0f\" }}s"
+          description: >-
+            Events are reaching subscribers minutes after they were recorded.
+            A dispatcher that is alive, healthy, and hours behind reports no
+            errors at all — this is the signal that would reveal it.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/webhook-delivery-failing.md
+
+      # §26.4's surface is unauthenticated, so a scraper is the expected abuse.
+      # Rate-limited requests are the control working; a sustained flood is a
+      # capacity question and possibly a key conversation.
+      - alert: NemesisPublicApiFloodSustained
+        expr: sum(rate(nemesis_public_api_requests_total{outcome="rate_limited"}[5m])) > 5
+        for: 15m
+        labels:
+          severity: info
+          blueprint: "26.4"
+        annotations:
+          summary: "The public API is shedding {{ $value | printf \"%.1f\" }} req/s"
+          description: >-
+            The §26.4 per-IP budget is refusing requests at a sustained rate.
+            This is the limiter working. It is worth knowing because the right
+            answer for a serious consumer is an API key with a real quota, not
+            a tighter limit.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/public-api-abuse.md

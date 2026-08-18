@@ -33,11 +33,18 @@ What each step does:
 | Step | Result |
 |---|---|
 | `nem doctor` | Verifies Docker, git, `.env`, and Ollama reachability before you waste time on a build |
-| `nem up` | Builds and starts six services, waiting until every healthcheck passes (~16 s once images are cached) |
+| `nem up` | Builds and starts eight services, waiting until every healthcheck passes (~16 s once images are cached) |
 | `nem models` | Fetches ~3 GB of weights into the `modelcache` volume and **executes each one**. Run once |
 | `nem check` | Runs the full gate: lint, format, types, tests with coverage, migration state |
 
-Expected end state: `86 passed`, coverage above 85%, all six services healthy.
+Expected end state: `591 passed`, coverage above 85%, all eight services healthy.
+
+The eight are `postgres`, `redis`, `api`, `worker-io`, `worker-ml`, `beat`, plus
+two that serve no HTTP port and whose liveness is therefore a process check:
+`relay` (Phase 3, realtime fan-out) and `webhooks` (Phase 4, outbound delivery).
+If either dies, the rest of the stack reports healthy while the map goes quiet
+or every partner integration stops receiving events — which is why they are
+listed here rather than left to be discovered.
 
 ## Verify the offline guarantee
 

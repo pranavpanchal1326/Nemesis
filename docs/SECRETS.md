@@ -134,6 +134,76 @@ docker compose exec -T postgres psql -U nemesis -d nemesis -tAc \
    WHERE entity_type = 'tenant' ORDER BY occurred_at DESC LIMIT 50"
 ```
 
+### `NEMESIS_WEBHOOK_SIGNING_KEY`
+
+**Blast radius: every webhook subscriber, simultaneously — and in both
+directions.** Every endpoint's signing secret is
+`HMAC(this key, endpoint_id || secret_version)`, so this single value is the
+authenticity of every payload NEMESIS pushes to every partner.
+
+The trade that produces that blast radius is deliberate and worth restating
+here, because this is the page where somebody decides whether to rotate it.
+Nothing signing-related is stored at rest: no ciphertext, no key-management
+problem, no second secret, and a `pg_dump` leaked from a laptop contains no
+signing material at all. The cost is that the one key cannot be rotated per
+tenant.
+
+**Exposure is worse than a leaked read credential.** A stolen read key lets
+somebody see published aggregates. This one lets somebody *forge* a payload that
+a tenant's handler verifies as genuinely ours — and a handler acts on what it
+believes we sent. A forged `citizen_confirmed` or `work_order_created` is a
+write into somebody else's system, with our signature on it.
+
+The local value is published in this repository, and `app_env=pilot` refuses to
+boot while it is still set.
+
+**Rotate on:** any suspected exposure, and any personnel change with access to
+deployment configuration. **Do not** rotate it on a schedule for its own sake —
+see the coordination cost below.
+
+```bash
+python -c "import secrets;print(secrets.token_urlsafe(64))"
+```
+
+Set `NEMESIS_WEBHOOK_SIGNING_KEY` and restart `api` and `webhooks`.
+
+**Every subscriber's verification breaks the moment this changes**, because every
+derived secret changes with it. There is deliberately no overlap window at the
+per-endpoint level and there is none here either — the reason to rotate is
+usually that the value is believed compromised, and a rotation that leaves the
+compromised value working for another hour has not rotated anything.
+
+So the rotation is a **coordinated** one, and the sequence matters:
+
+1. Notify every tenant with an active subscription, with a time.
+2. Rotate the key and restart.
+3. Re-issue each endpoint's secret so the tenant can read the new value:
+   `POST /api/v1/integrations/webhooks/{id}/rotate-secret`. This is what makes
+   step 4 possible — the secret is never retrievable, only re-derivable.
+4. Each tenant deploys the new secret.
+
+Between steps 2 and 4 deliveries **fail and retry** rather than being lost: the
+schedule spans roughly ten hours, so a same-day coordination drains cleanly once
+handlers are updated. A rotation that stretches past that window turns into
+`failed` rows, and the gap has to be filled from the bulk export.
+
+Verify — the fingerprint exists precisely so this check needs no secret:
+
+```bash
+docker compose exec -T postgres psql -U nemesis -d nemesis -tAc   "SELECT url, secret_version, secret_fingerprint FROM webhook_endpoints    WHERE is_active ORDER BY url"
+```
+
+Ask each tenant for the fingerprint their handler computes; it must match. Then
+confirm deliveries are landing rather than accumulating:
+
+```bash
+docker compose exec -T postgres psql -U nemesis -d nemesis -tAc   "SELECT status, count(*) FROM webhook_deliveries GROUP BY status"
+```
+
+See `docs/runbooks/webhook-delivery-failing.md` for the failure this most often
+produces: a tenant whose deploy has not landed, reporting 401s that look
+identical to a clock-skew problem.
+
 ### `POSTGRES_PASSWORD`
 
 **Blast radius: full read/write access to every complaint, event, and citizen

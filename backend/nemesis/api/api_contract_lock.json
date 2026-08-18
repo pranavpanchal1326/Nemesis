@@ -1,0 +1,856 @@
+{
+  "v1": {
+    "DELETE /api/v1/integrations/webhooks/{endpoint_id}": {
+      "required_params": [
+        "endpoint_id"
+      ],
+      "response": {
+        "$scalar": "object"
+      }
+    },
+    "GET /api/v1/complaints/{complaint_id}": {
+      "required_params": [
+        "complaint_id"
+      ],
+      "response": {}
+    },
+    "GET /api/v1/control-plane/calendars": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "code": {
+            "required": true,
+            "type": "string"
+          },
+          "is_continuous": {
+            "required": true,
+            "type": "boolean"
+          },
+          "is_default": {
+            "required": true,
+            "type": "boolean"
+          },
+          "name": {
+            "required": true,
+            "type": "string"
+          },
+          "timezone": {
+            "required": true,
+            "type": "string"
+          },
+          "working_hours": {
+            "required": true,
+            "type": "object"
+          }
+        }
+      }
+    },
+    "GET /api/v1/control-plane/departments": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "code": {
+            "required": true,
+            "type": "string"
+          },
+          "depth": {
+            "required": true,
+            "type": "integer"
+          },
+          "is_active": {
+            "required": true,
+            "type": "boolean"
+          },
+          "is_assignable": {
+            "required": true,
+            "type": "boolean"
+          },
+          "kind": {
+            "required": true,
+            "type": "string"
+          },
+          "name": {
+            "required": true,
+            "type": "string"
+          },
+          "parent_code": {
+            "required": true,
+            "type": "null|string"
+          },
+          "path": {
+            "required": true,
+            "type": "string"
+          },
+          "ward": {
+            "required": true,
+            "type": "null|string"
+          }
+        }
+      }
+    },
+    "GET /api/v1/control-plane/taxonomy": {
+      "required_params": [],
+      "response": {
+        "content_hash": {
+          "required": true,
+          "type": "string"
+        },
+        "nodes": {
+          "required": true,
+          "type": "array<object:TaxonomyNodeResponse>"
+        },
+        "revision": {
+          "required": true,
+          "type": "integer"
+        }
+      }
+    },
+    "GET /api/v1/control-plane/taxonomy/{key}/subtree": {
+      "required_params": [
+        "key"
+      ],
+      "response": {
+        "$array": {
+          "attributes": {
+            "required": true,
+            "type": "object"
+          },
+          "depth": {
+            "required": true,
+            "type": "integer"
+          },
+          "description": {
+            "required": true,
+            "type": "null|string"
+          },
+          "display_name": {
+            "required": true,
+            "type": "string"
+          },
+          "icon": {
+            "required": true,
+            "type": "null|string"
+          },
+          "is_active": {
+            "required": true,
+            "type": "boolean"
+          },
+          "is_selectable": {
+            "required": true,
+            "type": "boolean"
+          },
+          "key": {
+            "required": true,
+            "type": "string"
+          },
+          "parent_key": {
+            "required": true,
+            "type": "null|string"
+          },
+          "path": {
+            "required": true,
+            "type": "string"
+          },
+          "routing_hints": {
+            "required": true,
+            "type": "object"
+          },
+          "severity_semantics": {
+            "required": true,
+            "type": "object"
+          },
+          "sort_order": {
+            "required": true,
+            "type": "integer"
+          },
+          "version": {
+            "required": true,
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "GET /api/v1/control-plane/templates": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "departments": {
+            "required": true,
+            "type": "integer"
+          },
+          "description": {
+            "required": true,
+            "type": "string"
+          },
+          "locales": {
+            "required": true,
+            "type": "array<string>"
+          },
+          "name": {
+            "required": true,
+            "type": "string"
+          },
+          "taxonomy_nodes": {
+            "required": true,
+            "type": "integer"
+          },
+          "version": {
+            "required": true,
+            "type": "string"
+          },
+          "zones": {
+            "required": true,
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "GET /api/v1/control-plane/translations/coverage": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "locale": {
+            "required": true,
+            "type": "string"
+          },
+          "missing_keys": {
+            "required": true,
+            "type": "array<string>"
+          },
+          "ratio": {
+            "required": true,
+            "type": "number"
+          },
+          "translatable": {
+            "required": true,
+            "type": "integer"
+          },
+          "translated": {
+            "required": true,
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "GET /api/v1/control-plane/translations/{namespace}/{locale}": {
+      "required_params": [
+        "locale",
+        "namespace"
+      ],
+      "response": {
+        "$scalar": "object"
+      }
+    },
+    "GET /api/v1/control-plane/zones": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "code": {
+            "required": true,
+            "type": "string"
+          },
+          "depth": {
+            "required": true,
+            "type": "integer"
+          },
+          "is_active": {
+            "required": true,
+            "type": "boolean"
+          },
+          "kind": {
+            "required": true,
+            "type": "string"
+          },
+          "name": {
+            "required": true,
+            "type": "string"
+          },
+          "parent_code": {
+            "required": true,
+            "type": "null|string"
+          },
+          "path": {
+            "required": true,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "GET /api/v1/export/{dataset}": {
+      "required_params": [
+        "dataset"
+      ],
+      "response": {}
+    },
+    "GET /api/v1/integrations/keys": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "created_at": {
+            "required": true,
+            "type": "string"
+          },
+          "expires_at": {
+            "required": true,
+            "type": "null|string"
+          },
+          "id": {
+            "required": true,
+            "type": "string"
+          },
+          "key_prefix": {
+            "required": true,
+            "type": "string"
+          },
+          "last_used_at": {
+            "required": true,
+            "type": "null|string"
+          },
+          "name": {
+            "required": true,
+            "type": "string"
+          },
+          "quota_per_hour": {
+            "required": true,
+            "type": "integer"
+          },
+          "revoked_at": {
+            "required": true,
+            "type": "null|string"
+          },
+          "revoked_reason": {
+            "required": true,
+            "type": "null|string"
+          },
+          "scopes": {
+            "required": true,
+            "type": "array<string>"
+          }
+        }
+      }
+    },
+    "GET /api/v1/integrations/usage": {
+      "required_params": [],
+      "response": {
+        "rows": {
+          "required": true,
+          "type": "array<object:UsageRow>"
+        },
+        "since": {
+          "required": true,
+          "type": "string"
+        },
+        "total_requests": {
+          "required": true,
+          "type": "integer"
+        },
+        "until": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "GET /api/v1/integrations/webhooks": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "consecutive_failures": {
+            "required": true,
+            "type": "integer"
+          },
+          "created_at": {
+            "required": true,
+            "type": "string"
+          },
+          "description": {
+            "required": true,
+            "type": "string"
+          },
+          "disabled_at": {
+            "required": true,
+            "type": "null|string"
+          },
+          "disabled_reason": {
+            "required": true,
+            "type": "null|string"
+          },
+          "event_types": {
+            "required": true,
+            "type": "array<string>"
+          },
+          "id": {
+            "required": true,
+            "type": "string"
+          },
+          "is_active": {
+            "required": true,
+            "type": "boolean"
+          },
+          "secret_fingerprint": {
+            "required": true,
+            "type": "string"
+          },
+          "secret_version": {
+            "required": true,
+            "type": "integer"
+          },
+          "url": {
+            "required": true,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "GET /api/v1/integrations/webhooks/{endpoint_id}/deliveries": {
+      "required_params": [
+        "endpoint_id"
+      ],
+      "response": {
+        "deliveries": {
+          "required": true,
+          "type": "array<object:DeliveryResponse>"
+        },
+        "failed": {
+          "required": true,
+          "type": "integer"
+        },
+        "pending": {
+          "required": true,
+          "type": "integer"
+        }
+      }
+    },
+    "GET /api/v1/public/{tenant_slug}/budget/{zone_code}": {
+      "required_params": [
+        "fiscal_year",
+        "tenant_slug",
+        "zone_code"
+      ],
+      "response": {
+        "allocations": {
+          "required": true,
+          "type": "array<object:BudgetLineResponse>"
+        },
+        "api_version": {
+          "required": true,
+          "type": "string"
+        },
+        "currency": {
+          "required": true,
+          "type": "string"
+        },
+        "fiscal_year": {
+          "required": true,
+          "type": "string"
+        },
+        "generated_at": {
+          "required": true,
+          "type": "string"
+        },
+        "notice": {
+          "required": true,
+          "type": "string"
+        },
+        "tenant": {
+          "required": true,
+          "type": "string"
+        },
+        "zone_code": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "GET /api/v1/public/{tenant_slug}/contractor/{contractor_id}/profile": {
+      "required_params": [
+        "contractor_id",
+        "tenant_slug"
+      ],
+      "response": {
+        "active_since": {
+          "required": true,
+          "type": "null|string"
+        },
+        "api_version": {
+          "required": true,
+          "type": "string"
+        },
+        "certified_categories": {
+          "required": true,
+          "type": "array<string>"
+        },
+        "contractor_id": {
+          "required": true,
+          "type": "string"
+        },
+        "contractor_name": {
+          "required": true,
+          "type": "string"
+        },
+        "disputed_count": {
+          "required": true,
+          "type": "integer"
+        },
+        "generated_at": {
+          "required": true,
+          "type": "string"
+        },
+        "notice": {
+          "required": true,
+          "type": "string"
+        },
+        "on_time_rate": {
+          "required": true,
+          "type": "null|number"
+        },
+        "rating_disclaimer": {
+          "required": true,
+          "type": "string"
+        },
+        "registration_id": {
+          "required": true,
+          "type": "string"
+        },
+        "suppressed": {
+          "required": true,
+          "type": "boolean"
+        },
+        "suppression_threshold": {
+          "required": true,
+          "type": "integer"
+        },
+        "tenant": {
+          "required": true,
+          "type": "string"
+        },
+        "work_orders_completed": {
+          "required": true,
+          "type": "integer"
+        },
+        "work_orders_open": {
+          "required": true,
+          "type": "integer"
+        }
+      }
+    },
+    "GET /api/v1/public/{tenant_slug}/ward/{zone_code}/summary": {
+      "required_params": [
+        "tenant_slug",
+        "zone_code"
+      ],
+      "response": {
+        "api_version": {
+          "required": true,
+          "type": "string"
+        },
+        "auto_confirmed_resolutions": {
+          "required": true,
+          "type": "integer"
+        },
+        "by_category": {
+          "required": true,
+          "type": "array<object:CategoryCountResponse>"
+        },
+        "centroid": {
+          "required": true,
+          "type": "null|object:Centroid"
+        },
+        "count_suppressed_buckets": {
+          "required": true,
+          "type": "integer"
+        },
+        "generated_at": {
+          "required": true,
+          "type": "string"
+        },
+        "median_resolution_hours": {
+          "required": true,
+          "type": "null|number"
+        },
+        "notice": {
+          "required": true,
+          "type": "string"
+        },
+        "open_reports": {
+          "required": true,
+          "type": "integer"
+        },
+        "resolution_rate": {
+          "required": true,
+          "type": "null|number"
+        },
+        "resolved_reports": {
+          "required": true,
+          "type": "integer"
+        },
+        "suppressed": {
+          "required": true,
+          "type": "boolean"
+        },
+        "suppression_threshold": {
+          "required": true,
+          "type": "integer"
+        },
+        "tenant": {
+          "required": true,
+          "type": "string"
+        },
+        "total_reports": {
+          "required": true,
+          "type": "integer"
+        },
+        "zone_code": {
+          "required": true,
+          "type": "string"
+        },
+        "zone_kind": {
+          "required": true,
+          "type": "string"
+        },
+        "zone_name": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "GET /api/v1/public/{tenant_slug}/zones": {
+      "required_params": [
+        "tenant_slug"
+      ],
+      "response": {
+        "api_version": {
+          "required": true,
+          "type": "string"
+        },
+        "count": {
+          "required": true,
+          "type": "integer"
+        },
+        "generated_at": {
+          "required": true,
+          "type": "string"
+        },
+        "notice": {
+          "required": true,
+          "type": "string"
+        },
+        "tenant": {
+          "required": true,
+          "type": "string"
+        },
+        "zones": {
+          "required": true,
+          "type": "array<object:ZoneSummaryResponse>"
+        }
+      }
+    },
+    "GET /api/v1/versions": {
+      "required_params": [],
+      "response": {
+        "current": {
+          "required": true,
+          "type": "string"
+        },
+        "notice_period_days": {
+          "required": true,
+          "type": "integer"
+        },
+        "policy": {
+          "required": true,
+          "type": "string"
+        },
+        "versions": {
+          "required": true,
+          "type": "array<object:VersionResponse>"
+        }
+      }
+    },
+    "PATCH /api/v1/control-plane/taxonomy/{key}": {
+      "required_params": [
+        "key"
+      ],
+      "response": {
+        "attributes": {
+          "required": true,
+          "type": "object"
+        },
+        "depth": {
+          "required": true,
+          "type": "integer"
+        },
+        "description": {
+          "required": true,
+          "type": "null|string"
+        },
+        "display_name": {
+          "required": true,
+          "type": "string"
+        },
+        "icon": {
+          "required": true,
+          "type": "null|string"
+        },
+        "is_active": {
+          "required": true,
+          "type": "boolean"
+        },
+        "is_selectable": {
+          "required": true,
+          "type": "boolean"
+        },
+        "key": {
+          "required": true,
+          "type": "string"
+        },
+        "parent_key": {
+          "required": true,
+          "type": "null|string"
+        },
+        "path": {
+          "required": true,
+          "type": "string"
+        },
+        "routing_hints": {
+          "required": true,
+          "type": "object"
+        },
+        "severity_semantics": {
+          "required": true,
+          "type": "object"
+        },
+        "sort_order": {
+          "required": true,
+          "type": "integer"
+        },
+        "version": {
+          "required": true,
+          "type": "integer"
+        }
+      }
+    },
+    "POST /api/v1/complaints": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/calendars": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/calendars/preview-deadline": {
+      "required_params": [],
+      "response": {
+        "adjustments": {
+          "required": true,
+          "type": "object"
+        },
+        "due_at": {
+          "required": true,
+          "type": "string"
+        },
+        "elapsed_hours": {
+          "required": true,
+          "type": "number"
+        },
+        "working_hours_consumed": {
+          "required": true,
+          "type": "number"
+        }
+      }
+    },
+    "POST /api/v1/control-plane/certifications": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/contractors": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/departments": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/taxonomy": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/tenants": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/zones": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/integrations/keys": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/integrations/keys/{key_id}/revoke": {
+      "required_params": [
+        "key_id"
+      ],
+      "response": {
+        "$scalar": "object"
+      }
+    },
+    "POST /api/v1/integrations/webhooks": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/integrations/webhooks/{endpoint_id}/active": {
+      "required_params": [
+        "endpoint_id"
+      ],
+      "response": {
+        "$scalar": "object"
+      }
+    },
+    "POST /api/v1/integrations/webhooks/{endpoint_id}/rotate-secret": {
+      "required_params": [
+        "endpoint_id"
+      ],
+      "response": {
+        "event_types": {
+          "required": true,
+          "type": "array<string>"
+        },
+        "id": {
+          "required": true,
+          "type": "string"
+        },
+        "secret": {
+          "required": true,
+          "type": "string"
+        },
+        "secret_version": {
+          "required": true,
+          "type": "integer"
+        },
+        "signature_header": {
+          "required": false,
+          "type": "string"
+        },
+        "signature_scheme": {
+          "required": false,
+          "type": "string"
+        },
+        "url": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "PUT /api/v1/control-plane/taxonomy/prompt-sets": {
+      "required_params": [],
+      "response": {
+        "$scalar": "object"
+      }
+    },
+    "PUT /api/v1/control-plane/translations": {
+      "required_params": [],
+      "response": {
+        "$scalar": "object"
+      }
+    }
+  }
+}

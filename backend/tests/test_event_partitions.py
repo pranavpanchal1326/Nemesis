@@ -349,6 +349,13 @@ def test_scheduled_tasks_are_actually_registered_with_celery() -> None:
     # The Phase 3 pipeline entry point. Registered by name for the same reason:
     # a stage task the worker never loaded fails as "nothing happened".
     assert "nemesis.pipeline.run_stage" in registered
+    # Phase 4. The dedicated dispatcher process is the primary delivery path;
+    # these are the safety net for a deployment that has not started it, and a
+    # webhook that silently stops being delivered is exactly the "nothing
+    # happened" failure this whole assertion exists to catch.
+    assert "nemesis.integrations.fan_out" in registered
+    assert "nemesis.integrations.dispatch" in registered
+    assert "nemesis.integrations.sweep" in registered
 
     # Redis implements `task_acks_late` as a visibility timeout, not as an
     # acknowledgement, so an unset value means a worker killed mid-task has its
@@ -364,6 +371,9 @@ def test_scheduled_tasks_are_actually_registered_with_celery() -> None:
         "nemesis.integrity.sweep_chains",
         "nemesis.integrity.maintain_partitions",
         "nemesis.integrity.purge_outbox",
+        "nemesis.integrations.fan_out",
+        "nemesis.integrations.dispatch",
+        "nemesis.integrations.sweep",
     }
 
 

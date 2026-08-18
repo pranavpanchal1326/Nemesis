@@ -25,6 +25,13 @@ from nemesis.db.models.event import (
     EventSnapshot,
 )
 from nemesis.db.models.i18n import Translation
+from nemesis.db.models.integration import (
+    ApiKey,
+    ApiKeyUsage,
+    WebhookCursor,
+    WebhookDelivery,
+    WebhookEndpoint,
+)
 from nemesis.db.models.organisation import (
     Contractor,
     ContractorCertification,
@@ -44,6 +51,8 @@ for _table in Base.metadata.tables.values():
         register_tenant_scoped_table(_table.name)
 
 __all__ = [
+    "ApiKey",
+    "ApiKeyUsage",
     "ArchivedPartition",
     "BudgetAllocation",
     "BusinessCalendar",
@@ -65,6 +74,9 @@ __all__ = [
     "Tenant",
     "Translation",
     "User",
+    "WebhookCursor",
+    "WebhookDelivery",
+    "WebhookEndpoint",
     "WorkOrder",
     "Zone",
 ]
