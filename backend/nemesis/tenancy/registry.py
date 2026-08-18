@@ -26,6 +26,11 @@ UNSCOPED_TABLES: Final[dict[str, str]] = {
         "a record of detached `events` partitions, which span every tenant by "
         "construction — retention runs on the calendar, not per customer"
     ),
+    "webhook_cursor": (
+        "the webhook fan-out's position in the deployment-wide outbox feed. One "
+        "reader, one position: a cursor per tenant would mean N scans of the "
+        "same ordered table, and the rows it produces *are* tenant-scoped"
+    ),
 }
 
 _scoped: set[str] = set()

@@ -47,7 +47,11 @@ QUEUE_SAFETY = "safety"
 #:
 #: An explicit list fails loudly at worker startup if a module is missing or
 #: raises, which is the correct failure mode for the code that detects tampering.
-TASK_MODULES = ("nemesis.pipeline.integrity", "nemesis.pipeline.tasks")
+TASK_MODULES = (
+    "nemesis.pipeline.integrity",
+    "nemesis.pipeline.tasks",
+    "nemesis.integrations.tasks",
+)
 
 celery_app = Celery(
     "nemesis",
@@ -126,6 +130,33 @@ celery_app.conf.beat_schedule = {
         # on the index the relay reads. Deleting one destroys no history — the
         # event it pointed at is untouched — which is why this one is allowed to
         # run unattended while §22.4 retention on `events` is not.
+        "schedule": 3600.0,
+        "options": {"queue": QUEUE_IO},
+    },
+    # --- Phase 4 webhooks -------------------------------------------------
+    # The dedicated dispatcher process is the primary path; these are the
+    # safety net for a deployment that has not started it, plus the work that
+    # genuinely belongs on a schedule. Both take the same locked rows, so
+    # running alongside the process is concurrent rather than duplicative —
+    # see `nemesis.integrations.tasks`.
+    "webhook-fan-out": {
+        "task": "nemesis.integrations.fan_out",
+        # Thirty seconds. A webhook is not a realtime animation; a subscriber
+        # integrating against a queue tolerates this, and polling the outbox
+        # twice a second from beat as well as from the dispatcher would be
+        # load with no consumer.
+        "schedule": 30.0,
+        "options": {"queue": QUEUE_IO},
+    },
+    "webhook-dispatch": {
+        "task": "nemesis.integrations.dispatch",
+        "schedule": 30.0,
+        "options": {"queue": QUEUE_IO},
+    },
+    "webhook-sweep": {
+        "task": "nemesis.integrations.sweep",
+        # Hourly. Retention on delivered rows plus the two gauges that are the
+        # only signal distinguishing a stalled dispatcher from a quiet one.
         "schedule": 3600.0,
         "options": {"queue": QUEUE_IO},
     },

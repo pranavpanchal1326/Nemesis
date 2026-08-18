@@ -168,6 +168,14 @@ _TRUNCATED_TABLES = (
     "zones",
     "departments",
     "contractors",
+    # Phase 4 integration tables. `webhook_cursor` is deliberately absent: it is
+    # a singleton row created by the migration, and truncating it would delete
+    # the row the fan-out locks — which fails as `scalar_one()` finding no rows,
+    # in whichever webhook test happened to run first.
+    "api_key_usage",
+    "api_keys",
+    "webhook_deliveries",
+    "webhook_endpoints",
     "tenants",
 )
 
@@ -220,6 +228,12 @@ async def tenants(migrated_engine: AsyncEngine) -> AsyncIterator[tuple[uuid.UUID
                 "VALUES (CAST(:id AS uuid), :slug, 'NEMESIS platform', 'internal', false)"
             ).bindparams(id=SYSTEM_TENANT_ID, slug=SYSTEM_TENANT_SLUG)
         )
+        # Rewind the webhook fan-out cursor. `outbox_messages` is truncated with
+        # RESTART IDENTITY, so ids begin again at 1 — a cursor left at 50 from a
+        # previous test would silently skip the next fifty rows, and the symptom
+        # would be a webhook test asserting a delivery that was never enqueued,
+        # for reasons entirely outside the test that failed.
+        await conn.execute(sql_text("UPDATE webhook_cursor SET last_outbox_id = 0"))
         for tenant_uuid, slug in ((first, "pilot-city"), (second, "campus")):
             await conn.execute(
                 sql_text(

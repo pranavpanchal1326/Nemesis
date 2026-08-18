@@ -158,10 +158,38 @@ class RateLimiter:
         leaving the system, and a Prometheus label is a place it would leave to.
         """
         tier_name, tier = tier_for_plan(self._settings, plan)
+        return await self.check_tier(
+            tier_name=tier_name, tier=tier, namespace=str(tenant_id), identity=identity, now=now
+        )
+
+    async def check_tier(
+        self,
+        *,
+        tier_name: str,
+        tier: RateLimitTier,
+        namespace: str,
+        identity: str,
+        now: float | None = None,
+    ) -> RateLimitDecision:
+        """Spend one token against an explicitly supplied tier.
+
+        Split out from ``check`` in Phase 4 because two of this system's limits
+        are not per-tenant-plan at all: §26.4's public budget is per client
+        address across the whole surface, and an API key carries its own
+        ``quota_per_hour`` precisely so a research partner's allowance differs
+        from their tenant's. Resolving those through ``plan_tiers`` would have
+        meant inventing a fake plan name per key, which is a mapping that exists
+        only to satisfy a signature.
+
+        ``namespace`` is what the bucket is partitioned by — a tenant id, an API
+        key id, or the literal ``public``. It is part of the key rather than a
+        second argument to the script so one identity cannot spend another
+        namespace's tokens.
+        """
         if not self._settings.enabled:
             return RateLimitDecision(True, tier_name, 0, tier.burst)
 
-        key = f"{_KEY_PREFIX}:{tier_name}:{tenant_id}:{identity}"
+        key = f"{_KEY_PREFIX}:{tier_name}:{namespace}:{identity}"
         refill = tier.requests / tier.window_seconds
         timestamp = time.time() if now is None else now
 

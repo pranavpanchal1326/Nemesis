@@ -98,6 +98,17 @@ integrity of evidence rather than about availability.
 | [taxonomy-misconfiguration.md](taxonomy-misconfiguration.md) | A control-plane change made a tenant's complaints stop making sense | warning |
 | [event-partition-maintenance.md](event-partition-maintenance.md) | Rows stranded in the DEFAULT partition; retention and archival | warning |
 
+### Public API & integrations (Phase 4)
+
+§16.3 promises civil society and journalists a durable public interface, which
+makes both of these pages about a *commitment* rather than about availability —
+and both open by explaining why the reflex to act quickly is usually wrong.
+
+| Page | Covers | Severity |
+|---|---|---|
+| [webhook-delivery-failing.md](webhook-delivery-failing.md) | A partner integration has gone quiet; nothing lost | warning |
+| [public-api-abuse.md](public-api-abuse.md) | The §26.4 limiter is refusing requests | info |
+
 ### Procedures and the observability stack itself
 
 | Page | Covers | Severity |

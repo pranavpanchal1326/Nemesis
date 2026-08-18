@@ -230,6 +230,75 @@ websocket_clients_shed_total = Counter(
     registry=REGISTRY,
 )
 
+# --- Public API & integrations (Phase 4, §16.3 / §26.4) --------------------
+# `endpoint` is the route template and `outcome` is a bounded vocabulary. No
+# tenant slug label, deliberately: the public surface is per tenant by
+# construction, so a slug label would grow with the customer list on the one
+# metric family that is scraped on every unauthenticated request.
+public_api_requests_total = Counter(
+    "nemesis_public_api_requests_total",
+    "Requests to the §26.4 public transparency API, by endpoint and outcome.",
+    labelnames=("endpoint", "outcome"),
+    registry=REGISTRY,
+)
+
+# The k-anonymity floor doing its job. A sustained rise means either a quiet
+# deployment or a threshold set too high to publish anything — both are
+# questions worth being able to ask, and neither is answerable from a request
+# count alone.
+public_api_suppressed_buckets_total = Counter(
+    "nemesis_public_api_suppressed_buckets_total",
+    "Aggregate buckets withheld for falling below the suppression floor.",
+    registry=REGISTRY,
+)
+
+# `outcome` is allowed / throttled / rejected. No key id label — a key
+# identifies a named commercial consumer, and per-key numbers belong in the
+# `api_key_usage` rollup the tenant can query, not in a metric with unbounded
+# cardinality that anybody scraping /metrics can read.
+api_key_requests_total = Counter(
+    "nemesis_api_key_requests_total",
+    "Authenticated API requests, by outcome.",
+    labelnames=("outcome",),
+    registry=REGISTRY,
+)
+
+webhook_deliveries_total = Counter(
+    "nemesis_webhook_deliveries_total",
+    "Webhook delivery attempts, by outcome (delivered / retrying / failed).",
+    labelnames=("outcome",),
+    registry=REGISTRY,
+)
+
+# Measured from the event's `occurred_at` to a successful delivery. The number
+# a tenant's integration actually experiences, and the only one that would show
+# a dispatcher that is alive, healthy, and hours behind — the same failure the
+# outbox lag histogram exists to catch, one hop further out.
+webhook_delivery_lag_seconds = Histogram(
+    "nemesis_webhook_delivery_lag_seconds",
+    "Delay between an event being recorded and its successful webhook delivery.",
+    buckets=(0.5, 1.0, 5.0, 15.0, 60.0, 300.0, 1800.0, 3600.0, 21600.0),
+    registry=REGISTRY,
+)
+
+webhook_deliveries_pending = Gauge(
+    "nemesis_webhook_deliveries_pending",
+    "Undelivered webhook rows across all tenants.",
+    multiprocess_mode="max",
+    registry=REGISTRY,
+)
+
+# A gauge because an endpoint disabled for repeated failure can be re-enabled,
+# and "how many subscriptions are we no longer delivering to" must be able to
+# come back down.
+webhook_endpoints_disabled = Gauge(
+    "nemesis_webhook_endpoints_disabled",
+    "Webhook endpoints disabled after exhausting their consecutive-failure budget.",
+    multiprocess_mode="max",
+    registry=REGISTRY,
+)
+
+
 # --- Degradation (§24.2, §27.3) --------------------------------------------
 # The signal that a dependency failed and the system took its fallback path.
 # A pipeline that degrades silently is indistinguishable from one that works.

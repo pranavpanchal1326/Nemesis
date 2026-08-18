@@ -258,6 +258,106 @@ class RateLimitSettings(BaseModel):
     )
 
 
+class PublicApiSettings(BaseModel):
+    """The §16.3 / §26.4 unauthenticated public surface (Phase 4).
+
+    ``min_aggregate_floor`` is a *deployment* floor beneath which no tenant may
+    configure itself. ``tenants.public_api_min_aggregate`` is the per-customer
+    setting, because the right suppression threshold depends on population — but
+    a tenant that sets it to 1 has turned an aggregate endpoint into a
+    per-complaint feed, and §26.4 forbids that regardless of who asked. The
+    tenant column is clamped up to this value rather than rejected, so a
+    misconfiguration degrades to *more* privacy rather than to an error page.
+    """
+
+    enabled: bool = True
+
+    min_aggregate_floor: int = Field(default=5, ge=2)
+
+    #: §26.4 states 60 requests per minute per IP for the unauthenticated
+    #: surface. Expressed as a tier so it goes through the same token bucket as
+    #: everything else rather than acquiring a second limiter with its own bugs.
+    anonymous_tier: RateLimitTier = RateLimitTier(requests=60, window_seconds=60, burst=20)
+
+    #: Public aggregates change when the pipeline processes a complaint, which
+    #: is minutes, not seconds. A shared cache directive is safe here precisely
+    #: because the response carries no per-caller data — that is a property of
+    #: the scrub, so it is stated where the scrub can be pointed at.
+    cache_seconds: int = Field(default=300, ge=0)
+
+    #: A bulk export is a full scan; §26.4's consumers are RTI applicants and
+    #: researchers, not a paging UI. The cap exists so one request cannot hold a
+    #: connection open streaming a decade of history while everything else
+    #: queues behind it.
+    max_export_rows: int = Field(default=100_000, gt=0)
+
+
+class WebhookSettings(BaseModel):
+    """Outbound delivery (Phase 4).
+
+    ``backoff_schedule_seconds`` is the phase gate written as data. The gate
+    requires delivery to survive an endpoint being down for an hour and then
+    drain, so the schedule has to *span* more than an hour with attempts left
+    over — nine attempts reaching ten hours, rather than five reaching four
+    minutes and calling it exponential.
+
+    ``allow_private_network_targets`` is the SSRF control, and it defaults to
+    false. A webhook URL is attacker-supplied by construction: any tenant with
+    control-plane access can point one at ``http://169.254.169.254/`` or at a
+    database on the deployment's own private network, and the server will
+    happily fetch it and record the status code in a log the tenant can read.
+    The local stack sets it true because every test target is a loopback
+    address; a pilot that sets it true is opting into being a proxy.
+    """
+
+    enabled: bool = True
+
+    #: Delay before attempt N+1, indexed by attempts already made. Nine entries
+    #: spanning ~10 hours. The first retry is fast because most failures are a
+    #: momentary blip; the tail is slow because an endpoint still refusing after
+    #: two hours is not going to be fixed by asking again in thirty seconds.
+    backoff_schedule_seconds: tuple[int, ...] = (
+        10,
+        30,
+        120,
+        300,
+        900,
+        1800,
+        3600,
+        10800,
+        21600,
+    )
+
+    #: Full jitter as a fraction of the scheduled delay. Without it, a thousand
+    #: deliveries queued during one outage all retry in the same instant and
+    #: recreate the outage on the recovering endpoint.
+    backoff_jitter_ratio: float = Field(default=0.2, ge=0.0, le=1.0)
+
+    request_timeout_seconds: float = Field(default=10.0, gt=0)
+
+    #: Rows per dispatcher pass. Bounded for the reason the outbox relay's batch
+    #: is: a large backlog should drain in steady increments rather than in one
+    #: transaction holding a connection while every new delivery queues behind.
+    batch_size: int = Field(default=50, gt=0)
+
+    #: Outbox rows read per fan-out pass.
+    fanout_batch_size: int = Field(default=500, gt=0)
+
+    #: An endpoint that has failed this many deliveries in a row is disabled and
+    #: told so. Continuing to hammer a URL that has been dead for a week is a
+    #: cost paid by this system for no possible benefit, and the tenant needs a
+    #: signal louder than a growing failure count nobody is reading.
+    disable_after_consecutive_failures: int = Field(default=50, gt=0)
+
+    allow_private_network_targets: bool = False
+
+    #: Delivered rows older than this are swept. The delivery log is for
+    #: inspection and dispute, not for permanent retention — the *event* is in
+    #: the log forever, and this table records only whether it reached an HTTP
+    #: endpoint.
+    retention_days: int = Field(default=30, gt=0)
+
+
 class OllamaSettings(BaseModel):
     """Local LLM used by the Investigation Agent (Blueprint §12.4)."""
 
@@ -335,9 +435,27 @@ class Settings(BaseSettings):
     The production validator below refuses to boot a pilot with this default,
     exactly as it does for the JWT secret."""
 
+    webhook_signing_key: SecretStr = SecretStr("dev-only-insecure-webhook-signing-key-change-me")
+    """Root key every webhook endpoint's signing secret is derived from (Phase 4).
+
+    **Nothing signing-related is stored at rest.** An endpoint's secret is
+    ``HMAC(this key, endpoint_id || secret_version)``, so a database dump reveals
+    no signing material and rotating one endpoint's secret is an integer
+    increment. The cost is that this key is now the whole system's webhook
+    authenticity: rotating *it* invalidates every subscriber's verification at
+    once, which is why ``docs/SECRETS.md`` states that blast radius rather than
+    leaving it to be discovered.
+
+    The production validator below refuses to boot a pilot with this default,
+    for the same reason it refuses the JWT secret: a well-known signing key means
+    anybody can forge a payload that a tenant's handler will accept as ours.
+    """
+
     # --- nested groups -----------------------------------------------------
     ingest: IngestSettings = IngestSettings()
     rate_limit: RateLimitSettings = RateLimitSettings()
+    public_api: PublicApiSettings = PublicApiSettings()
+    webhooks: WebhookSettings = WebhookSettings()
     dedup: DedupSettings = DedupSettings()
     severity: SeveritySettings = SeveritySettings()
     models: ModelSettings = ModelSettings()
@@ -364,6 +482,21 @@ class Settings(BaseSettings):
                     "refusing to start: the development control-plane token is still "
                     "set. It guards tenant provisioning and every taxonomy write. "
                     "Set NEMESIS_CONTROL_PLANE_TOKEN to a generated value."
+                )
+            if "change-me" in self.webhook_signing_key.get_secret_value():
+                raise ValueError(
+                    "refusing to start: the development webhook signing key is still "
+                    "set. Every tenant's webhook secret derives from it, so a "
+                    "well-known value lets anybody forge a payload their handler "
+                    "will accept as ours. Set NEMESIS_WEBHOOK_SIGNING_KEY."
+                )
+            if self.webhooks.allow_private_network_targets:
+                raise ValueError(
+                    "refusing to start: webhook delivery to private network targets "
+                    "is enabled. A webhook URL is tenant-supplied, so this turns the "
+                    "deployment into an SSRF proxy for its own internal network and "
+                    "cloud metadata endpoint. Unset "
+                    "NEMESIS_WEBHOOKS__ALLOW_PRIVATE_NETWORK_TARGETS."
                 )
             if "*" in self.cors_allow_origins:
                 raise ValueError(

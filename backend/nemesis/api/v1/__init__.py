@@ -14,6 +14,10 @@ from fastapi import APIRouter
 
 from nemesis.api.v1.complaints import router as complaints_router
 from nemesis.api.v1.control_plane import router as control_plane_router
+from nemesis.api.v1.developers import portal_router
+from nemesis.api.v1.developers import router as developers_router
+from nemesis.api.v1.integrations import router as integrations_router
+from nemesis.api.v1.public import router as public_router
 from nemesis.api.v1.realtime import router as realtime_router
 
 #: Mounted by the application factory. The realtime router carries no prefix —
@@ -26,5 +30,12 @@ api_v1.include_router(complaints_router)
 # solutions engineer's onboarding script is exactly the kind of consumer §16.3's
 # deprecation clock exists to protect.
 api_v1.include_router(control_plane_router)
+# Phase 4. The public surface is mounted last of the three, deliberately: it is
+# the only unauthenticated router, so a path collision between it and a
+# tenant-scoped one must resolve in favour of the authenticated route rather
+# than silently exposing it.
+api_v1.include_router(public_router)
+api_v1.include_router(integrations_router)
+api_v1.include_router(developers_router)
 
-__all__ = ["api_v1", "realtime_router"]
+__all__ = ["api_v1", "portal_router", "realtime_router"]

@@ -15,7 +15,9 @@ from sqlalchemy import text
 from nemesis.api.errors import register_exception_handlers
 from nemesis.api.middleware import register_middleware
 from nemesis.api.ratelimit import close_limiter
-from nemesis.api.v1 import api_v1, realtime_router
+from nemesis.api.v1 import api_v1, portal_router, realtime_router
+from nemesis.api.v2 import api_v2
+from nemesis.api.versioning import VersionStatus, all_versions
 from nemesis.config import Settings, get_settings
 from nemesis.db.session import dispose_engine, get_engine
 from nemesis.flags import close_flags, get_flags
@@ -168,9 +170,63 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # mistake in a domain router can never shadow /health or /ready — the two
     # endpoints an orchestrator uses to decide whether this process lives.
     app.include_router(api_v1)
+    # Phase 4. v2 is a real surface, not a placeholder — the gate's first clause
+    # is that a v1 consumer keeps working after v2 ships, and that cannot be
+    # proven against a version which does not exist. See `nemesis.api.v2`.
+    app.include_router(api_v2)
+    app.include_router(portal_router)
     app.include_router(realtime_router)
 
+    _register_sunset_versions(app)
+
     return app
+
+
+def _register_sunset_versions(app: FastAPI) -> None:
+    """Answer 410 for any version past its published sunset date.
+
+    **Registered as routes rather than checked inside each handler**, so a
+    version cannot be removed from the registry and left serving because one
+    router forgot the check. And computed from the *date* rather than from the
+    status field, so a deployment nobody has updated still stops serving on
+    schedule: the promise made to consumers was a date, not a promise that
+    somebody would remember it.
+
+    410 and not 404, for the reason ``api.errors`` records next to the constant:
+    "gone" sends an integrator to the changelog, "not found" sends them to
+    re-read their own URL construction.
+    """
+    from datetime import UTC, datetime
+
+    from nemesis.api.errors import HTTP_410_GONE, PROBLEM_BASE, ProblemDetailError
+
+    today = datetime.now(tz=UTC).date()
+    expired = [v for v in all_versions() if v.is_expired(today) or v.status is VersionStatus.SUNSET]
+    for version in expired:
+
+        async def gone(
+            version_name: str = version.name, successor: str | None = version.successor
+        ) -> None:
+            raise ProblemDetailError(
+                status_code=HTTP_410_GONE,
+                title=f"API {version_name} has been withdrawn",
+                detail=(
+                    f"API {version_name} reached its published sunset date. "
+                    + (
+                        f"Move to {successor}; see /developers#versions."
+                        if successor
+                        else "See /developers#versions."
+                    )
+                ),
+                problem_type=f"{PROBLEM_BASE}/api-version-sunset",
+            )
+
+        app.add_api_route(
+            f"/api/{version.name}/{{path:path}}",
+            gone,
+            methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+            include_in_schema=False,
+        )
 
 
 app = create_app()

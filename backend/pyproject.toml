@@ -24,6 +24,12 @@ dependencies = [
     "structlog>=24.4.0",
     "python-multipart>=0.0.17",
     "orjson>=3.10.0",
+    # Phase 4 promotes httpx from a test dependency to a runtime one: the
+    # webhook dispatcher makes outbound HTTP calls, and it needs an async client
+    # with per-request timeouts and redirect control. urllib in a threadpool
+    # would work and would mean hand-rolling both, on the code path where a slow
+    # third party must not be able to consume a worker slot.
+    "httpx>=0.28.0",
     # Observability. Instrumented from Phase 0; the collector/Grafana stack is
     # wired in Phase 1. Exporters are no-ops when no endpoint is configured, so
     # local runs carry no cost and no dependency on a running collector.
@@ -64,7 +70,9 @@ dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
-    "httpx>=0.28.0",
+    # httpx moved to the base dependency list in Phase 4 — the webhook
+    # dispatcher needs it at runtime, so listing it here as well would be a
+    # second place for the version floor to drift.
     "ruff>=0.8.0",
     "mypy>=1.13.0",
     "types-redis>=4.6.0",
@@ -136,7 +144,7 @@ exclude = ["^alembic/versions/"]
 # every task body is still fully type-checked, and its arguments and return
 # type are still required. The alternative was a `# type: ignore[misc]` on
 # every task in the system, which trains people to add one without reading it.
-module = ["nemesis.pipeline.*", "nemesis.worker.*"]
+module = ["nemesis.pipeline.*", "nemesis.worker.*", "nemesis.integrations.tasks"]
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]

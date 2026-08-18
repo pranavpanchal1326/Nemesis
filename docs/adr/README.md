@@ -78,3 +78,7 @@ The concrete signal that should reopen this decision.
 | [0018](0018-two-hierarchies-responsibility-and-place.md) | Two organisation hierarchies: responsibility and place | Accepted | PLT |
 | [0019](0019-taxonomy-keys-are-immutable-contracts.md) | A taxonomy key is an immutable contract; the display name is a translation | Accepted | PLT |
 | [0020](0020-control-plane-writes-carry-a-shared-token.md) | Control-plane writes carry a shared token, and every one of them writes an event | Accepted | PLT · SEC |
+| [0021](0021-the-public-api-is-opt-in-and-k-anonymous.md) | The public API is opt-in per tenant, and its aggregates are k-anonymous | Accepted | PLT · SEC |
+| [0022](0022-api-versions-are-locked-by-a-contract-file.md) | A published API version is locked by a contract file, and v2 ships to prove it | Accepted | PLT |
+| [0023](0023-webhook-secrets-are-derived-never-stored.md) | Webhook signing secrets are derived, never stored; targets re-validated at delivery | Accepted | PLT · SEC |
+| [0024](0024-bulk-export-ships-csv-and-ndjson-parquet-waits-for-phase-23.md) | Bulk export ships CSV and NDJSON; Parquet waits for Phase 23 | Accepted | PLT · DATA |

@@ -340,7 +340,7 @@ async def prompt_sets_for(
         )
         .order_by(TaxonomyNode.path)
     )
-    return list(rows.all())
+    return list(rows.tuples())
 
 
 async def digest(session: AsyncSession, *, tenant_id: uuid.UUID) -> TaxonomyDigest:
