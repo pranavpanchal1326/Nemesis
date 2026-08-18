@@ -72,6 +72,18 @@
       "has_upcaster": false,
       "model": "PipelineStageDegradedV1"
     },
+    "policy_drafted@1": {
+      "entity_type": "tenant",
+      "fingerprint": "7c65237bf555b054ee84f8c48dd2bc7a34db3cf17e514d55fbb5271384578a31",
+      "has_upcaster": false,
+      "model": "PolicyDraftedV1"
+    },
+    "policy_transitioned@1": {
+      "entity_type": "tenant",
+      "fingerprint": "0f7398c81c08757247b20a36999e885cdb5f04e00f8145c0b4db5993c242fdfe",
+      "has_upcaster": false,
+      "model": "PolicyTransitionedV1"
+    },
     "safety_trigger_fired@1": {
       "entity_type": "complaint",
       "fingerprint": "65d34c87a6eb6a80c85d8faf8dcf288d3886454dc451c633967d28d4e757393f",

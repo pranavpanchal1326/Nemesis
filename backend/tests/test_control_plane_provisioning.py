@@ -211,15 +211,20 @@ async def test_two_tenants_from_different_templates_coexist(
     assert "pothole" in city_keys
 
 
-async def test_provisioning_appends_two_events_on_a_verifiable_tenant_chain(
+async def test_provisioning_appends_a_verifiable_tenant_chain(
     migrated_engine: AsyncEngine,
 ) -> None:
     """Configuration history is hash-chained like everything else (§9.1).
 
-    Two events, not one per department: a template that creates eleven units is
-    a single operator action, and eleven events would bury it. The chain is
-    verified rather than merely counted, because an event whose hash does not
-    recompute is not evidence of anything.
+    The organisation half is two events, not one per department: a template that
+    creates eleven units is a single operator action, and eleven events would
+    bury it. Phase 6's policy seeding is deliberately *not* batched the same way
+    — each seeded document walks the full draft → review → approve → activate
+    lifecycle, because there must be exactly one way a policy becomes live and a
+    shortcut for seeds would be a second one.
+
+    The chain is verified rather than merely counted, because an event whose
+    hash does not recompute is not evidence of anything.
     """
     async with session_for(migrated_engine) as session:
         result = await provisioning.provision(
@@ -245,9 +250,22 @@ async def test_provisioning_appends_two_events_on_a_verifiable_tenant_chain(
             entity_id=result.tenant_id,
         )
 
-    assert [e.event_type for e in events] == ["tenant_provisioned", "taxonomy_published"]
+    kinds = [event.event_type for event in events]
+    assert kinds[:2] == ["tenant_provisioned", "taxonomy_published"]
     assert events[0].payload["template"] == "campus"
     assert events[0].payload["template_version"] == "1.0.0"
+
+    # Phase 6 seeds four baseline documents, each drafted and then moved through
+    # three transitions. Asserted as a shape rather than a count so adding a
+    # fifth governed structure is a one-line change here, not a puzzle.
+    seeded = {
+        payload["kind"]
+        for event_type, payload in ((event.event_type, event.payload) for event in events)
+        if event_type == "policy_drafted"
+    }
+    assert seeded == {"safety_ruleset", "severity_rubric", "dedup_thresholds", "sla_matrix"}
+    assert kinds.count("policy_transitioned") == 3 * len(seeded)
+
     assert report.is_intact, report.first_break
 
 

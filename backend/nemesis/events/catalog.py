@@ -444,6 +444,79 @@ class OrganisationChangedV1(EventPayload):
 
 
 # ---------------------------------------------------------------------------
+# Policy chain — governed configuration history (Phase 6)
+# ---------------------------------------------------------------------------
+#
+# On the *tenant* chain, alongside `taxonomy_published` and `organisation_changed`
+# rather than on a chain of their own. The question these answer is never "show
+# me the policy edits in isolation"; it is "the taxonomy changed, then the rubric
+# changed, then everything scored differently" — and that ordering is only
+# recoverable if the three share a chain.
+#
+# **Two event types, not one per verb.** `policy_drafted` records that a document
+# now exists with a given content; `policy_transitioned` records every movement
+# through the lifecycle, including activation and rollback. Splitting further —
+# `policy_approved`, `policy_activated`, `policy_rejected` — would put the
+# lifecycle's shape into the event catalog, where changing it means a payload
+# version bump and an upcaster for a change that invalidates nothing already
+# written. `organisation_changed` makes the same call for the same reason.
+
+
+@register_event("policy_drafted", version=1, entity_type=EntityType.TENANT)
+class PolicyDraftedV1(EventPayload):
+    """A new revision of a governed structure was authored (Phase 6).
+
+    ``content_hash`` is the canonical hash of the document body, so the chain
+    can prove which bytes were drafted without carrying the body itself. The
+    body deliberately does not go into the payload: a safety ruleset is a few
+    kilobytes of terms, it changes often, and inlining it would grow an
+    append-only log that must live for years by the full document on every edit
+    — the same reasoning ``complaint_submitted`` applies to photographs.
+    """
+
+    kind: str
+    revision: int = Field(ge=1)
+    content_hash: str = Field(min_length=64, max_length=64)
+    #: The revision this was derived from, or ``None`` when authored fresh.
+    based_on_revision: int | None = Field(default=None, ge=1)
+    #: Set when this draft exists to restore an earlier version. Recorded here
+    #: rather than inferred from equal content hashes: two revisions can be
+    #: byte-identical by coincidence, and a rollback is an operator decision
+    #: that an incident review has to be able to find.
+    rolled_back_from_revision: int | None = Field(default=None, ge=1)
+    change_reason: str
+
+
+@register_event("policy_transitioned", version=1, entity_type=EntityType.TENANT)
+class PolicyTransitionedV1(EventPayload):
+    """A policy document moved through its lifecycle (Phase 6).
+
+    Phase 6's gate requires *every* transition to be an event in the same hash
+    chain, which is what makes "an unapproved draft never influenced a decision"
+    a provable claim rather than a policy: the chain contains the activation, so
+    a decision stamped with a version whose activation is absent is detectable.
+
+    ``effective_from`` is carried because activation may be future-dated, and
+    "when was this approved" and "when did it start applying" are different
+    questions that a single timestamp would conflate.
+    """
+
+    kind: str
+    revision: int = Field(ge=1)
+    from_status: str
+    to_status: str
+    #: Required on every transition. The same argument
+    #: ``admin_action.justification`` makes: a lifecycle record that answers
+    #: "what" and refuses to answer "why" is half an audit trail, and the half
+    #: it keeps is the half nobody needs during an incident.
+    reason: str
+    effective_from: str | None = None
+    #: The revision this one displaced, on an activation. Null on every other
+    #: transition, and on the first activation of a kind.
+    superseded_revision: int | None = Field(default=None, ge=1)
+
+
+# ---------------------------------------------------------------------------
 # Cross-cutting
 # ---------------------------------------------------------------------------
 

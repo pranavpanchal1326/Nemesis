@@ -90,7 +90,7 @@ that satisfies more of these wins.
 | 3 | Ingestion, orchestration & realtime transport ✅ | A · Platform | PLT | 2 |
 | 4 | Public API, versioning & integration platform ✅ | A · Platform | PLT | 3 |
 | 5 | Tenant, taxonomy & organisation service ✅ | B · Control Plane | PLT | 2 |
-| 6 | Policy & rules engine | B · Control Plane | PLT · DATA | 5 |
+| 6 | Policy & rules engine ✅ | B · Control Plane | PLT · DATA | 5 |
 | 7 | Configuration simulation & backtesting | B · Control Plane | DATA | 6 |
 | 8 | Trust & safety spine | C · Intelligence | DATA · SEC | 3, 6 |
 | 9 | Perception layer & model registry | C · Intelligence | DATA | 3, 5 |
@@ -1154,27 +1154,183 @@ by a regression test or a fix):
   must not acquire scopes, per-tenant variants, or an expiry — each is a step
   toward reimplementing authorization badly in the phase that does not own it
 
-## Phase 6 — Policy & rules engine · PLT · DATA
+## Phase 6 — Policy & rules engine ✅ · PLT · DATA
 
-Every behavioural knob becomes governed data.
+Every behavioural knob becomes governed data. Critique-log defect #2 is that
+every tuning knob was a constant, a config field, or an env var, so §13.3's
+promise that "the rubric improves as data accumulates" was unimplementable by
+anyone without a deploy pipeline. This is where that stops being true.
 
-**Ships**
-- Versioned, effective-dated, tenant-scoped policy documents covering:
-  - **Severity rubrics** — weights and component definitions per taxonomy node (§13.5)
-  - **Dedup thresholds** — per category, because a pothole and a garbage pile have different visual variance (§14.3)
-  - **Safety trigger rulesets** — keywords and visual prompts (§11.2), still executing deterministically, now authored and approved as data
-  - **SLA matrices** — per tenant, category, and severity tier, calendar-aware (§27.2)
-  - **Routing rules** — condition → department/team, evaluated in a sandboxed, side-effect-free evaluator
-  - **Rate cards** — effective-dated, for the §17.2 deviation detector
-- Draft → review → approve → activate lifecycle, with every transition an event in the same hash chain
-- Hot reload with a version stamp recorded on every decision the policy influenced
-- Safe rollback to any prior version
+**Shipped**
+- **Six governed structures as versioned, effective-dated, tenant-scoped
+  documents** — severity rubrics (§13.5), dedup thresholds (§14.3), safety
+  rulesets (§11.2), SLA matrices (§27.2), routing rules (§15.2), and rate cards
+  (§17.2). One table, not six: they share a lifecycle, a chain, and a set of
+  columns, and what differs is the *body*, which is JSONB validated by the
+  Pydantic model registered for the kind. Adding a seventh structure is a model
+  plus a registry line and touches neither the service, the API, nor a migration
+- **A sandboxed condition language that never calls `eval`** (ADR-0025).
+  `policy.expressions` parses to an AST, refuses every node type not on a short
+  allowlist, and walks the survivors itself — no code object is ever built, so
+  the standard `__class__` → `__subclasses__` escape has nothing to start from.
+  Conditions compile against a **declared fact schema**, which buys the property
+  the module exists for: **a compiled condition cannot raise.** Evaluation is
+  total, does no I/O, reads no clock, and consults no randomness
+- **Draft → review → approve → activate, with every transition an event.** One
+  transition table, one mutation path, one place that appends
+  `policy_transitioned` — so "every transition is in the chain" is structural
+  rather than a convention four functions have to remember. Two new event types
+  (`policy_drafted`, `policy_transitioned`) on the tenant chain beside
+  `taxonomy_published`, because the question is always "the taxonomy changed,
+  then the rubric changed, then everything scored differently"
+- **Hot reload with a published interval** (ADR-0027). A per-process snapshot on
+  a 30-second TTL, and the number is stated in the module, in the activation
+  response body, and in the runbook — because the alternative is not a different
+  number, it is silence, and every system that stays silent produces the same
+  incident: somebody changes a threshold three times and then goes looking for
+  the "real" configuration in an environment variable
+- **Rollback that moves forward** (ADR-0026). Restoring revision 3 creates
+  revision 8 carrying revision 3's body. Re-activating the old row would overlap
+  the effective-date intervals and turn "what was live on 14 March" from a query
+  into a reconstruction — possible, and exactly the kind of possible-but-nobody-
+  will that makes an evidence trail decorative
+- **Baseline documents seeded at provisioning**, walking the full lifecycle
+  rather than being inserted as `active`. A seeding shortcut would be a second
+  way for a document to become live, and "does one exist" is the first thing an
+  auditor asks. `policy.baselines` is the single source for both the seed and
+  the resolver's fallback, so the two cannot drift
+- **Cross-entity validation at draft time** — a routing rule naming a department
+  the tenant does not have, or a rubric override on a category it never defined,
+  is refused when it is written. A rule pointing nowhere routes work into a void,
+  which on a queue is indistinguishable from a backlog
+- **The full HTTP surface**, mounted beside the control plane and following its
+  conventions exactly: reads tenant-scoped and token-free, writes behind
+  `X-Control-Plane-Token`, 404-never-403 for another tenant's revision, and a
+  `/facts` endpoint so an author can discover the condition vocabulary without
+  reading the source
+- **Three ADRs, one runbook** (`policy-rollback.md`), an idempotent backfill
+  endpoint for tenants provisioned before this phase, and `nem gate-phase6`
 
-**Gate**
-- Changing a severity weight, an SLA, a safety keyword, or a routing rule requires **no deploy** and takes effect within one reload interval
-- Every scored complaint records the exact policy version that scored it
-- An unapproved draft can never influence a production decision
-- The safety fail-safe remains provably deterministic under policy control — same input, same outcome, every time
+**Gate — met**
+- ✅ **Changing a severity weight, an SLA, a safety keyword, or a routing rule
+  requires no deploy** — and "no deploy" is *measured*, not asserted.
+  `nem gate-phase6` records the API container's id and `State.StartedAt` before
+  the run, changes all four knobs over HTTP, and compares them after. A test
+  process never restarts, so it cannot demonstrate the absence of a restart;
+  the live gate can
+- ✅ **Takes effect within one reload interval** — 30 seconds, stated in three
+  places, with the activating process invalidating its own cache so an operator
+  who re-reads immediately sees their own change
+- ✅ **Every scored complaint records the exact policy version that scored it** —
+  the resolver returns the document and its stamp as *one* object, so a caller
+  physically cannot stamp a decision with a version other than the one that
+  decided it. Two reads across a reload boundary could disagree; one cannot
+- ✅ **An unapproved draft can never influence a production decision** — proved
+  at three layers, because they fail differently. The service's only read path
+  filters on `active` plus the effective date; a **partial unique index** makes
+  `active` additionally mean *exactly one*, which a service check would not
+  survive two operators pressing Activate in the same second; and a CHECK
+  constraint refuses any row reaching `active` without an `approved_at`, so a
+  psql session cannot activate anonymously either
+- ✅ **The safety fail-safe remains provably deterministic under policy control**
+  — a Hypothesis property over generated text and locales asserts identical
+  outcomes across repeated evaluation, and the matching contains no regular
+  expressions anywhere, deliberately: a tenant-authored regex is a
+  catastrophic-backtracking denial of service against the stage with the
+  *highest* retry budget in the pipeline
+- ✅ Every published sandbox escape technique is a named parametrised test case,
+  so a widening of the allowlist fails CI by technique rather than by a general
+  "sandbox test"
+- ✅ ruff clean · ruff format clean · **mypy --strict clean (119 modules)** ·
+  **789 tests passing, 209 of them new** · **87.39% coverage** against an 85%
+  floor · `alembic check` clean · migration applies, reverts, and re-applies ·
+  all eight check scripts green · API contract re-locked (47 operations,
+  additive only) · **22/22 live gate checks passed**, and Phases 3, 4, and 5
+  re-run green against the same stack
+
+**Defects the implementation and the gate caught** (each now covered by a
+regression test or a fix):
+1. **`session.refresh` is unusable in this codebase, and the tenancy guard said
+   so.** It emits `SELECT ... WHERE id = ?` with no tenant predicate, which the
+   runtime guard correctly refuses — from a stack frame nowhere near the call,
+   because it fires on whatever statement the session flushes next. Eighteen
+   tests failed at once on it. Replaced with an expire-then-scoped-read helper,
+   and the tests use the same route rather than being exempted
+2. **The first version of that helper tripped the guard it existed to satisfy.**
+   It read `version.kind` *after* `session.expire(version)` — and touching an
+   attribute of an expired instance is itself a lazy load, unscoped, from inside
+   an attribute access. The identity has to be captured before expiring
+3. **`/seed-baselines` was parsed as a policy kind.** FastAPI matches routes in
+   registration order and `POST /{kind}` was declared first, so the enum rejected
+   "seed-baselines" as an unknown kind and the backfill endpoint was unreachable.
+   Caught by the test written to catch exactly that. The same class of bug
+   applied to `/{kind}/{revision}/{verb}` swallowing `activate` — which would
+   have made the endpoint that changes what production does reachable by varying
+   a path segment on the review endpoint
+4. **A bare `category` compiled as a routing condition.** The compiler checked
+   the operands of each connective but never the expression as a whole, so a
+   non-boolean at the top level passed — and it would have matched every
+   classified complaint, because a non-empty string is truthy, while reading on
+   the page like a rule about categories
+5. **Rollback skipped two transitions.** The first implementation inherited the
+   original approval with a direct `UPDATE`, which meant the restored revision
+   went draft → active with no events for the states in between. The gate clause
+   is that *every* transition is an event; a fast path with no events is exactly
+   the exception that makes the claim untrue, and it was in the emergency path
+   an auditor asks about first. Now it walks the real lifecycle, and the approver
+   recorded is whoever pressed rollback — they are the one putting the content
+   into production, and attributing it to someone who has not been near the
+   system since March would be a comfortable fiction in the one record that
+   exists to prevent them
+6. **`update_draft` shipped with no test at all.** Found by reading the coverage
+   report rather than by a failure — the endpoint worked, and nothing exercised
+   it. Six tests now cover the edit path, including that the revision survives an
+   edit while the content hash does not
+
+**Carried forward, not silently absorbed:**
+- **Existing tenants are not seeded by the migration**, and the reason is
+  structural rather than lazy: every policy write must append to the tenant's
+  hash chain, and a migration cannot do that correctly — appending needs the
+  chain-tail lock, the previous hash, the canonical encoding, and the schema
+  registry. Reimplementing any of it in raw SQL would produce rows that look
+  like chain entries and fail `verify_chain`. Instead the resolver falls back to
+  the same baseline objects, those decisions are stamped `baseline` rather than
+  with a plausible-looking revision, every fallback logs `policy_baseline_used`
+  so the gap is a log query rather than an audit, and an idempotent endpoint
+  does the real backfill through the real service
+- **`config.py` keeps `SeveritySettings` and `DedupSettings`**, now read only for
+  their *declared defaults* when building baselines. The env-var override path is
+  superseded: after this phase the way to change a weight is to draft a rubric.
+  Deriving baselines from a live `Settings` instance was rejected because an env
+  var that shifted a baseline weight would make the same complaint score
+  differently on two workers with different environments, which defeats the point
+  of a version stamp
+- **Routing rules and rate cards have no platform baseline**, and that is not an
+  omission. They name departments and negotiated prices the platform cannot
+  invent. A tenant with no routing document leaves complaints *unrouted* — a
+  state the triage queue shows and an operator fixes — rather than falling back
+  to a default department, which is where misrouted work goes to be ignored
+- **`RoutingRules` has no `fallback_department_code` field**, for the same
+  reason, and a test asserts its absence so it cannot be added as a convenience
+- **Severity overrides do not compose.** Most-specific wins and the walk stops
+  there. A parent floor combining with a child multiplier reads reasonably and
+  becomes impossible to predict once the tree is four levels deep, which is
+  precisely when somebody needs to predict it
+- **Absent facts compare `False`, including under `!=` and `not in`**, so
+  `not (severity > 7)` and `severity <= 7` are not complements. The wart is
+  documented and pinned by a named test. The alternative — raising mid-route on
+  a fact that legitimately does not exist yet — would drop a citizen's report
+  because their photo had no EXIF
+- **Nothing here consumes the policies yet.** Phases 8, 10, and 12 are the
+  consumers; this phase ships the governance, the resolver, and the arithmetic
+  those phases will call. Wiring the pipeline stages to it now would mean
+  building the stages, which is three phases' work being done under this phase's
+  gate
+- **Phase 7 is what makes this safe to use at scale.** Activation currently
+  depends on an approver reading a document. Backtesting a candidate against
+  historical events, quantifying the affected population before anyone approves,
+  and blocking activation on a regression against a labelled set are all Phase 7,
+  and the runbook says so where an operator will read it
 
 ## Phase 7 — Configuration simulation & backtesting · DATA
 
