@@ -165,6 +165,11 @@ module = [
     "celery.*",
     "open_clip.*",
     "faster_whisper.*",
+    # Phase 9's two remaining inference libraries. Reached only inside the
+    # `perception.backends` adapters, which only the worker-ml image can
+    # execute — the same reasoning the mediapipe entry below records.
+    "torch.*",
+    "sentence_transformers.*",
     "mediapipe.*",
     # Only reached inside `MediaPipeFaceDetector.detect`, which only the
     # worker-ml image can execute. Listing it keeps `mypy --strict` honest in

@@ -65,6 +65,13 @@ class PolicyKind(StrEnum):
     #: and a city with nine million people cannot share a velocity limit, and
     #: "200 metres" is a municipal convention, not a law.
     TRUST_THRESHOLDS = "trust_thresholds"
+    #: Phase 9. How a raw model similarity becomes a confidence, per category,
+    #: and what confidence is too low to claim a category at all. Governed rather
+    #: than constant for the reason the phase gate states: the numbers are
+    #: *measured* from a tenant's own labelled data and change as that data
+    #: accumulates (§13.3), so they are exactly the kind of value that must be
+    #: approvable, effective-dated, and backtestable rather than deployed.
+    PERCEPTION_CALIBRATION = "perception_calibration"
 
 
 class PolicyStatus(StrEnum):
@@ -116,6 +123,12 @@ class PolicyBody(BaseModel):
 #: hard to spot in a table of six numbers.
 Weight = Annotated[float, Field(ge=0.0, le=1.0)]
 Score = Annotated[float, Field(ge=0.0, le=10.0)]
+
+#: A probability or a normalised confidence. The same bounds as ``Weight`` and
+#: deliberately a different name: a weight is a share of a total and a
+#: probability is a belief, and a reader who finds ``Weight`` on an abstain
+#: threshold has to stop and work out which of the two was meant.
+Probability = Annotated[float, Field(ge=0.0, le=1.0)]
 
 #: Tolerance on the weights-sum-to-one check. Floating point addition of six
 #: two-decimal weights does not land on 1.0 exactly, and refusing a rubric that
@@ -871,11 +884,121 @@ class TrustThresholds(PolicyBody):
 
 
 # ---------------------------------------------------------------------------
+# Perception calibration (Phase 9, §13.3 / §43.1)
+# ---------------------------------------------------------------------------
+
+
+class CategoryCalibration(PolicyBody):
+    """The measured curve for one category, as four numbers.
+
+    **Why per category and not one global temperature.** Zero-shot similarity is
+    not comparable across categories: "a pothole in a road" and "an overflowing
+    garbage bin" sit at different places in CLIP's similarity band, so a single
+    temperature makes one category systematically over-confident and the other
+    systematically under-confident — and the two errors do not cancel, they show
+    up as one category that never reaches its abstain floor and another that
+    never leaves it.
+
+    **``bias`` is additive on the logit, after temperature.** That is Platt
+    scaling's shape, and it is chosen over a multiplicative correction because a
+    multiplier and a temperature are the same knob wearing two names, while an
+    offset is genuinely independent: temperature controls how *sharp* the
+    distribution is, bias controls where this category sits within it.
+
+    **``sample_size`` is required and is not decoration.** A temperature fitted
+    on nine examples is a number with the same shape and none of the authority of
+    one fitted on nine hundred, and the person approving this document is the
+    only one positioned to tell the difference. Recording it means an approver is
+    shown the evidence rather than the conclusion, which is architectural
+    principle 4 applied to the model's own tuning.
+    """
+
+    category: TaxonomyKey
+    #: Divides the cosine before the softmax. Small values sharpen. Bounded well
+    #: away from zero — see ``scoring.MIN_TEMPERATURE`` on what a temperature at
+    #: zero does to a confidence field the log keeps forever.
+    temperature: Annotated[float, Field(gt=0.005, le=10.0)] = 0.05
+    bias: Annotated[float, Field(ge=-10.0, le=10.0)] = 0.0
+    #: Confidence below which this category is not claimed at all.
+    abstain_below: Probability = 0.35
+    #: Required lead over the runner-up, in probability. Zero disables the check.
+    min_margin: Annotated[float, Field(ge=0.0, le=1.0)] = 0.05
+    #: How many labelled examples the numbers above were fitted on.
+    sample_size: Annotated[int, Field(ge=0)] = 0
+    #: Free text: which harness run, on which corpus, measured when. Read by a
+    #: human at approval time, by nothing at runtime.
+    provenance: Annotated[str, Field(max_length=500)] = ""
+
+
+class PerceptionCalibration(PolicyBody):
+    """How the perception layer turns similarities into decisions, per tenant.
+
+    **What is here and what is deliberately not.** The knobs below decide how
+    *confident* the layer is allowed to be and when it must decline; they do not
+    decide what the categories are (taxonomy), what describes them (prompt sets),
+    or which model runs (deployment). Splitting it that way means the numbers a
+    data scientist retunes weekly live in a document with an approval trail,
+    while the ones that change with a release live in the release.
+
+    **The defaults apply to every category without an entry, and that is the
+    load-bearing behaviour.** Phase 9's gate says a new tenant category is
+    classifiable by adding prompts alone. If a category required a calibration
+    row before it could be scored, that would be false — so an absent row means
+    "use the tenant default", not "cannot score".
+
+    **``visual_safety_threshold`` is a raw cosine, not a probability**, and it is
+    the one field here that feeds §11.2 rather than §43.1. A safety rule's visual
+    prompts are not competing with the taxonomy — "is there fire in this image"
+    is a yes/no against one phrase, not a ranking against forty — so a softmax
+    probability would be meaningless for it. Kept in this document rather than in
+    ``trust_thresholds`` because it is a property of the *model's* similarity
+    scale: it has to be re-measured when the checkpoint changes, and it would be
+    the one field in the trust document that a model upgrade invalidated.
+    """
+
+    default_temperature: Annotated[float, Field(gt=0.005, le=10.0)] = 0.05
+    default_abstain_below: Probability = 0.35
+    default_min_margin: Annotated[float, Field(ge=0.0, le=1.0)] = 0.05
+
+    #: How image and text evidence combine (``scoring.combine``). Below 0.5
+    #: because a citizen's own words name the problem, while a street photograph
+    #: contains a road, a sky, and some rubbish whatever is being reported.
+    image_weight: Weight = 0.45
+
+    #: Cosine at or above which a §11.2 visual prompt counts as matched. High,
+    #: and biased that way on purpose: a false visual match halts a report and
+    #: sends it to a human, which is survivable, but a threshold low enough to
+    #: fire on ordinary street scenes turns §11.2's fail-safe into noise that
+    #: gets switched off — and then the keyword half goes with it.
+    visual_safety_threshold: Annotated[float, Field(ge=0.0, le=1.0)] = 0.28
+
+    #: Below this, a detected language is recorded but treated as unverified: the
+    #: transcript is still used, and the *locale-specific* prompt set is not,
+    #: because scoring Marathi text against prompts chosen for a misdetected
+    #: Hindi is worse than scoring it against the tenant's default locale.
+    min_language_confidence: Probability = 0.5
+
+    categories: tuple[CategoryCalibration, ...] = Field(default=(), max_length=512)
+
+    @model_validator(mode="after")
+    def _one_entry_per_category(self) -> PerceptionCalibration:
+        keys = [entry.category for entry in self.categories]
+        duplicates = sorted({key for key in keys if keys.count(key) > 1})
+        if duplicates:
+            raise ValueError(
+                f"more than one calibration entry for {', '.join(duplicates)}; two "
+                f"curves for one category means the applied one depends on document "
+                f"order, which nobody reviewing this document would think to check"
+            )
+        return self
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
-#: Kind → body model. The one place the lifecycle service consults, so adding an
-#: eighth governed structure is this line plus a model, and touches neither the
+#: Kind → body model. The one place the lifecycle service consults, so adding a
+#: ninth governed structure is this line plus a model, and touches neither the
 #: service, the API, nor the migration.
 BODY_MODELS: Final[dict[PolicyKind, type[PolicyBody]]] = {
     PolicyKind.SEVERITY_RUBRIC: SeverityRubric,
@@ -885,6 +1008,7 @@ BODY_MODELS: Final[dict[PolicyKind, type[PolicyBody]]] = {
     PolicyKind.ROUTING_RULES: RoutingRules,
     PolicyKind.RATE_CARD: RateCard,
     PolicyKind.TRUST_THRESHOLDS: TrustThresholds,
+    PolicyKind.PERCEPTION_CALIBRATION: PerceptionCalibration,
 }
 
 
@@ -922,12 +1046,14 @@ def validate_body(kind: PolicyKind, body: Any) -> PolicyBody:
 __all__ = [
     "BODY_MODELS",
     "DECIDING_STATUSES",
+    "CategoryCalibration",
     "DedupBand",
     "DedupThresholds",
     "ExifPolicy",
     "GeoClusterPolicy",
     "MediaRetentionPolicy",
     "NodeSeverityOverride",
+    "PerceptionCalibration",
     "PerceptualHashPolicy",
     "PolicyBody",
     "PolicyKind",

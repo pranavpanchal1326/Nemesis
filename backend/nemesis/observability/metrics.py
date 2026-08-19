@@ -224,6 +224,89 @@ perceptual_duplicates_total = Counter(
     registry=REGISTRY,
 )
 
+# --- Perception (Phase 9, §8.4 / §43.1) ------------------------------------
+#
+# Labels name *model families and outcomes*, never a tenant, a category, or a
+# complaint. A per-category label here would be unbounded by construction —
+# categories are tenant data (Phase 5) — and the per-category numbers that
+# matter are the F1 report's, which is an artefact rather than a time series.
+
+perception_model_loads_total = Counter(
+    "nemesis_perception_model_loads_total",
+    "Model registry loads, by artefact kind and outcome. A cold start, not a use.",
+    labelnames=("kind", "outcome"),
+    registry=REGISTRY,
+)
+
+perception_model_load_seconds = Histogram(
+    "nemesis_perception_model_load_seconds",
+    "Wall time of one model registry load.",
+    labelnames=("kind",),
+    # Reaching to 120 s because a cold Whisper load from an unwarmed page cache
+    # takes tens of seconds, and a histogram whose top bucket is 10 s reports
+    # every cold start as "+Inf" — which is the exact case worth measuring.
+    buckets=(0.05, 0.25, 1.0, 5.0, 15.0, 30.0, 60.0, 120.0),
+    registry=REGISTRY,
+)
+
+perception_model_cache_total = Counter(
+    "nemesis_perception_model_cache_total",
+    "Registry lookups by result: hit, miss, or coalesced onto another thread's load.",
+    labelnames=("kind", "result"),
+    registry=REGISTRY,
+)
+
+perception_model_evictions_total = Counter(
+    "nemesis_perception_model_evictions_total",
+    "Entries evicted to stay under the resident ceiling. Sustained non-zero means "
+    "the ceiling is below the working set and every complaint is paying a reload.",
+    registry=REGISTRY,
+)
+
+perception_models_resident = Gauge(
+    "nemesis_perception_models_resident",
+    "Artefacts currently held by the model registry in this process.",
+    registry=REGISTRY,
+)
+
+perception_resident_bytes = Gauge(
+    "nemesis_perception_resident_bytes",
+    "Declared footprint of everything the model registry holds resident.",
+    registry=REGISTRY,
+)
+
+perception_inference_seconds = Histogram(
+    "nemesis_perception_inference_seconds",
+    "One inference pass, by operation (encode_image / encode_text / transcribe).",
+    labelnames=("operation",),
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0),
+    registry=REGISTRY,
+)
+
+perception_classifications_total = Counter(
+    "nemesis_perception_classifications_total",
+    "Classification outcomes: classified, abstained, or degraded. Abstentions are "
+    "a correct outcome (§24.2), not a failure — they are counted apart so a rising "
+    "abstention rate is visible without inflating the error ratio that pages a human.",
+    labelnames=("outcome",),
+    registry=REGISTRY,
+)
+
+perception_confidence = Histogram(
+    "nemesis_perception_confidence",
+    "Calibrated confidence of the winning category, over every scored submission.",
+    buckets=(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95),
+    registry=REGISTRY,
+)
+
+perception_transcriptions_total = Counter(
+    "nemesis_perception_transcriptions_total",
+    "Voice-complaint transcriptions, by detected language and outcome. The language "
+    "label is a BCP-47 tag from a fixed model vocabulary, not tenant data.",
+    labelnames=("language", "outcome"),
+    registry=REGISTRY,
+)
+
 # --- Ingestion (§26.1) -----------------------------------------------------
 ingest_submissions_total = Counter(
     "nemesis_ingest_submissions_total",

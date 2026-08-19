@@ -50,6 +50,27 @@ class StageUnavailableError(StageError):
     """
 
 
+class StageAbstainedError(StageError):
+    """The stage ran, understood its input, and declined to produce an answer.
+
+    **Not a failure, and the distinction is the whole reason this class exists.**
+    A classifier that returns "I do not know" has done its job correctly — §24.2
+    says the degraded path is real shipped behaviour, and a report parked as
+    ``pending_classification`` because the model was not confident is behaving
+    exactly as intended. Folding it into ``StagePermanentError`` would work
+    mechanically (both skip the budget and take the fallback) and would put
+    "the photograph would not decode" and "two categories were within four
+    points" behind the same ``failure_mode`` string in the degradation event —
+    which is the one field an operator reads to decide whether anything is
+    actually broken.
+
+    Skips the retry budget for the same reason ``StageUnavailableError`` does:
+    the same image scored against the same prompts by the same model will
+    abstain again in thirty seconds, and spending four more attempts on it is
+    four attempts not spent on the complaints queued behind it.
+    """
+
+
 class StagePermanentError(StageError):
     """The input is wrong in a way no retry fixes — a malformed image, say.
 

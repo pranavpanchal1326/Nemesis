@@ -44,6 +44,7 @@ from typing import Any, Final
 from nemesis.control_plane.calendars import WorkingWeek, resolve_deadline
 from nemesis.policy.documents import (
     DedupThresholds,
+    PerceptionCalibration,
     PolicyKind,
     RateCard,
     RoutingRules,
@@ -81,12 +82,25 @@ NO_MATCH: Final = "distinct"
 #: candidate being inert and is in fact indexed to this function never having
 #: looked at it — the same output for two opposite facts.
 #:
-#: ``rate_card`` and ``trust_thresholds`` are the two outside the set, for
-#: different reasons and with the same consequence. §17.2 deviation detection
-#: reads a rate card and lives in Phase 17; §11's checks read pixels, EXIF and
-#: device fingerprints, which the corpus cannot reconstruct because the log
-#: records what each check *concluded*, not what it ran on. ``runs.run_backtest``
-#: refuses both by name rather than producing a report about neither.
+#: ``rate_card``, ``trust_thresholds`` and ``perception_calibration`` are the
+#: three outside the set, for different reasons and with the same consequence.
+#: §17.2 deviation detection reads a rate card and lives in Phase 17; §11's
+#: checks read pixels, EXIF and device fingerprints, which the corpus cannot
+#: reconstruct because the log records what each check *concluded*, not what it
+#: ran on. ``runs.run_backtest`` refuses all three by name rather than producing
+#: a report about none of them.
+#:
+#: Perception is outside the set *today* rather than permanently, and the
+#: difference is worth stating. ``classification_scored`` v2 records
+#: ``raw_similarities`` — the model's opinion before any governed number touched
+#: it — precisely so that a calibration change becomes replayable: temperatures,
+#: biases and abstain floors are pure arithmetic over those numbers. What is
+#: missing is the corpus reader, because ``CorpusCase`` is shaped around the
+#: facts a severity or routing decision needs and has nowhere to carry a
+#: similarity map. Building it is Phase 11's work, and claiming the kind were
+#: decidable before that reader exists would produce exactly the answer Phase 7
+#: names as worthless: "0 complaints affected", for a change that affects every
+#: one of them.
 DECIDABLE_KINDS: Final[frozenset[PolicyKind]] = frozenset(
     {
         PolicyKind.SEVERITY_RUBRIC,
@@ -142,6 +156,7 @@ class PolicyBundle:
     routing_rules: Resolved[RoutingRules] | None = None
     rate_card: Resolved[RateCard] | None = None
     trust_thresholds: Resolved[TrustThresholds] | None = None
+    perception_calibration: Resolved[PerceptionCalibration] | None = None
 
     def stamps(self) -> dict[str, str]:
         """Which revision of each kind this bundle carries.
@@ -164,6 +179,8 @@ class PolicyBundle:
             stamps[PolicyKind.RATE_CARD.value] = self.rate_card.stamp
         if self.trust_thresholds is not None:
             stamps[PolicyKind.TRUST_THRESHOLDS.value] = self.trust_thresholds.stamp
+        if self.perception_calibration is not None:
+            stamps[PolicyKind.PERCEPTION_CALIBRATION.value] = self.perception_calibration.stamp
         return stamps
 
     def resolved_for(self, kind: PolicyKind) -> Resolved[Any] | None:
@@ -181,6 +198,7 @@ class PolicyBundle:
             PolicyKind.ROUTING_RULES: self.routing_rules,
             PolicyKind.RATE_CARD: self.rate_card,
             PolicyKind.TRUST_THRESHOLDS: self.trust_thresholds,
+            PolicyKind.PERCEPTION_CALIBRATION: self.perception_calibration,
         }[kind]
 
 

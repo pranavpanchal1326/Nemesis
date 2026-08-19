@@ -36,6 +36,12 @@
       "has_upcaster": false,
       "model": "ClassificationScoredV1"
     },
+    "classification_scored@2": {
+      "entity_type": "complaint",
+      "fingerprint": "47a2d0eeceff6f13fcb8ff38064d9c7e15977db4bbd44ec2fff61797cc2fa9d1",
+      "has_upcaster": true,
+      "model": "ClassificationScoredV2"
+    },
     "cluster_created@1": {
       "entity_type": "complaint_cluster",
       "fingerprint": "727c038cd9903b355cbc65262c0729703fda82f94b1dd065d6cc62a664476e9e",
@@ -83,6 +89,12 @@
       "fingerprint": "0a5d43d73889adb588b7e394c6b579ad6908086561b0d4617b490160b78bd144",
       "has_upcaster": false,
       "model": "MediaRedactedV1"
+    },
+    "media_transcribed@1": {
+      "entity_type": "complaint",
+      "fingerprint": "6e35442e7199f6581b9e26a2aba1510786b6c3e69abe179f39ae8235af0e18a5",
+      "has_upcaster": false,
+      "model": "MediaTranscribedV1"
     },
     "organisation_changed@1": {
       "entity_type": "tenant",
