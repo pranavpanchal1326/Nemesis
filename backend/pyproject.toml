@@ -41,6 +41,14 @@ dependencies = [
     "opentelemetry-instrumentation-redis>=0.50b0",
     "opentelemetry-instrumentation-celery>=0.50b0",
     "prometheus-client>=0.21.0",
+    # Phase 8 promotes Pillow from the `ml` extra to a base dependency. The §22.1
+    # face-blur obligation, the §11.1 perceptual hash, and the EXIF cross-check
+    # all need to *decode an image*, and only the face-detection step needs
+    # MediaPipe. Leaving decode in the heavy extra would have meant none of the
+    # three could be exercised in the API image the test suite runs in — so the
+    # part of the trust spine with a legal obligation attached would have been
+    # the part with no unit tests. Pillow is a ~4MB wheel with no torch in it.
+    "pillow>=11.0.0",
 ]
 
 [project.optional-dependencies]
@@ -62,10 +70,14 @@ ml = [
     "scikit-learn>=1.5.0",
     "scikit-image>=0.24.0",
     "mediapipe>=0.10.18",
-    "imagehash>=4.3.1",
-    "exifread>=3.0.0",
-    "pillow>=11.0.0",
 ]
+# `imagehash` and `exifread` were listed here and are deliberately gone. Phase 8
+# implements both in first-party code (`trust/phash.py`, `trust/exif.py`), for
+# one reason: they would have lived in the ml image, and the two §11.1 checks
+# that depend on them would have been untestable in the image the suite runs in.
+# A dHash is twenty lines over a Pillow resize, and the EXIF GPS IFD is four
+# tags Pillow already parses — both are now covered by property-based tests
+# against known vectors, which is more than either dependency was giving us.
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
@@ -154,8 +166,10 @@ module = [
     "open_clip.*",
     "faster_whisper.*",
     "mediapipe.*",
-    "imagehash.*",
-    "exifread.*",
+    # Only reached inside `MediaPipeFaceDetector.detect`, which only the
+    # worker-ml image can execute. Listing it keeps `mypy --strict` honest in
+    # every other image, where the package genuinely is not installed.
+    "numpy.*",
     "skimage.*",
     "sklearn.*",
     "geoalchemy2.*",

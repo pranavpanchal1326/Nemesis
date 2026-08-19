@@ -79,3 +79,22 @@ class ExpressionLimitError(ExpressionError):
     a limit means "what you wrote is allowed but too large", and the second is
     usually a rule that wants splitting rather than a rule that wants rewriting.
     """
+
+
+class PolicyCertificationError(PolicyError):
+    """Activation was refused because the candidate has no passing certificate.
+
+    Phase 7's gate clause, as a type: *a policy that regresses the labelled
+    evaluation set cannot be activated.* "Cannot" is enforced in
+    ``policy.service.activate``, which is the single mutation path — so the
+    refusal has to be expressible in this package's vocabulary, and the
+    certificate is read as **data** rather than by calling the simulation
+    package. The dependency runs one way only: simulation knows about policy,
+    policy knows about a table.
+
+    Its own type rather than a ``PolicyTransitionError`` because the remedy is
+    different in kind. A transition error means "this document is in the wrong
+    state"; this one means "the document may well be fine and nobody has
+    checked". The caller's next action is to run an evaluation, not to press a
+    different button, and the detail says so.
+    """

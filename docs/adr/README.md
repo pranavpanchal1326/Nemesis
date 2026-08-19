@@ -85,3 +85,9 @@ The concrete signal that should reopen this decision.
 | [0025](0025-policy-conditions-run-in-an-ast-interpreter-never-eval.md) | Policy conditions run in a hand-written AST interpreter, never `eval` | Accepted | PLT · SEC |
 | [0026](0026-policy-rollback-moves-forward-never-backward.md) | Policy rollback creates a new revision; it never re-activates an old row | Accepted | PLT |
 | [0027](0027-policy-reads-are-cached-with-a-stated-reload-interval.md) | Policy reads are cached per process, and the reload interval is published | Accepted | PLT |
+| [0028](0028-the-activation-guardrail-is-a-row-not-a-call.md) | The activation guardrail is evidence in a table, never a call into the simulation package | Accepted | DATA |
+| [0029](0029-a-backtest-replays-the-log-never-the-projections.md) | A backtest folds the event log for observations; it never reads the projections it is measuring | Accepted | DATA |
+| [0030](0030-shadow-mode-is-read-only-by-construction.md) | Shadow mode runs on its own transaction under two independent read-only layers | Accepted | DATA |
+| [0031](0031-the-raw-photograph-persists-unreachably.md) | The raw photograph persists for §22.4's window, unreachable rather than absent | Accepted | DATA · SEC |
+| [0032](0032-a-missing-face-detector-halts-the-pipeline.md) | A missing face detector halts the complaint; §22.1 fails closed and has no kill switch | Accepted | SEC · DATA |
+| [0033](0033-abuse-detection-flags-and-cannot-block.md) | Coordinated-abuse detection flags, and the blocking path does not exist to be re-enabled | Accepted | DATA · SEC |

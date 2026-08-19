@@ -20,6 +20,8 @@ from nemesis.api.v1.integrations import router as integrations_router
 from nemesis.api.v1.policies import router as policies_router
 from nemesis.api.v1.public import router as public_router
 from nemesis.api.v1.realtime import router as realtime_router
+from nemesis.api.v1.review import router as review_router
+from nemesis.api.v1.simulations import router as simulations_router
 
 #: Mounted by the application factory. The realtime router carries no prefix —
 #: §26.3 fixes the WebSocket path at /ws/pipeline-events, outside the versioned
@@ -36,6 +38,17 @@ api_v1.include_router(control_plane_router)
 # module would need two translation functions and a reader would have to work
 # out which applied to each handler.
 api_v1.include_router(policies_router)
+# Phase 7. A third sibling, and a third error hierarchy, for the same reason
+# the second one exists: `SimulationError` answers "is the evidence for
+# letting this go live sound", which is a different question from "may this
+# document go live" and needs a different translation table.
+api_v1.include_router(simulations_router)
+# Phase 8. Not under /control-plane: the review queue is operational work on
+# citizen reports, not configuration of the tenant, and a solutions engineer
+# with control-plane access is not automatically the person who should be
+# deciding whether a flagged complaint is fraudulent. The split is a prefix
+# today and the seam Phase 13 attaches two different permissions to.
+api_v1.include_router(review_router)
 # Phase 4. The public surface is mounted last of the three, deliberately: it is
 # the only unauthenticated router, so a path collision between it and a
 # tenant-scoped one must resolve in favour of the authenticated route rather

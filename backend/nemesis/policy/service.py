@@ -40,6 +40,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nemesis.db.models.organisation import Department
 from nemesis.db.models.policy import PolicyVersion
+from nemesis.db.models.simulation import EvaluationSet, PolicyCertificate
 from nemesis.db.models.taxonomy import TaxonomyNode
 from nemesis.events.canonical import JSONValue, canonicalise
 from nemesis.events.store import EventStore
@@ -57,6 +58,7 @@ from nemesis.policy.documents import (
     validate_body,
 )
 from nemesis.policy.errors import (
+    PolicyCertificationError,
     PolicyConflictError,
     PolicyNotFoundError,
     PolicyTransitionError,
@@ -281,9 +283,29 @@ async def draft(
     try:
         await session.flush()
     except IntegrityError as exc:
-        # Two operators drafting the same kind at the same instant both computed
-        # the same next revision. The unique constraint caught it; translating
-        # it here means the caller retries rather than seeing a driver error.
+        # **Two different failures arrive here, and reporting both as a conflict
+        # sends the reader in the wrong direction.** Phase 8 found this the hard
+        # way: adding a seventh `PolicyKind` without widening
+        # `ck_policy_versions_kind_is_known` produced a CHECK violation, which
+        # this handler announced as "created concurrently" — so the symptom was
+        # a phantom race on a single-threaded seeding call, and the cause was a
+        # migration that had not run.
+        #
+        # A CHECK violation on `kind` means the enum and the schema have drifted,
+        # which no retry fixes.
+        if "kind_is_known" in str(exc.orig):
+            raise PolicyValidationError(
+                f"{kind.value} is not accepted by the database's kind constraint. "
+                f"`PolicyKind`, `db.models.policy.POLICY_KINDS`, and the CHECK "
+                f"constraints on policy_versions, simulation_runs, evaluation_sets, "
+                f"policy_certificates and shadow_observations have drifted apart — "
+                f"a governed kind was added in code without the migration that "
+                f"widens them. Retrying will not help."
+            ) from exc
+        # Otherwise: two operators drafting the same kind at the same instant
+        # both computed the same next revision. The unique constraint caught it;
+        # translating it here means the caller retries rather than seeing a
+        # driver error.
         raise PolicyConflictError(
             f"revision {revision} of {kind.value} was created concurrently; re-read and retry"
         ) from exc
@@ -500,6 +522,7 @@ async def activate(
     revision: int,
     reason: str,
     effective_from: datetime | None = None,
+    certification_waiver: str | None = None,
     actor_id: uuid.UUID | None = None,
     correlation_id: str | None = None,
 ) -> PolicyVersion:
@@ -515,9 +538,25 @@ async def activate(
     apply from April. It may not be in the past: back-dating would claim a
     document decided complaints it never saw, and every one of those decisions
     is in the log stamped with the version that actually made it.
+
+    **Phase 7's guardrail runs here**, before anything is superseded. If the
+    tenant has a published evaluation set for this kind, the candidate needs a
+    passing certificate over its exact bytes; ``certification_waiver`` is the
+    only way past, it is not reachable from the HTTP surface, and taking it
+    writes ``policy_certification_waived`` to the chain. See
+    ``_require_certification``.
     """
     version = await require_version(session, tenant_id=tenant_id, kind=kind, revision=revision)
     validate_body(kind, version.body)
+    await _require_certification(
+        session,
+        tenant_id=tenant_id,
+        kind=kind,
+        version=version,
+        waiver=certification_waiver,
+        actor_id=actor_id,
+        correlation_id=correlation_id,
+    )
 
     now = datetime.now(tz=UTC)
     starts_at = effective_from or now
@@ -636,12 +675,22 @@ async def rollback(
             correlation_id=correlation_id,
         )
 
+    # Rollback activates under a waiver, and this is the one place that may.
+    # Phase 7's guardrail exists to stop *new* content reaching production
+    # unevaluated; a rollback restores bytes that were live, which means they
+    # passed whatever gate existed when they were activated. Requiring a fresh
+    # evaluation here would mean the emergency path — the one an operator takes
+    # while a rubric is scoring everything at 10 — depends on a batch job over
+    # twelve months of history completing first. The waiver is not silent: it
+    # writes `policy_certification_waived` to the chain, so "which activations
+    # skipped the evaluation set" stays a query rather than an inference.
     return await activate(
         session,
         tenant_id=tenant_id,
         kind=kind,
         revision=restored.revision,
         reason=rollback_reason,
+        certification_waiver=ROLLBACK_WAIVER,
         actor_id=actor_id,
         correlation_id=correlation_id,
     )
@@ -719,6 +768,110 @@ async def seed_baselines(
 # ---------------------------------------------------------------------------
 # Internals
 # ---------------------------------------------------------------------------
+
+
+#: The waiver a rollback activates under. A named constant rather than a string
+#: at the call site, because it is what appears in ``policy_certification_waived``
+#: and an operator filtering the chain for "activations that skipped the
+#: guardrail" needs one value to filter on.
+ROLLBACK_WAIVER: Final = (
+    "rollback: the restored content was previously live and previously certified"
+)
+
+
+async def _require_certification(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    kind: PolicyKind,
+    version: PolicyVersion,
+    waiver: str | None,
+    actor_id: uuid.UUID | None,
+    correlation_id: str | None,
+) -> None:
+    """Refuse an activation the tenant's evaluation set has not passed.
+
+    Phase 7's gate clause, enforced at the single mutation path. Three details
+    are load-bearing:
+
+    **The evidence is a row, not a call.** This module reads
+    ``evaluation_sets`` and ``policy_certificates`` directly and imports nothing
+    from ``nemesis.simulation``. A guardrail that depended on the simulation
+    package being imported would fail *open* the day that wiring changed, and
+    failing open is indistinguishable from not having a guardrail.
+
+    **Publication is the switch.** No ``require_certification`` flag exists. A
+    kind with a published set is gated; a kind without one is not. One fact, one
+    place, so there is nothing to leave inconsistent.
+
+    **The lookup is by content hash.** A certificate attests to bytes. Keying it
+    to a revision number would let a certificate outlive an edit to the document
+    it certified — which the lifecycle forbids today and which one convenience
+    method could quietly reintroduce.
+
+    A stale certificate is treated as no certificate: if the set has been
+    republished since, its ``labels_hash`` has moved, and a candidate marked
+    against different labels has not been marked against these.
+    """
+    gate = (
+        await session.execute(
+            select(EvaluationSet).where(
+                EvaluationSet.tenant_id == tenant_id,
+                EvaluationSet.kind == kind.value,
+                EvaluationSet.status == "published",
+            )
+        )
+    ).scalar_one_or_none()
+    if gate is None:
+        return
+
+    if waiver is not None:
+        # Recorded as its own event rather than folded into the transition's
+        # free-text reason. "Which activations bypassed the evaluation set" has
+        # to be a query — an incident review that depends on somebody having
+        # phrased a reason field carefully is a review that finds nothing.
+        await _append(
+            session,
+            tenant_id=tenant_id,
+            event_type="policy_certification_waived",
+            payload={
+                "kind": kind.value,
+                "revision": version.revision,
+                "content_hash": version.content_hash,
+                "evaluation_set_code": gate.code,
+                "waiver": waiver,
+            },
+            actor_id=actor_id,
+            correlation_id=correlation_id,
+        )
+        return
+
+    certificate = (
+        await session.execute(
+            select(PolicyCertificate)
+            .where(
+                PolicyCertificate.tenant_id == tenant_id,
+                PolicyCertificate.kind == kind.value,
+                PolicyCertificate.candidate_content_hash == version.content_hash,
+                PolicyCertificate.evaluation_set_id == gate.id,
+                PolicyCertificate.labels_hash == gate.labels_hash,
+                PolicyCertificate.verdict == "pass",
+            )
+            .order_by(PolicyCertificate.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if certificate is not None:
+        return
+
+    revision = version.revision
+    raise PolicyCertificationError(
+        f"{kind.value} revision {revision} has no passing certificate against "
+        f"evaluation set {gate.code!r}, which this tenant published to gate exactly "
+        f"this activation. Run an evaluation against revision {revision} first — if it "
+        f"fails, the certificate names which labelled complaints the candidate would "
+        f"have decided differently."
+    )
 
 
 async def _assert_references_resolve(

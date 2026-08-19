@@ -40,6 +40,7 @@ from nemesis.db.models.organisation import Contractor, Zone
 from nemesis.db.models.tenant import Tenant
 from nemesis.db.models.work_order import BudgetAllocation, WorkOrder
 from nemesis.domain.lifecycle import AssigneeType, ComplaintStatus, WorkOrderStatus
+from nemesis.events.store import EventStore
 from nemesis.tenancy.context import tenant_scope
 
 #: A vocabulary that is obviously not a real municipality. Deliberate: an
@@ -147,6 +148,122 @@ async def provision_sandbox(
         contractors=len(contractors),
         seed=seed,
     )
+
+
+async def seed_history(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    complaints: int = 400,
+    days: int = 365,
+    seed: int = 20260819,
+) -> int:
+    """Append complete complaint **chains**, spread over a window, to the event log.
+
+    Added by Phase 7, and it fills a gap the rest of this module has: everything
+    above writes *projection rows*. That is enough for the public API, which
+    reads projections — and it is useless to a backtest, which folds the event
+    log by design (ADR-0029) and would find a sandbox tenant with hundreds of
+    complaints and no history at all.
+
+    So this writes through the real ``EventStore``: real hashes, real chain
+    tails, real idempotency, real ordering. Nothing here inserts an event row
+    directly, for the reason the Phase 6 migration gives at length — rows that
+    look like chain entries and fail ``verify_chain`` are worse than no rows.
+
+    ``occurred_at`` is back-dated; ``recorded_at`` is not, and cannot be. That is
+    the honest shape of seeded history: it says these things happened over the
+    last year and were written today, which is exactly what happened.
+
+    Deterministic under ``seed``, so a gate can assert a specific figure rather
+    than "a number came back".
+    """
+    rng = random.Random(seed)
+    store = EventStore(session)
+    now = datetime.now(tz=UTC)
+    slot = days / max(complaints, 1)
+    written = 0
+
+    for index in range(complaints):
+        complaint_id = uuid.uuid4()
+        # Spread evenly across the window rather than randomly, so a systematic
+        # sample of the corpus covers the whole span — a random spread with a
+        # small `complaints` leaves gaps that read as seasonality.
+        #
+        # The jitter stays *inside* each complaint's own slot, so every report
+        # lands within [now - days, now). The obvious version — an even spread
+        # with a few random hours subtracted — puts the first report a fraction
+        # of a day before the window it claims to fill, and a caller asking for
+        # "365 days" then finds 399 of 400 complaints in a 365-day window and
+        # has to work out which boundary is lying.
+        reported = (
+            now
+            - timedelta(days=days)
+            + timedelta(days=slot * index)
+            + timedelta(days=rng.uniform(0.0, slot))
+        )
+        category = SANDBOX_CATEGORIES[index % len(SANDBOX_CATEGORIES)]
+
+        await store.append(
+            entity_id=complaint_id,
+            event_type="complaint_submitted",
+            payload={
+                "latitude": round(19.05 + rng.uniform(-0.05, 0.05), 6),
+                "longitude": round(72.85 + rng.uniform(-0.05, 0.05), 6),
+                "description_text": f"Synthetic sandbox report {index} about {category}",
+                "locale": "en",
+                "submitted_via": "web" if index % 3 else "whatsapp",
+            },
+            tenant_id=tenant_id,
+            occurred_at=reported,
+        )
+        await store.append(
+            entity_id=complaint_id,
+            event_type="exif_check_completed",
+            payload={
+                "exif_present": index % 5 != 0,
+                "distance_meters": round(rng.uniform(0.0, 40.0), 2),
+                "trust_delta": round(rng.uniform(-0.2, 0.4), 4),
+            },
+            tenant_id=tenant_id,
+            occurred_at=reported + timedelta(seconds=20),
+        )
+        await store.append(
+            entity_id=complaint_id,
+            event_type="classification_scored",
+            payload={
+                "category": category,
+                "confidence": round(rng.uniform(0.55, 0.99), 4),
+                "model_id": "sandbox-synthetic",
+                "prompt_set_version": "sandbox-1",
+            },
+            tenant_id=tenant_id,
+            occurred_at=reported + timedelta(seconds=40),
+        )
+        # The component *measurements*, which is what a backtest replays. The
+        # score beside them is what the rubric of the day concluded, and no
+        # corpus reads it — see `simulation.corpus`.
+        components = {
+            "visual_damage": round(rng.uniform(0.0, 10.0), 3),
+            "road_class": round(rng.uniform(0.0, 10.0), 3),
+            "poi_proximity": round(rng.uniform(0.0, 10.0), 3),
+            "cluster_reports": round(rng.uniform(0.0, 10.0), 3),
+        }
+        await store.append(
+            entity_id=complaint_id,
+            event_type="severity_scored",
+            payload={
+                "score": round(sum(components.values()) / len(components), 4),
+                "components": components,
+                "weights": dict.fromkeys(components, 0.25),
+                "policy_version": "severity_rubric@1",
+            },
+            tenant_id=tenant_id,
+            occurred_at=reported + timedelta(seconds=60),
+        )
+        written += 1
+
+    return written
 
 
 async def _seed_zone_centroids(
@@ -326,6 +443,10 @@ def _main() -> int:  # pragma: no cover — operator entry point
     parser.add_argument("slug", nargs="?", default="sandbox")
     parser.add_argument("--complaints", type=int, default=240)
     parser.add_argument("--seed", type=int, default=20260817)
+    # Phase 7. Off by default: seeding a year of chains is the slow part, and
+    # an integrator provisioning a sandbox for the public API does not need it.
+    parser.add_argument("--history", type=int, default=0, metavar="COMPLAINTS")
+    parser.add_argument("--history-days", type=int, default=365)
     args = parser.parse_args()
 
     async def run() -> dict[str, Any]:
@@ -334,7 +455,18 @@ def _main() -> int:  # pragma: no cover — operator entry point
                 summary = await provision_sandbox(
                     session, slug=args.slug, complaints=args.complaints, seed=args.seed
                 )
-            return sandbox_payload(summary)
+            payload = sandbox_payload(summary)
+            if args.history:
+                async with session_scope() as session:
+                    with tenant_scope(summary.tenant_id):
+                        payload["history_events"] = await seed_history(
+                            session,
+                            tenant_id=summary.tenant_id,
+                            complaints=args.history,
+                            days=args.history_days,
+                            seed=args.seed,
+                        )
+            return payload
         finally:
             await dispose_engine()
 

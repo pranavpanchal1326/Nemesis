@@ -58,6 +58,13 @@ class PolicyKind(StrEnum):
     SLA_MATRIX = "sla_matrix"
     ROUTING_RULES = "routing_rules"
     RATE_CARD = "rate_card"
+    #: Phase 8. The §11.1/§11.3 knobs — EXIF mismatch distance, perceptual-hash
+    #: tolerance, submission velocity, retention clocks — and the live-capture
+    #: switch §11.1 names as *the real control*. Governed rather than constant
+    #: for the reason architectural principle 1 gives: a campus with one gate
+    #: and a city with nine million people cannot share a velocity limit, and
+    #: "200 metres" is a municipal convention, not a law.
+    TRUST_THRESHOLDS = "trust_thresholds"
 
 
 class PolicyStatus(StrEnum):
@@ -696,11 +703,179 @@ class RateCard(PolicyBody):
 
 
 # ---------------------------------------------------------------------------
+# Trust thresholds (§11.1, §11.3, §22.4) — Phase 8
+# ---------------------------------------------------------------------------
+
+
+class ExifPolicy(PolicyBody):
+    """§11.1's EXIF cross-check, as numbers an operator owns.
+
+    **The three outcomes are configured separately because they are three
+    different findings**, and collapsing them is how "absent EXIF reduces trust
+    rather than rejecting" quietly becomes a rejection. A photograph whose EXIF
+    says it was taken 3 km away is a claim that contradicts the report; a
+    photograph with no EXIF at all is a WhatsApp share flow, which §11.1 names
+    explicitly and which describes a large fraction of honest submissions.
+
+    Every delta is signed and bounded. A positive ``matched_trust_delta`` is
+    allowed — confirming evidence should be able to *raise* trust, or the score
+    only ever falls and the scale is really a counter of suspicions.
+    """
+
+    #: Beyond this, the claimed and photographed locations disagree. §11.1 says
+    #: "~200m"; the tilde is why this is a field.
+    mismatch_distance_meters: Annotated[float, Field(gt=0.0, le=100_000.0)] = 200.0
+    #: Applied when EXIF GPS is present and within the radius.
+    matched_trust_delta: Annotated[float, Field(ge=-1.0, le=1.0)] = 0.15
+    #: Applied when EXIF GPS is present and outside it. The strongest signal
+    #: here, because it is the only one that is a contradiction rather than a
+    #: silence.
+    mismatch_trust_delta: Annotated[float, Field(ge=-1.0, le=1.0)] = -0.4
+    #: Applied when the file carries no EXIF at all. Deliberately mild — see the
+    #: class docstring, and §11.1's own note that this is the common case.
+    absent_trust_delta: Annotated[float, Field(ge=-1.0, le=1.0)] = -0.1
+    #: A mismatch is a contradiction and §11.4 says every flag has a
+    #: destination, so this defaults on. Absence does not queue anything: a
+    #: queue that receives every WhatsApp submission is a queue nobody reads.
+    mismatch_queues_review: bool = True
+
+    #: §11.1's *real* control for the stripped-EXIF case: refuse gallery uploads
+    #: and require live capture. Off by default because turning it on excludes
+    #: every citizen whose phone or browser cannot do it, which is an equity
+    #: decision (§23) a tenant makes rather than a default the platform imposes.
+    live_capture_only: bool = False
+
+
+class PerceptualHashPolicy(PolicyBody):
+    """§11.1 perceptual hashing — the re-upload check.
+
+    ``max_hamming_distance`` is on a 64-bit dHash. The useful range is narrow
+    and the ends are both failure modes: 0 catches only byte-identical
+    re-encodes, which MD5 already does more cheaply, while above ~16 unrelated
+    photographs of the same kind of scene start colliding and every pothole
+    matches every other pothole. The default sits where the §11.1 claim —
+    "catches re-uploaded/screenshotted images even after compression or resize"
+    — is actually true.
+    """
+
+    max_hamming_distance: Annotated[int, Field(ge=0, le=32)] = 8
+    #: How far back the search looks. Bounded because the query is a scan over
+    #: the tenant's recent media, and an unbounded window makes the trust stage
+    #: slower every day the deployment stays up.
+    lookback_hours: Annotated[int, Field(gt=0, le=8760)] = 720
+    trust_delta: Annotated[float, Field(ge=-1.0, le=1.0)] = -0.35
+    queues_review: bool = True
+    is_active: bool = True
+
+
+class VelocityPolicy(PolicyBody):
+    """§11.3 device/session velocity.
+
+    §11.3 describes a Redis token bucket. This is deliberately a **query over
+    submissions**, not a bucket: a bucket forgets, and the question a reviewer
+    asks is "show me the other nineteen", which a counter cannot answer. The
+    rate limiter in ``api.ratelimit`` is the Redis token bucket, and it already
+    exists — it protects the *service*. This protects the *record*, and the two
+    want different memories.
+    """
+
+    max_submissions_per_window: Annotated[int, Field(gt=0, le=10_000)] = 12
+    window_hours: Annotated[float, Field(gt=0.0, le=168.0)] = 1.0
+    trust_delta: Annotated[float, Field(ge=-1.0, le=1.0)] = -0.3
+    queues_review: bool = True
+    is_active: bool = True
+
+
+class GeoClusterPolicy(PolicyBody):
+    """§11.3 geographic clustering — several "different" reporters, one spot.
+
+    The signal is *distinct device fingerprints inside one radius inside one
+    window*, which is why ``min_distinct_devices`` is separate from the velocity
+    check's count: one device filing twenty reports is velocity, and twenty
+    devices filing one each on the same corner within an hour is coordination.
+    Fired on the same evidence, they would be one detector that cannot tell a
+    protest from a bot farm.
+    """
+
+    radius_meters: Annotated[float, Field(gt=0.0, le=10_000.0)] = 150.0
+    window_hours: Annotated[float, Field(gt=0.0, le=168.0)] = 6.0
+    min_distinct_devices: Annotated[int, Field(ge=2, le=1000)] = 4
+    trust_delta: Annotated[float, Field(ge=-1.0, le=1.0)] = -0.25
+    queues_review: bool = True
+    is_active: bool = True
+
+
+class MediaRetentionPolicy(PolicyBody):
+    """§22.4's schedule, as the tenant's own clocks.
+
+    Stated here rather than as constants because the table in §22.4 is a
+    *statable* policy a customer negotiates — a campus under a different
+    regulator keeps raw photographs for seven days, and a state utility may be
+    required to keep them for a year. The sweep that acts on these is Phase 26;
+    what this phase owes it is a stamped expiry on every artefact, which is
+    ``submission_media.purge_raw_after``.
+    """
+
+    #: §22.4: raw uploaded photo, 30 days.
+    raw_media_days: Annotated[int, Field(gt=0, le=3650)] = 30
+    #: §22.4: EXIF metadata, 90 days.
+    exif_days: Annotated[int, Field(gt=0, le=3650)] = 90
+
+    @model_validator(mode="after")
+    def _exif_outlives_the_image_it_describes(self) -> MediaRetentionPolicy:
+        if self.exif_days < self.raw_media_days:
+            raise ValueError(
+                f"exif_days ({self.exif_days}) is below raw_media_days "
+                f"({self.raw_media_days}); §22.4 keeps EXIF for the fraud-pattern "
+                f"review window, which is the window that outlives the photograph. "
+                f"Purging the metadata first leaves the raw image with nothing to "
+                f"review it against, which is the worst of both retentions"
+            )
+        return self
+
+
+class TrustThresholds(PolicyBody):
+    """Every §11 knob the trust spine reads, in one approved document.
+
+    **One document rather than five kinds.** They are read together, by one
+    pipeline stage, on one complaint, and a tenant that tightened its velocity
+    limit while its EXIF radius came from a revision six months older would have
+    a trust posture nobody ever reviewed as a whole. The same argument
+    ``PolicyBundle`` makes about resolving documents together, one level down.
+
+    **Each detector carries its own ``is_active``, and the EXIF check does
+    not.** A tenant can switch off velocity or geo-clustering — they are
+    heuristics that will be noisy in some deployments. The EXIF cross-check has
+    no switch because turning it off is indistinguishable from every photograph
+    being verified, and §11.1's whole point is that absent evidence must stay
+    visible as absent.
+
+    **There is no switch for face blur here, deliberately.** §22.1 is a legal
+    obligation, not a tuning parameter, and a policy field that disables it
+    would be a documented, approvable path to a privacy breach. Redaction fails
+    closed in ``trust.redaction`` instead: no detector means no redacted copy
+    means nothing to serve.
+    """
+
+    exif: ExifPolicy = ExifPolicy()
+    perceptual_hash: PerceptualHashPolicy = PerceptualHashPolicy()
+    velocity: VelocityPolicy = VelocityPolicy()
+    geo_cluster: GeoClusterPolicy = GeoClusterPolicy()
+    retention: MediaRetentionPolicy = MediaRetentionPolicy()
+
+    #: Trust at or below this queues the report for review regardless of which
+    #: individual checks fired. §11.4's backstop: three mild signals that each
+    #: decline to queue on their own still add up to a report worth a human's
+    #: attention, and without this they would add up to nothing.
+    review_trust_floor: Annotated[float, Field(ge=-10.0, le=10.0)] = -0.5
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
-#: Kind → body model. The one place the lifecycle service consults, so adding a
-#: seventh governed structure is this line plus a model, and touches neither the
+#: Kind → body model. The one place the lifecycle service consults, so adding an
+#: eighth governed structure is this line plus a model, and touches neither the
 #: service, the API, nor the migration.
 BODY_MODELS: Final[dict[PolicyKind, type[PolicyBody]]] = {
     PolicyKind.SEVERITY_RUBRIC: SeverityRubric,
@@ -709,6 +884,7 @@ BODY_MODELS: Final[dict[PolicyKind, type[PolicyBody]]] = {
     PolicyKind.SLA_MATRIX: SlaMatrix,
     PolicyKind.ROUTING_RULES: RoutingRules,
     PolicyKind.RATE_CARD: RateCard,
+    PolicyKind.TRUST_THRESHOLDS: TrustThresholds,
 }
 
 
@@ -748,7 +924,11 @@ __all__ = [
     "DECIDING_STATUSES",
     "DedupBand",
     "DedupThresholds",
+    "ExifPolicy",
+    "GeoClusterPolicy",
+    "MediaRetentionPolicy",
     "NodeSeverityOverride",
+    "PerceptualHashPolicy",
     "PolicyBody",
     "PolicyKind",
     "PolicyStatus",
@@ -764,6 +944,8 @@ __all__ = [
     "SeverityTier",
     "SlaEntry",
     "SlaMatrix",
+    "TrustThresholds",
+    "VelocityPolicy",
     "body_model",
     "validate_body",
 ]

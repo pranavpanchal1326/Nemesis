@@ -42,6 +42,11 @@ class PipelineStage(StrEnum):
 
     INGEST = "ingest"
     SAFETY_CHECK = "safety_check"
+    #: Phase 8. EXIF cross-check, perceptual hashing, coordinated-abuse
+    #: detection, and §22.1 face blur. Between safety and classification because
+    #: the classifier reads the *redacted* copy — putting it later would mean a
+    #: model consuming an image §22.1 says must not exist outside quarantine.
+    TRUST_VERIFICATION = "trust_verification"
     CLASSIFICATION = "classification"
     DEDUP = "dedup"
     SEVERITY_SCORING = "severity_scoring"
@@ -152,6 +157,70 @@ pipeline_dead_letters_open = Gauge(
     "Unresolved pipeline dead letters, by stage.",
     labelnames=("stage",),
     multiprocess_mode="max",
+    registry=REGISTRY,
+)
+
+# --- Trust & safety (§11) --------------------------------------------------
+# `reason` and `decision` are bounded by the `ReviewReason` and
+# `ReviewDecisionKind` enums — never a complaint id, never a tenant id. The same
+# cardinality rule the route-template labels follow.
+review_queue_items_total = Counter(
+    "nemesis_review_queue_items_total",
+    "Items raised into the §11.4 human review queue, by reason.",
+    labelnames=("reason",),
+    registry=REGISTRY,
+)
+
+review_decisions_total = Counter(
+    "nemesis_review_decisions_total",
+    "Human review decisions, by reason and decision. Every one is a Phase 11 label.",
+    labelnames=("reason", "decision"),
+    registry=REGISTRY,
+)
+
+review_queue_open = Gauge(
+    "nemesis_review_queue_open",
+    "Open items in the §11.4 review queue, by reason. A queue nobody works is a dead end.",
+    labelnames=("reason",),
+    multiprocess_mode="max",
+    registry=REGISTRY,
+)
+
+safety_triggers_total = Counter(
+    "nemesis_safety_triggers_total",
+    "§11.2 deterministic safety triggers that fired, by rule and detection source.",
+    labelnames=("rule_id", "detection_source"),
+    registry=REGISTRY,
+)
+
+media_redactions_total = Counter(
+    "nemesis_media_redactions_total",
+    "§22.1 face-blur outcomes, by result (redacted / failed / unavailable).",
+    labelnames=("outcome",),
+    registry=REGISTRY,
+)
+
+media_faces_blurred = Histogram(
+    "nemesis_media_faces_blurred",
+    "Faces blurred per redacted image.",
+    # Zero is the common case and is its own bucket: a deployment whose
+    # distribution suddenly collapses to zero has either stopped receiving
+    # photographs of people or stopped detecting them, and only this
+    # distinction distinguishes the two.
+    buckets=(0, 1, 2, 3, 5, 10, 25),
+    registry=REGISTRY,
+)
+
+abuse_patterns_total = Counter(
+    "nemesis_abuse_patterns_total",
+    "§11.3 coordinated-abuse detections that fired, by pattern. Flags, never blocks.",
+    labelnames=("pattern",),
+    registry=REGISTRY,
+)
+
+perceptual_duplicates_total = Counter(
+    "nemesis_perceptual_duplicates_total",
+    "§11.1 near-duplicate images found against submission history.",
     registry=REGISTRY,
 )
 

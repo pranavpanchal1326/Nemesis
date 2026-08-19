@@ -50,6 +50,7 @@ from nemesis.observability.logging import get_correlation_id
 from nemesis.policy import baselines, service
 from nemesis.policy.documents import PolicyKind, PolicyStatus
 from nemesis.policy.errors import (
+    PolicyCertificationError,
     PolicyConflictError,
     PolicyError,
     PolicyNotFoundError,
@@ -213,6 +214,18 @@ def _translate(error: PolicyError) -> ProblemDetailError:
             title="Not found",
             detail=str(error),
             problem_type=f"{PROBLEM_BASE}/not-found",
+        )
+    if isinstance(error, PolicyCertificationError):
+        # 409 rather than 403, and the distinction is about *what to do next*.
+        # 403 says "you may not", which invites an operator to look for a
+        # bigger token; the truth is that the document may well be fine and
+        # nobody has checked it, so the remedy is to run an evaluation. The
+        # problem type is its own so a client can offer that as a button.
+        return ProblemDetailError(
+            status_code=HTTP_409_CONFLICT,
+            title="Not certified",
+            detail=str(error),
+            problem_type=f"{PROBLEM_BASE}/not-certified",
         )
     if isinstance(error, PolicyConflictError | PolicyTransitionError):
         return ProblemDetailError(

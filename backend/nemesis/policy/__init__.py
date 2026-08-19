@@ -36,6 +36,7 @@ from __future__ import annotations
 from nemesis.policy.documents import PolicyKind, PolicyStatus
 from nemesis.policy.errors import (
     ExpressionError,
+    PolicyCertificationError,
     PolicyConflictError,
     PolicyError,
     PolicyNotFoundError,
@@ -45,6 +46,7 @@ from nemesis.policy.errors import (
 
 __all__ = [
     "ExpressionError",
+    "PolicyCertificationError",
     "PolicyConflictError",
     "PolicyError",
     "PolicyKind",

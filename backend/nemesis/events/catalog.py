@@ -230,6 +230,180 @@ class SeverityScoredV1(EventPayload):
 
 
 # ---------------------------------------------------------------------------
+# Trust spine (Phase 8) — still the complaint's own chain
+# ---------------------------------------------------------------------------
+#
+# **Why these are not in §9.4, and are registered anyway.** The blueprint's
+# catalog names ``exif_check_completed`` and ``safety_trigger_fired`` — the two
+# §11 outcomes it anticipated — and stops there. §11.1's perceptual hashing,
+# §11.3's coordinated-abuse detection, §11.4's review queue and §22.1's face
+# blur are all stated obligations with no event to record them, which would make
+# each one a state change the log does not explain. The blueprint is a floor
+# (see the tenant-chain note below); ``check_event_catalog.py`` requires every
+# §9.4 row to be registered or deferred and does not forbid types §9.4 omitted.
+#
+# **Why they live on the complaint's chain rather than a chain of their own.**
+# Every one of them is a fact *about this report*: the photograph attached to it
+# was redacted, this report looks like an earlier one, this report was queued
+# and a human decided. The question they exist to answer is "what happened to my
+# complaint", and the answer has to be readable in order from one place.
+
+
+@register_event("media_redacted", version=1, entity_type=EntityType.COMPLAINT)
+class MediaRedactedV1(EventPayload):
+    """§22.1 face blur, recorded as the thing that makes the claim auditable.
+
+    **``faces_detected`` and ``faces_blurred`` are separate fields and both are
+    required.** They are equal on every successful redaction, which is exactly
+    why the schema keeps them apart: a future change that blurs only the largest
+    face, or that drops a box for being too small, shows up here as a divergence
+    rather than as an unchanged "we blurred it" boolean. §22.1 is a promise
+    about *every* face, and a single flag cannot express failing it.
+
+    ``detector_id`` carries the model and its version. "Faces were blurred" with
+    no record of what did the blurring is not evidence — it is the same claim
+    the pre-Phase-8 code could have made by doing nothing.
+
+    ``exif_stripped`` is here rather than assumed because the redacted copy is
+    the one the review queue and every later phase serve, and a served image
+    still carrying its capture GPS would re-leak the location §22.1 coarsens.
+    """
+
+    #: SHA-256 of the uploaded bytes. Identifies which artefact this is about
+    #: without the payload carrying a path, which would tie the log to a storage
+    #: layout that will change.
+    source_sha256: str = Field(min_length=64, max_length=64)
+    #: SHA-256 of the redacted bytes — a different value, always, when a face
+    #: was blurred, and the handle a dispute uses to prove which image was shown.
+    redacted_sha256: str = Field(min_length=64, max_length=64)
+    media_kind: str = Field(description="'image' | 'audio'")
+    content_type: str
+    faces_detected: int = Field(ge=0)
+    faces_blurred: int = Field(ge=0)
+    detector_id: str
+    exif_stripped: bool
+
+    @model_validator(mode="after")
+    def _blurred_cannot_exceed_detected(self) -> MediaRedactedV1:
+        if self.faces_blurred > self.faces_detected:
+            raise ValueError(
+                f"faces_blurred ({self.faces_blurred}) exceeds faces_detected "
+                f"({self.faces_detected}); the redaction reported blurring regions "
+                f"the detector never found, which means the two numbers came from "
+                f"different runs and neither can be trusted"
+            )
+        return self
+
+
+@register_event("perceptual_duplicate_detected", version=1, entity_type=EntityType.COMPLAINT)
+class PerceptualDuplicateDetectedV1(EventPayload):
+    """§11.1 perceptual hashing found this photograph before.
+
+    **Not a dedup event, and the distinction is the whole reason this is a
+    separate type.** §14's ``cluster_match_found`` says *two citizens reported
+    the same problem*, which is the system working. This says *the same image
+    file was submitted twice*, which is a fraud signal: a screenshot, a re-used
+    photograph, a report padded to inflate a ward's numbers. Merging the two
+    would make a successful dedup indistinguishable from an attempted fraud.
+
+    ``hamming_distance`` and ``threshold`` are both recorded so a disputed flag
+    can be re-argued against the number that produced it rather than against
+    whatever the threshold has since become.
+    """
+
+    matched_complaint_id: uuid.UUID
+    matched_media_sha256: str = Field(min_length=64, max_length=64)
+    hamming_distance: int = Field(ge=0, le=64)
+    threshold: int = Field(ge=0, le=64)
+    #: Hours between the two captures. A re-upload minutes apart and one a year
+    #: apart are different claims, and the window is policy that will change.
+    age_hours: float = Field(ge=0.0)
+    trust_delta: float
+    policy_version: str
+
+
+@register_event("abuse_pattern_flagged", version=1, entity_type=EntityType.COMPLAINT)
+class AbusePatternFlaggedV1(EventPayload):
+    """§11.3 coordinated abuse. **Flags, never blocks** — and says so in its shape.
+
+    There is no ``blocked`` field and no ``action_taken`` field, because §11.3 is
+    explicit that detection routes to human review rather than auto-rejecting.
+    A schema with a slot for an enforcement action is a schema that invites one,
+    and the first false positive would suppress a real citizen's report about a
+    real hazard on the strength of a device fingerprint.
+
+    ``evidence`` is a free-shaped map for the same reason
+    ``pipeline_stage_degraded.fallback_taken`` is an open string: the detectors
+    are the part of this phase most likely to gain a signal, and a closed schema
+    would make each new one a payload version bump plus an upcaster for a change
+    that invalidates nothing already written. What is *not* open is the field
+    list around it — the pattern, the window, and the count are the three things
+    every detector must be able to state.
+    """
+
+    #: An ``AbusePattern`` value: which detector fired.
+    pattern: str
+    #: How many submissions the detector saw inside the window.
+    observation_count: int = Field(ge=1)
+    window_hours: float = Field(gt=0.0)
+    trust_delta: float
+    policy_version: str
+    evidence: dict[str, Any] = Field(default_factory=dict)
+
+
+@register_event("review_queued", version=1, entity_type=EntityType.COMPLAINT)
+class ReviewQueuedV1(EventPayload):
+    """§11.4: a flag reached its destination. "No flag is ever a dead end."
+
+    ``evidence_hash`` rather than the bundle itself. The bundle contains the
+    photograph reference, the EXIF distance, and similarity scores — it is
+    exactly the material §22 requires to expire on a retention clock, and an
+    append-only log is the one place a value cannot be expired from. The hash
+    pins *which* bundle a reviewer saw without making the log the place it
+    lives, and it is what ``review_decided`` matches against so a label can
+    never be attributed to evidence that did not produce it.
+    """
+
+    review_item_id: uuid.UUID
+    #: A ``ReviewReason`` value.
+    reason: str
+    priority: int = Field(ge=0)
+    #: Rising on a repeat rather than a second event, so the log shows one
+    #: escalating item instead of a queue of identical ones.
+    occurrences: int = Field(ge=1)
+    trust_score: float
+    evidence_hash: str = Field(min_length=64, max_length=64)
+
+
+@register_event("review_decided", version=1, entity_type=EntityType.COMPLAINT)
+class ReviewDecidedV1(EventPayload):
+    """A human decided, and the decision becomes a Phase 11 label.
+
+    Architectural principle 4 — *every human decision is training data* — is
+    only true if the decision and the inputs it was made against are recorded
+    together. ``evidence_hash`` is repeated from ``review_queued`` deliberately:
+    matching them is what proves the label belongs to that example, and a label
+    whose inputs cannot be identified is noise with a confident tone.
+
+    ``decided_by`` is optional and ``decided_by_label`` is not. Until Phase 13
+    gives operators identities, the control-plane token is a shared secret, and
+    recording a shared secret's use as a named person would be a worse record
+    than recording none — so the label says what is actually known.
+    """
+
+    review_item_id: uuid.UUID
+    reason: str
+    #: ``approve`` | ``reject`` | ``escalate`` — §11.4's three actions.
+    decision: str
+    #: Required. A decision with no stated reason answers "what" and refuses to
+    #: answer "why", which is the objection ``admin_action.justification`` closes.
+    rationale: str = Field(min_length=1)
+    decided_by: uuid.UUID | None = None
+    decided_by_label: str
+    evidence_hash: str = Field(min_length=64, max_length=64)
+
+
+# ---------------------------------------------------------------------------
 # Cluster chain
 # ---------------------------------------------------------------------------
 
@@ -514,6 +688,108 @@ class PolicyTransitionedV1(EventPayload):
     #: The revision this one displaced, on an activation. Null on every other
     #: transition, and on the first activation of a kind.
     superseded_revision: int | None = Field(default=None, ge=1)
+
+
+# ---------------------------------------------------------------------------
+# Simulation & evaluation chain (Phase 7) — also on the tenant entity
+# ---------------------------------------------------------------------------
+#
+# **Why these are events at all.** A backtest reads and decides nothing, so it
+# is tempting to leave it as a row in `simulation_runs` and nothing more. But
+# the three types below are not records of *computation* — they are records of
+# **evidence being created, accepted, or set aside**, and each one changes what
+# the system will allow. Publishing an evaluation set makes activations
+# refusable; a passing certificate makes one possible; a waiver makes one
+# possible without the certificate. An audit that can see the rubric change and
+# not see the control that was supposed to stop it is an audit of the wrong half.
+#
+# `simulation_run_completed` is deliberately **not** here: a run that issues no
+# certificate changes nothing, and putting every exploratory backtest on an
+# append-only chain that must live for years would bury the three types that
+# matter under thousands that do not. The run row carries it, queryable and
+# prunable, which is the right home for telemetry.
+
+
+@register_event("evaluation_set_published", version=1, entity_type=EntityType.TENANT)
+class EvaluationSetPublishedV1(EventPayload):
+    """A labelled evaluation set became the gate for a policy kind (Phase 7).
+
+    Publication is what turns the guardrail on — there is no separate flag — so
+    this event is the record of a control being *created*. ``labels_hash`` is
+    carried rather than the labels themselves, for the reason ``policy_drafted``
+    carries ``content_hash``: it proves which questions were on the exam without
+    inlining a few hundred judgements into a log that lives for years.
+    """
+
+    code: str
+    kind: str
+    label_count: int = Field(ge=1)
+    labels_hash: str = Field(min_length=64, max_length=64)
+    #: The share of labels a candidate must satisfy. In the payload because a
+    #: certificate's verdict cannot be re-derived from its counts without it.
+    pass_ratio: float = Field(gt=0.0, le=1.0)
+    #: The set this one replaced, if any. Publication retires the incumbent in
+    #: the same transaction, and recording which one keeps the succession
+    #: walkable.
+    retired_code: str | None = None
+
+
+@register_event("evaluation_set_retired", version=1, entity_type=EntityType.TENANT)
+class EvaluationSetRetiredV1(EventPayload):
+    """A guardrail was switched off for a policy kind (Phase 7).
+
+    Its own event rather than a quiet status update. Removing the control that
+    stops an unevaluated rubric reaching production is at least as consequential
+    as changing the rubric, and a chain that recorded the second and not the
+    first would let the interesting half of an incident happen off the record.
+    """
+
+    code: str
+    kind: str
+
+
+@register_event("policy_certified", version=1, entity_type=EntityType.TENANT)
+class PolicyCertifiedV1(EventPayload):
+    """A candidate document was marked against an evaluation set (Phase 7).
+
+    Emitted on a failure as well as a pass. "We evaluated this and it failed" is
+    the record that matters when the same candidate is activated a week later by
+    somebody who did not know — a chain holding only passes would make a history
+    of refusals indistinguishable from a history of nobody looking.
+
+    ``labels_unresolvable`` is separate from a failure because the two are
+    different findings: a complaint whose partition has been archived is a fact
+    about retention, not about the candidate.
+    """
+
+    kind: str
+    revision: int = Field(ge=1)
+    content_hash: str = Field(min_length=64, max_length=64)
+    evaluation_set_code: str
+    labels_hash: str = Field(min_length=64, max_length=64)
+    verdict: str = Field(description="'pass' | 'fail'")
+    labels_evaluated: int = Field(ge=0)
+    labels_passed: int = Field(ge=0)
+    labels_unresolvable: int = Field(ge=0)
+
+
+@register_event("policy_certification_waived", version=1, entity_type=EntityType.TENANT)
+class PolicyCertificationWaivedV1(EventPayload):
+    """An activation proceeded without a passing certificate (Phase 7).
+
+    The only path that reaches this today is ``policy.service.rollback``, whose
+    restored content was previously live and therefore previously certified.
+    That justification is written into ``waiver`` rather than assumed, because
+    the question this event exists to answer is *"which activations bypassed the
+    evaluation set, and on what grounds"* — and an answer that requires knowing
+    which code path emitted it is not an answer an auditor can reach.
+    """
+
+    kind: str
+    revision: int = Field(ge=1)
+    content_hash: str = Field(min_length=64, max_length=64)
+    evaluation_set_code: str
+    waiver: str
 
 
 # ---------------------------------------------------------------------------

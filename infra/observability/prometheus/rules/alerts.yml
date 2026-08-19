@@ -543,3 +543,63 @@ groups:
             answer for a serious consumer is an API key with a real quota, not
             a tighter limit.
           runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/public-api-abuse.md
+
+  # ------------------------------------------------------------------
+  # Phase 8 — trust & safety spine (§11, §22.1)
+  # ------------------------------------------------------------------
+  - name: nemesis-trust
+    rules:
+      # §22.1 fails closed (ADR-0032): no face detector means the trust stage
+      # refuses rather than serving an unblurred photograph. From a dashboard
+      # that looks like an outage and is a control working, so this fires fast
+      # and the runbook opens by saying not to look for a way to turn it off.
+      - alert: NemesisMediaRedactionUnavailable
+        expr: increase(nemesis_media_redactions_total{outcome="unavailable"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          blueprint: "22.1"
+        annotations:
+          summary: "Face blur cannot run; every complaint with a photograph is halting"
+          description: >-
+            The trust stage found no registered face detector, so §22.1 cannot
+            be discharged and the complaint is parked for review rather than
+            processed unblurred. Nothing is lost and nothing is moving. The
+            usual cause is an empty model cache on worker-ml.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/media-redaction-unavailable.md
+
+      # The one place in §11 where *inaction* is the failure. Every detector
+      # flags rather than blocks, so a backlog costs nothing operationally and
+      # costs §11.4's whole promise — that no flag is a dead end — silently.
+      - alert: NemesisReviewQueueUnworked
+        expr: sum(nemesis_review_queue_open) > 100 and sum(rate(nemesis_review_decisions_total[6h])) == 0
+        for: 2h
+        labels:
+          severity: warning
+          blueprint: "11.4"
+        annotations:
+          summary: "{{ $value | printf \"%.0f\" }} review items open and no decisions in six hours"
+          description: >-
+            §11.4 requires every flag to have a real destination. The queue is
+            receiving and nobody is working it, which no other signal reveals —
+            the pipeline is unaffected because §11.3 flags rather than blocks.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/review-queue-backlog.md
+
+      # A safety trigger firing is the system working. A *sustained* rate of
+      # them is either a real emergency in one place or a ruleset that has been
+      # edited into matching ordinary text — and the two need opposite responses,
+      # which is why this is info rather than a page.
+      - alert: NemesisSafetyTriggerRateElevated
+        expr: sum(rate(nemesis_safety_triggers_total[30m])) > 0.2
+        for: 30m
+        labels:
+          severity: info
+          blueprint: "11.2"
+        annotations:
+          summary: "§11.2 safety triggers firing at {{ $value | printf \"%.2f\" }}/s"
+          description: >-
+            Either something is genuinely wrong in one place, or a safety rule
+            now matches ordinary language. Check which rule_id dominates before
+            touching the ruleset — a rule that fires on everything gets switched
+            off along with the rules that work.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/safety-path-degraded.md

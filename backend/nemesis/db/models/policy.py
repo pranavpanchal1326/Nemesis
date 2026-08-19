@@ -78,6 +78,11 @@ POLICY_KINDS: tuple[str, ...] = (
     "sla_matrix",
     "routing_rules",
     "rate_card",
+    # Phase 8. Adding a kind means altering four CHECK constraints across two
+    # tables — see the Phase 8 migration. That cost is the constraint doing its
+    # job: it is what stopped a seventh governed structure from reaching the
+    # table before anyone had decided it was one.
+    "trust_thresholds",
 )
 
 

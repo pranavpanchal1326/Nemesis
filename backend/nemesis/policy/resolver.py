@@ -64,6 +64,7 @@ from nemesis.policy.documents import (
     SeverityRubric,
     SlaEntry,
     SlaMatrix,
+    TrustThresholds,
     validate_body,
 )
 from nemesis.policy.errors import PolicyNotFoundError, PolicyValidationError
@@ -267,6 +268,21 @@ class PolicyResolver:
     ) -> Resolved[RateCard] | None:
         """``None`` when the tenant has negotiated no rates — see ``document``."""
         return await self.document(session, tenant_id=tenant_id, kind=PolicyKind.RATE_CARD)
+
+    async def trust_thresholds(
+        self, session: AsyncSession, *, tenant_id: uuid.UUID
+    ) -> Resolved[TrustThresholds]:
+        """Phase 8's §11 knobs. Baselined, so this never returns ``None``.
+
+        Baselined rather than optional because the trust stage runs on every
+        submission and there is no correct "no policy" behaviour for it: a stage
+        that skipped its checks when a tenant had authored no document would
+        turn a configuration gap into a silently disabled fraud check, which is
+        the failure mode §11 exists to make impossible.
+        """
+        return await self.require_document(
+            session, tenant_id=tenant_id, kind=PolicyKind.TRUST_THRESHOLDS
+        )
 
 
 # ---------------------------------------------------------------------------

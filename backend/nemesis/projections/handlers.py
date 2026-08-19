@@ -140,6 +140,139 @@ def _severity_scored(state: ProjectedState, event: ProjectionEvent) -> Projected
 
 
 # ---------------------------------------------------------------------------
+# Complaint — trust spine (Phase 8)
+# ---------------------------------------------------------------------------
+#
+# **None of these five moves the status, and that is the design.** §11.3 is
+# explicit that coordinated-abuse detection *flags, does not auto-block*, and
+# §11.1 is explicit that absent EXIF *reduces trust rather than rejecting*. A
+# projector that set ``FLAGGED`` on a fraud signal would turn every one of those
+# stated non-blocking checks into a block, silently, at the projection layer —
+# which is where such a change is hardest to find and easiest to make.
+#
+# The safety fail-safe is the one §11 check that *does* bypass the pipeline, and
+# it already has its own projector above that says so.
+
+
+@projector(EntityType.COMPLAINT, "media_redacted")
+def _media_redacted(state: ProjectedState, event: ProjectionEvent) -> ProjectedState:
+    """§22.1. Appends rather than overwrites: a report may carry a photo *and*
+    an audio clip, and the second redaction must not erase the record of the
+    first — which is what a single ``redacted_sha256`` field would do."""
+    payload = event.payload
+    artefacts = list(state.get("redacted_media", []))
+    artefacts.append(
+        {
+            "source_sha256": payload["source_sha256"],
+            "redacted_sha256": payload["redacted_sha256"],
+            "media_kind": payload["media_kind"],
+            "content_type": payload["content_type"],
+            "faces_detected": payload["faces_detected"],
+            "faces_blurred": payload["faces_blurred"],
+            "detector_id": payload["detector_id"],
+            "exif_stripped": payload["exif_stripped"],
+            "redacted_at": event.occurred_at,
+        }
+    )
+    state["redacted_media"] = artefacts
+    return state
+
+
+@projector(EntityType.COMPLAINT, "perceptual_duplicate_detected")
+def _perceptual_duplicate_detected(state: ProjectedState, event: ProjectionEvent) -> ProjectedState:
+    """§11.1. Sets the fraud flag and moves trust; leaves the status alone.
+
+    ``is_fraud_flagged`` is the column §9.2 already reserves for this, and it is
+    what the review queue filters on. It is not a verdict — §22.2 forbids
+    presenting a system flag as settled fact, and the flag's whole destination
+    is a human."""
+    payload = event.payload
+    state["is_fraud_flagged"] = True
+    state["trust_score"] = round(float(state.get("trust_score", 0.0)) + payload["trust_delta"], 6)
+    matches = list(state.get("perceptual_matches", []))
+    matches.append(
+        {
+            "matched_complaint_id": payload["matched_complaint_id"],
+            "matched_media_sha256": payload["matched_media_sha256"],
+            "hamming_distance": payload["hamming_distance"],
+            "threshold": payload["threshold"],
+            "age_hours": payload["age_hours"],
+        }
+    )
+    state["perceptual_matches"] = matches
+    return state
+
+
+@projector(EntityType.COMPLAINT, "abuse_pattern_flagged")
+def _abuse_pattern_flagged(state: ProjectedState, event: ProjectionEvent) -> ProjectedState:
+    """§11.3. Same posture: flag, move trust, never block."""
+    payload = event.payload
+    state["is_fraud_flagged"] = True
+    state["trust_score"] = round(float(state.get("trust_score", 0.0)) + payload["trust_delta"], 6)
+    patterns = list(state.get("abuse_patterns", []))
+    patterns.append(
+        {
+            "pattern": payload["pattern"],
+            "observation_count": payload["observation_count"],
+            "window_hours": payload["window_hours"],
+            "evidence": payload.get("evidence", {}),
+        }
+    )
+    state["abuse_patterns"] = patterns
+    return state
+
+
+@projector(EntityType.COMPLAINT, "review_queued")
+def _review_queued(state: ProjectedState, event: ProjectionEvent) -> ProjectedState:
+    """§11.4. Keyed by reason, so a repeat updates the entry it already has.
+
+    A list that grew on every occurrence would make "how many things is a human
+    waiting on for this report" a number that counts retries, and the queue's
+    own uniqueness constraint says otherwise."""
+    payload = event.payload
+    reviews = dict(state.get("reviews", {}))
+    reviews[payload["reason"]] = {
+        "review_item_id": payload["review_item_id"],
+        "status": "open",
+        "priority": payload["priority"],
+        "occurrences": payload["occurrences"],
+        "evidence_hash": payload["evidence_hash"],
+        "queued_at": event.occurred_at,
+    }
+    state["reviews"] = reviews
+    state["open_review_count"] = sum(1 for item in reviews.values() if item["status"] == "open")
+    return state
+
+
+@projector(EntityType.COMPLAINT, "review_decided")
+def _review_decided(state: ProjectedState, event: ProjectionEvent) -> ProjectedState:
+    """The decision, folded onto the item it decided.
+
+    Total over an unrecognised ``reason``: a build replaying a log written by a
+    newer build must record the decision rather than raise, so an entry is
+    created if the queueing event is one this build does not project."""
+    payload = event.payload
+    reviews = dict(state.get("reviews", {}))
+    entry = dict(reviews.get(payload["reason"], {}))
+    entry.update(
+        {
+            "review_item_id": payload["review_item_id"],
+            "status": "decided",
+            "decision": payload["decision"],
+            "rationale": payload["rationale"],
+            "decided_by": payload.get("decided_by"),
+            "decided_by_label": payload["decided_by_label"],
+            "evidence_hash": payload["evidence_hash"],
+            "decided_at": event.occurred_at,
+        }
+    )
+    reviews[payload["reason"]] = entry
+    state["reviews"] = reviews
+    state["open_review_count"] = sum(1 for item in reviews.values() if item["status"] == "open")
+    return state
+
+
+# ---------------------------------------------------------------------------
 # Cluster
 # ---------------------------------------------------------------------------
 

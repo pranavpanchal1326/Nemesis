@@ -325,11 +325,20 @@ def main() -> int:
 
     # 5. Honest degradation (§24.2).
     #
-    # No provider is registered for any stage until Phases 8-12, so the pipeline
-    # degrades at the first one. `safety_check` declares HALTED_FOR_REVIEW: a
-    # report the danger check never saw must not be scored and routed as though
-    # it had been cleared, so the pipeline stops and the status stays truthful —
-    # the complaint genuinely has not been classified.
+    # **Which stage degrades has moved, and the assertion moved with it rather
+    # than being loosened.** Until Phase 8 no provider was registered for any
+    # stage, so the pipeline stopped at the first one — `safety_check`. Phase 8
+    # ships two providers, and the submission above carries a JPEG magic number
+    # with 2 KB of zeroes behind it, which is not a decodable image. So the
+    # safety check now runs and passes (there is no hazard in "phase 3 gate
+    # submission"), and `trust_verification` is where the pipeline stops,
+    # because §22.1 refuses to let an image it cannot decode reach a stage that
+    # would serve it.
+    #
+    # What is asserted is therefore the *property* rather than the stage name:
+    # the pipeline stopped at a stage that declares HALTED_FOR_REVIEW, the API
+    # says so, and there is a dead letter to find. That survives Phase 9
+    # registering the classifier too.
     #
     # Which makes the visible outcome the thing worth asserting, and asserting
     # it through the API rather than the database: a client polling §26.2 has to
@@ -342,6 +351,10 @@ def main() -> int:
         lambda value: bool(value),
         seconds=90,
     )
+    #: Stages whose declared fallback is HALTED_FOR_REVIEW — the ones where
+    #: stopping is the correct outcome rather than a skip. Listed here rather
+    #: than imported: this script runs on a bare interpreter.
+    halting_stages = {"safety_check", "trust_verification", "severity_scoring", "routing"}
     dead_letters = _psql(
         f"SELECT count(*) FROM pipeline_dead_letters WHERE entity_id = '{complaint_id}' "
         f"AND resolved_at IS NULL"
@@ -349,10 +362,10 @@ def main() -> int:
     degraded_view = fetch_complaint(tenant_id, complaint_id)
     results.append(
         _report(
-            degraded_stage == "safety_check"
+            degraded_stage in halting_stages
             and dead_letters.isdigit()
             and int(dead_letters) >= 1
-            and degraded_view.get("degraded_stage") == "safety_check"
+            and degraded_view.get("degraded_stage") == degraded_stage
             and degraded_view.get("degraded_fallback") == "halted_for_review",
             "an unavailable stage degrades visibly and leaves a queryable dead letter",
             f"stage={degraded_stage or 'unset'}, "
