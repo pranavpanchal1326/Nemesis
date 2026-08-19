@@ -33,6 +33,7 @@ from nemesis.observability.logging import get_logger, set_correlation_id
 from nemesis.pipeline.orchestrator import execute_stage, record_degradation
 from nemesis.pipeline.stages import (
     FIRST_STAGE,
+    StageAbstainedError,
     StagePermanentError,
     StageUnavailableError,
     spec_for,
@@ -121,6 +122,27 @@ async def _run_stage(
             complaint_id=str(complaint_id),
             owner_phase=spec.owner_phase,
             detail=str(exc),
+        )
+        return _report(stage, "degraded", next_stage=None)
+    except StageAbstainedError as exc:
+        # Counted and logged as a *decision*, not an error. The stage ran, the
+        # models loaded, and the answer is "not confident enough to claim a
+        # category" — which §24.2 already has a shipped path for, and which a
+        # human resolves from the review queue in seconds.
+        await _degrade(
+            tenant_id=tenant_id,
+            complaint_id=complaint_id,
+            stage=stage,
+            failure_mode=f"abstained:{exc}"[:200],
+            attempts=attempt,
+            correlation_id=correlation_id,
+        )
+        log.info(
+            "pipeline_stage_abstained",
+            stage=stage,
+            complaint_id=str(complaint_id),
+            reason=str(exc),
+            note="the stage declined to answer; the report is parked for a human",
         )
         return _report(stage, "degraded", next_stage=None)
     except StagePermanentError as exc:

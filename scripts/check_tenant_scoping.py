@@ -57,6 +57,11 @@ DOMAIN_PACKAGES = (
     # having been missed: a package added to the codebase but not to this tuple
     # is a package this check reports "clean" for without reading.
     "nemesis/trust",
+    # Phase 9. Listed from its first commit, for the same reason: the perception
+    # layer is the package most tempted to name a category — it is the one
+    # deciding which category a photograph is — so a package that scanned clean
+    # by not being scanned would be the worst possible omission here.
+    "nemesis/perception",
 )
 
 MODELS_PACKAGE = BACKEND / "nemesis" / "db" / "models"

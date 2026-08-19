@@ -89,10 +89,38 @@ def _classification_scored(state: ProjectedState, event: ProjectionEvent) -> Pro
     if payload.get("transcript") is not None:
         state["transcript"] = payload["transcript"]
         state["detected_language"] = payload.get("detected_language")
+    # Phase 9's v2 fields, read with `.get` because this projector is replayed
+    # over v1 events too. The upcaster fills them, so the `.get` is belt and
+    # braces rather than the mechanism — but a projector that assumed the
+    # upcaster had run would break the moment somebody replayed a raw payload,
+    # and a projector must be total over everything the log can hand it.
+    state["classification_margin"] = payload.get("margin")
+    state["calibration_version"] = payload.get("calibration_version")
     # A safety flag outranks classification: it was routed out of the normal
     # pipeline and must not be walked back into it by a later stage completing.
     if not state.get("is_safety_flagged"):
         state["status"] = ComplaintStatus.CLASSIFIED.value
+    return state
+
+
+@projector(EntityType.COMPLAINT, "media_transcribed")
+def _media_transcribed(state: ProjectedState, event: ProjectionEvent) -> ProjectedState:
+    """§8.4. Puts the transcript in current state whether or not scoring follows.
+
+    **The status is untouched, deliberately.** Transcription is not a lifecycle
+    step — the report is still awaiting classification, and moving it forward
+    here would show a citizen "classified" for a report nothing has classified.
+    The one thing this projector must do is make the text visible, because a
+    voice report whose classification later abstains is exactly the report a
+    human has to work, and they cannot work it from an audio file they are not
+    allowed to be handed.
+    """
+    payload = event.payload
+    state["transcript"] = payload["transcript"]
+    state["detected_language"] = payload["language"]
+    state["language_confidence"] = payload["language_confidence"]
+    state["language_uncertain"] = payload.get("language_uncertain", False)
+    state["transcriber_model_id"] = payload["model_id"]
     return state
 
 

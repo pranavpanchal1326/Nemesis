@@ -35,6 +35,7 @@ from nemesis.config import DedupSettings, SeveritySettings
 from nemesis.policy.documents import (
     DedupBand,
     DedupThresholds,
+    PerceptionCalibration,
     PolicyBody,
     PolicyKind,
     RubricComponent,
@@ -292,6 +293,27 @@ def _trust_thresholds() -> TrustThresholds:
     return TrustThresholds()
 
 
+def _perception_calibration() -> PerceptionCalibration:
+    """Phase 9's confidence posture, with no per-category entries at all.
+
+    **Empty ``categories`` is the correct baseline, not an unfinished one.** A
+    per-category temperature is *measured* from that tenant's own labelled
+    examples, and the platform has none on the day a tenant is created — so
+    every category resolves to the document defaults until somebody runs the
+    validation harness and drafts a calibration from real numbers. Seeding
+    invented per-category curves would be worse than seeding none: they would
+    carry the authority of an approved document and the evidence of a guess, and
+    ``CategoryCalibration.sample_size`` exists precisely so that difference is
+    visible to whoever approves the next revision.
+
+    The defaults themselves are argued at the fields, next to the sections they
+    implement, and are deliberately not restated here — the same reasoning
+    ``_trust_thresholds`` gives about creating a second place for a number to
+    live.
+    """
+    return PerceptionCalibration()
+
+
 #: Kind → baseline factory. Absent kinds have no baseline; see the module
 #: docstring on why routing rules and rate cards are not here.
 _BASELINES: Final[dict[PolicyKind, object]] = {
@@ -300,6 +322,7 @@ _BASELINES: Final[dict[PolicyKind, object]] = {
     PolicyKind.SAFETY_RULESET: _safety_ruleset,
     PolicyKind.SLA_MATRIX: _sla_matrix,
     PolicyKind.TRUST_THRESHOLDS: _trust_thresholds,
+    PolicyKind.PERCEPTION_CALIBRATION: _perception_calibration,
 }
 
 #: The kinds a tenant is provisioned with. Ordered for a readable event log —
@@ -313,6 +336,13 @@ SEEDED_KINDS: Final[tuple[PolicyKind, ...]] = (
     PolicyKind.SEVERITY_RUBRIC,
     PolicyKind.DEDUP_THRESHOLDS,
     PolicyKind.SLA_MATRIX,
+    # Last, and read by the pipeline stage that runs after the two §11 ones. A
+    # tenant is provisioned with it rather than left to author one because the
+    # classification stage runs on every submission, and "no calibration" has no
+    # correct behaviour: it would mean either scoring on the raw curve (a
+    # confidence nobody chose) or abstaining on everything (a system that
+    # classifies nothing until an operator notices).
+    PolicyKind.PERCEPTION_CALIBRATION,
 )
 
 

@@ -358,6 +358,67 @@ class WebhookSettings(BaseModel):
     retention_days: int = Field(default=30, gt=0)
 
 
+class PerceptionSettings(BaseModel):
+    """The Phase 9 perception layer's operational envelope.
+
+    **Nothing here decides an outcome.** Which categories exist is taxonomy data,
+    which prompts describe them is taxonomy data, and how a raw score becomes a
+    confidence is a governed ``perception_calibration`` document. What is left —
+    how much memory the model registry may hold, how long a transcription may
+    run, how many prompts one pass may embed — is deployment shape, which is
+    exactly what belongs in typed configuration and nowhere else. A knob here
+    that changed a *decision* would be critique-log defect #2 arriving through a
+    door Phase 6 was built to close.
+    """
+
+    max_resident_mb: int = Field(default=2048, gt=0)
+    """Ceiling on everything the model registry holds resident, in this process.
+
+    2 GB fits CLIP (~600 MB), e5 (~470 MB) and Whisper small int8 (~500 MB) with
+    headroom for the prompt matrices and the interpreter itself. It is deliberately
+    below ``worker-ml``'s container limit rather than equal to it: the registry
+    can only refuse what it knows about, and torch's allocator, the decoded image,
+    and Python's own heap are all outside its accounting. A ceiling equal to the
+    container's is a ceiling that is reached by the OOM killer first."""
+
+    #: Declared footprints, in megabytes, used by the registry's ceiling. Stated
+    #: rather than measured — see ``perception.registry`` on why the process
+    #: cannot truthfully measure its own per-model resident cost, and why an
+    #: estimate that is 20% wrong still does this number's actual job.
+    clip_footprint_mb: int = Field(default=700, gt=0)
+    text_encoder_footprint_mb: int = Field(default=520, gt=0)
+    transcriber_footprint_mb: int = Field(default=560, gt=0)
+    prompt_matrix_footprint_mb: int = Field(default=8, gt=0)
+
+    warm_load_on_start: bool = True
+    """Load the encoders when the worker boots rather than on the first complaint.
+
+    On by default because the alternative is that the first citizen to submit a
+    photograph after a deploy waits through a forty-second cold start inside a
+    stage with a retry budget — and the retry then races the load it is waiting
+    for. A worker that has not finished warming reports unready, which is a
+    deployment concern the orchestrator already knows how to handle."""
+
+    max_audio_seconds: float = Field(default=300.0, gt=0)
+    """Longest clip transcribed. Above §26.1's practical upload size at any sane
+    bitrate, and finite because a caller who uploads an hour of audio would
+    otherwise hold an `ml` worker for the length of the recording."""
+
+    max_prompts_per_pass: int = Field(default=512, gt=0)
+    """Prompts embedded in one text-tower pass. A tenant with four hundred
+    categories times three prompts each is a real shape, and the failure without
+    a bound is a single allocation proportional to the taxonomy."""
+
+    #: §27.1 budgets classification as CPU-bound and under this. Recorded here so
+    #: the validation harness measures against the stated budget rather than
+    #: against a number invented in the harness.
+    latency_budget_seconds: float = Field(default=10.0, gt=0)
+
+    @property
+    def max_resident_bytes(self) -> int:
+        return self.max_resident_mb * 1024 * 1024
+
+
 class OllamaSettings(BaseModel):
     """Local LLM used by the Investigation Agent (Blueprint §12.4)."""
 
@@ -459,6 +520,7 @@ class Settings(BaseSettings):
     dedup: DedupSettings = DedupSettings()
     severity: SeveritySettings = SeveritySettings()
     models: ModelSettings = ModelSettings()
+    perception: PerceptionSettings = PerceptionSettings()
     ollama: OllamaSettings = OllamaSettings()
     otel: OtelSettings = OtelSettings()
     flags: FeatureFlagSettings = FeatureFlagSettings()

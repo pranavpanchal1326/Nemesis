@@ -204,10 +204,16 @@ def _install_stage_providers(**_: Any) -> None:
     have no use for it.
     """
     from nemesis.observability.logging import get_logger
+    from nemesis.perception.providers import install_perception_workers
     from nemesis.trust.providers import install_trust_workers
 
     try:
         install_trust_workers()
+        # Phase 9, in the same try for the same reason: a worker that comes up
+        # with the trust stage bound and the classification stage missing accepts
+        # ml-queue work it can only half do, and the half it cannot do degrades
+        # every complaint routed to it.
+        install_perception_workers()
     except Exception as exc:  # pragma: no cover — a broken import, not a data error
         # Logged and re-raised. A worker that comes up without its providers
         # accepts work it cannot do and degrades every complaint routed to it,

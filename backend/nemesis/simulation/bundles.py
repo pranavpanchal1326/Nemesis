@@ -82,6 +82,7 @@ async def live_bundle(session: AsyncSession, *, tenant_id: uuid.UUID) -> PolicyB
         routing_rules=await resolver.routing_rules(session, tenant_id=tenant_id),
         rate_card=await resolver.rate_card(session, tenant_id=tenant_id),
         trust_thresholds=await resolver.trust_thresholds(session, tenant_id=tenant_id),
+        perception_calibration=await resolver.perception_calibration(session, tenant_id=tenant_id),
     )
 
 
@@ -184,6 +185,9 @@ def _assemble(resolved: dict[PolicyKind, Resolved[PolicyBody] | None]) -> Policy
         routing_rules=resolved[PolicyKind.ROUTING_RULES],  # type: ignore[arg-type]
         rate_card=resolved[PolicyKind.RATE_CARD],  # type: ignore[arg-type]
         trust_thresholds=resolved[PolicyKind.TRUST_THRESHOLDS],  # type: ignore[arg-type]
+        perception_calibration=resolved[  # type: ignore[arg-type]
+            PolicyKind.PERCEPTION_CALIBRATION
+        ],
     )
 
 

@@ -83,6 +83,11 @@ POLICY_KINDS: tuple[str, ...] = (
     # job: it is what stopped a seventh governed structure from reaching the
     # table before anyone had decided it was one.
     "trust_thresholds",
+    # Phase 9. Same cost, paid again deliberately: the perception layer's
+    # per-category temperatures and abstain floors are measured numbers that
+    # change as labelled data accumulates, which is precisely the profile of a
+    # thing that must be approved rather than deployed.
+    "perception_calibration",
 )
 
 

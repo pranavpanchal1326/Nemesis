@@ -167,6 +167,33 @@ _FLAGS: tuple[FlagSpec, ...] = (
         kill_switch=True,
         blueprint="11.3",
     ),
+    _spec(
+        name="perception_audio_transcription",
+        description=(
+            "Transcribe voice complaints with faster-whisper (§8.4). Killing this "
+            "stops the transcription only: a report carrying audio is still "
+            "classified on its description and its photograph, and a voice-only "
+            "report parks as pending_classification for a human who can play the "
+            "clip. It exists because transcription is by far the most expensive "
+            "operation on the ml worker — seconds per report against milliseconds "
+            "for an embedding — so it is the first thing to shed when the queue is "
+            "backing up, and that handle has to be reachable without a deploy."
+        ),
+        owner="DATA",
+        default=True,
+        created=date(2026, 8, 19),
+        remove_by=date(2027, 8, 19),
+        kill_switch=True,
+        blueprint="8.4",
+    ),
+    # **There is deliberately no kill switch for classification itself**, and the
+    # absence follows the same rule as the two below. A switch that turned the
+    # classifier off would park every complaint in the review queue, which is not
+    # a degraded mode anybody would choose deliberately — it is an outage with a
+    # friendly name. The stage already degrades honestly when its models are
+    # absent, and that path is exercised by every image in the deployment that
+    # does not carry the ml extra.
+    #
     # **There is deliberately no kill switch for face blur or for the safety
     # fail-safe**, and the absence is a decision rather than an oversight.
     #

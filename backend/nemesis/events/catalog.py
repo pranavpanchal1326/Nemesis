@@ -29,6 +29,7 @@ rubric did the scoring.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from typing import Annotated, Any, Final
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -174,6 +175,141 @@ class ClassificationScoredV1(EventPayload):
     alternatives: dict[str, float] = Field(default_factory=dict)
     transcript: str | None = None
     detected_language: str | None = None
+
+
+def _classification_scored_v1_to_v2(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Fill the Phase 9 evidence fields for an event written before Phase 9.
+
+    Every default here is a statement that the information *was not recorded*,
+    never a reconstruction. ``margin`` is 0.0 rather than derived from
+    ``alternatives``, because a v1 event's alternatives were whatever its writer
+    chose to include and a margin computed from a partial distribution is a
+    number with no provenance. ``calibration_version`` says so in words for the
+    same reason: the alternative — restating today's stamp — would attribute a
+    historical decision to a document that did not exist when it was made.
+    """
+    upcast = dict(payload)
+    upcast.setdefault("margin", 0.0)
+    upcast.setdefault("raw_similarities", {})
+    upcast.setdefault("calibration_version", "unrecorded:pre-phase-9")
+    upcast.setdefault("model_ids", {})
+    upcast.setdefault("language_confidence", None)
+    return upcast
+
+
+@register_event(
+    "classification_scored",
+    version=2,
+    entity_type=EntityType.COMPLAINT,
+    upcaster_from_previous=_classification_scored_v1_to_v2,
+)
+class ClassificationScoredV2(EventPayload):
+    """§10 step 3, as Phase 9 actually performs it.
+
+    **Why a version rather than an edit.** v1 was registered in Phase 2 from
+    §9.4's description, before anything could produce one. Editing it would still
+    be the wrong move — ``schema_lock.json`` exists so that "nothing has been
+    written yet" is never the argument, because the next schema change will be
+    made by somebody for whom it is not true, and the rule has to hold before it
+    is tested rather than after.
+
+    **What the four new fields buy, concretely.** They make a *calibration*
+    change backtestable. Phase 7 replays the log to ask "what would this document
+    have decided", and for a rubric or an SLA the log already carries the inputs.
+    For classification it did not: v1 recorded the calibrated probabilities and
+    nothing about the similarities they were computed from, so replaying a new
+    temperature would have required re-embedding every photograph — which costs
+    more than the change is worth and silently folds *model* drift into a report
+    about *policy*. ``raw_similarities`` is the model's output before any
+    governed number touched it, which is exactly the boundary a backtest needs.
+
+    **``model_ids`` is a map rather than more scalar fields.** A submission can
+    be scored by up to three models — the image tower, the text encoder, the
+    transcriber — and which of them ran depends on what the citizen attached. A
+    fixed set of nullable columns would encode today's three into a schema that
+    lives forever; the map records what actually ran, keyed by role.
+    """
+
+    #: A tenant taxonomy node key — never one of a fixed five categories.
+    category: str
+    confidence: Confidence
+    #: The model that produced the winning modality. Kept from v1 unchanged: it
+    #: is what ``complaints.classifier_model_id`` projects from, and Phase 11
+    #: will group training examples by it.
+    model_id: str
+    prompt_set_version: str
+    #: Runner-up scores, kept because Phase 11's active learning ranks review
+    #: candidates by margin, and a margin cannot be reconstructed after the fact
+    #: from the winner alone.
+    alternatives: dict[str, float] = Field(default_factory=dict)
+    transcript: str | None = None
+    detected_language: str | None = None
+
+    #: The winner's lead over the runner-up, after calibration. Recorded rather
+    #: than derived on read: ``alternatives`` is truncated by nothing today, but
+    #: a future writer that caps it at five entries would silently change what a
+    #: derived margin meant for every event after the change.
+    margin: float = 0.0
+    #: Category → cosine similarity, before temperature, bias, or softmax. The
+    #: model's own opinion, which is the only part of this event a calibration
+    #: change does not invalidate.
+    raw_similarities: dict[str, float] = Field(default_factory=dict)
+    #: Which ``perception_calibration`` revision turned those similarities into
+    #: the confidence above. The same contract ``severity_scored.policy_version``
+    #: has, for the same reason.
+    calibration_version: str = "unrecorded"
+    #: Role → model id, for every model that contributed. Roles are
+    #: ``image``/``text``/``transcribe``, matching ``EncoderKind``.
+    model_ids: dict[str, str] = Field(default_factory=dict)
+    #: How sure the transcriber was about the language, when one ran. ``None``
+    #: for a submission with no audio — distinct from 0.0, which would mean a
+    #: transcriber ran and had no idea.
+    language_confidence: Confidence | None = None
+
+
+@register_event("media_transcribed", version=1, entity_type=EntityType.COMPLAINT)
+class MediaTranscribedV1(EventPayload):
+    """§8.4. A voice complaint became text, and in which language.
+
+    **Not in §9.4, and deliberately added anyway** — the same argument the trust
+    spine's events make below. §8.4 promises a citizen can report in Hindi,
+    Marathi or English by speaking, and without this event the *only* record that
+    a transcription happened is a field inside ``classification_scored``. That
+    fails in the case §8.4 cares most about: a voice report whose classification
+    abstains emits no ``classification_scored`` at all, so the transcript — the
+    thing a human reviewer needs in order to work the report — would exist
+    nowhere in the log.
+
+    **Why the transcript is also carried on ``classification_scored``.** Not an
+    oversight and not redundancy for its own sake: a classification is only
+    re-arguable if the exact text it scored sits next to it, and "read the
+    preceding transcription event, assuming one exists and assuming nothing
+    re-transcribed in between" is a chain of assumptions a reviewer should not
+    have to make. This event records *that a transcription happened*; that field
+    records *what was scored*.
+
+    **No audio, ever.** The clip stays in quarantine under §22.4's retention
+    clock, exactly like the photograph, for all of ADR-0031's reasons — the log
+    lives for years and cannot be redacted after the fact.
+    """
+
+    transcript: str
+    #: BCP-47, from the model's own detection. Not constrained to the tenant's
+    #: declared locales: a citizen who speaks something the tenant did not list
+    #: is precisely the population §8.4 exists for, and recording their language
+    #: as one of the declared ones would be a fabrication.
+    language: str
+    language_confidence: Confidence
+    #: The clip's length, not the inference time. §27.1's budget is meaningless
+    #: without it — a p95 over four-second and ninety-second clips mixed together
+    #: tracks the length distribution rather than the model.
+    audio_seconds: float = Field(ge=0.0)
+    model_id: str
+    #: True when detection scored below the tenant's ``min_language_confidence``
+    #: and the locale-specific prompt set was therefore *not* used. Recorded
+    #: because the alternative is a reviewer wondering why a Marathi report was
+    #: scored against the default locale's prompts.
+    language_uncertain: bool = False
 
 
 @register_event("pipeline_stage_degraded", version=1, entity_type=EntityType.COMPLAINT)

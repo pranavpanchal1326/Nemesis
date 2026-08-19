@@ -75,6 +75,16 @@ QUARANTINE_READERS = frozenset(
         # read. Listed by name rather than left implicit, which is the point of
         # a list: adding a third entry is a decision somebody defends in review.
         "nemesis/api/v1/complaints.py",
+        # Phase 9, and defended here rather than in a commit message. §8.4
+        # promises a citizen can report by speaking; transcription therefore
+        # needs the audio clip, and there is no redacted audio artefact to read
+        # instead — §22.1 blurs faces, and there is no face in a waveform. So
+        # this module resolves quarantine URIs, and it is the whole of its
+        # contents: it refuses an image URI by extension before touching the
+        # disk, it hands bytes to a transcriber and nothing else, and no HTTP
+        # handler imports it. The day §22 is asked about voice, this file is
+        # where the answer lands.
+        "nemesis/perception/media.py",
     }
 )
 

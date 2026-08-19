@@ -54,6 +54,7 @@ from nemesis.policy import baselines, service
 from nemesis.policy.documents import (
     DedupBand,
     DedupThresholds,
+    PerceptionCalibration,
     PolicyBody,
     PolicyKind,
     RateCard,
@@ -282,6 +283,21 @@ class PolicyResolver:
         """
         return await self.require_document(
             session, tenant_id=tenant_id, kind=PolicyKind.TRUST_THRESHOLDS
+        )
+
+    async def perception_calibration(
+        self, session: AsyncSession, *, tenant_id: uuid.UUID
+    ) -> Resolved[PerceptionCalibration]:
+        """Phase 9's confidence posture. Baselined, so this never returns ``None``.
+
+        Baselined for the same reason ``trust_thresholds`` is: the stage that
+        reads it runs on every submission, and there is no correct "no document"
+        behaviour. Scoring on the raw similarity curve would attach a confidence
+        nobody chose to every complaint, and abstaining on everything would leave
+        a tenant classifying nothing until somebody noticed why.
+        """
+        return await self.require_document(
+            session, tenant_id=tenant_id, kind=PolicyKind.PERCEPTION_CALIBRATION
         )
 
 
