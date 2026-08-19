@@ -32,6 +32,7 @@ from nemesis.db.models.organisation import Zone
 from nemesis.db.models.tenant import Tenant
 from nemesis.domain.constants import SYSTEM_TENANT_SLUG
 from nemesis.events.verify import verify_chain
+from nemesis.policy import baselines
 from nemesis.tenancy.context import tenant_scope
 from tests.conftest import postgres_required
 
@@ -255,15 +256,16 @@ async def test_provisioning_appends_a_verifiable_tenant_chain(
     assert events[0].payload["template"] == "campus"
     assert events[0].payload["template_version"] == "1.0.0"
 
-    # Phase 6 seeds four baseline documents, each drafted and then moved through
-    # three transitions. Asserted as a shape rather than a count so adding a
-    # fifth governed structure is a one-line change here, not a puzzle.
+    # Phase 6 seeded four baseline documents and Phase 8 added a fifth
+    # (``trust_thresholds``), each drafted and then moved through three
+    # transitions. Asserted as a shape rather than a count, which is what made
+    # adding the fifth the one-line change this comment promised it would be.
     seeded = {
         payload["kind"]
         for event_type, payload in ((event.event_type, event.payload) for event in events)
         if event_type == "policy_drafted"
     }
-    assert seeded == {"safety_ruleset", "severity_rubric", "dedup_thresholds", "sla_matrix"}
+    assert seeded == {kind.value for kind in baselines.SEEDED_KINDS}
     assert kinds.count("policy_transitioned") == 3 * len(seeded)
 
     assert report.is_intact, report.first_break

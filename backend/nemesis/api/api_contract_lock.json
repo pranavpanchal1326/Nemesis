@@ -277,6 +277,259 @@
         }
       }
     },
+    "GET /api/v1/control-plane/simulations/evaluation-sets": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "code": {
+            "required": true,
+            "type": "string"
+          },
+          "created_at": {
+            "required": true,
+            "type": "string"
+          },
+          "description": {
+            "required": true,
+            "type": "string"
+          },
+          "kind": {
+            "required": true,
+            "type": "object:PolicyKind"
+          },
+          "label_count": {
+            "required": true,
+            "type": "integer"
+          },
+          "labels_hash": {
+            "required": true,
+            "type": "null|string"
+          },
+          "name": {
+            "required": true,
+            "type": "string"
+          },
+          "pass_ratio": {
+            "required": true,
+            "type": "number"
+          },
+          "published_at": {
+            "required": true,
+            "type": "null|string"
+          },
+          "retired_at": {
+            "required": true,
+            "type": "null|string"
+          },
+          "status": {
+            "required": true,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "GET /api/v1/control-plane/simulations/evaluation-sets/{code}/labels": {
+      "required_params": [
+        "code"
+      ],
+      "response": {
+        "$array": {
+          "complaint_id": {
+            "required": true,
+            "type": "string"
+          },
+          "expected_dedup_outcome": {
+            "required": true,
+            "type": "null|string"
+          },
+          "expected_department_code": {
+            "required": true,
+            "type": "null|string"
+          },
+          "expected_safety_fired": {
+            "required": true,
+            "type": "boolean|null"
+          },
+          "expected_severity_max": {
+            "required": true,
+            "type": "null|number"
+          },
+          "expected_severity_min": {
+            "required": true,
+            "type": "null|number"
+          },
+          "expected_severity_tier": {
+            "required": true,
+            "type": "null|string"
+          },
+          "rationale": {
+            "required": true,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "GET /api/v1/control-plane/simulations/runs": {
+      "required_params": [],
+      "response": {
+        "$array": {
+          "affected": {
+            "required": true,
+            "type": "integer"
+          },
+          "candidate_content_hash": {
+            "required": true,
+            "type": "string"
+          },
+          "candidate_revision": {
+            "required": true,
+            "type": "integer|null"
+          },
+          "case_count": {
+            "required": true,
+            "type": "integer"
+          },
+          "created_at": {
+            "required": true,
+            "type": "string"
+          },
+          "failure_reason": {
+            "required": true,
+            "type": "null|string"
+          },
+          "id": {
+            "required": true,
+            "type": "string"
+          },
+          "kind": {
+            "required": true,
+            "type": "object:PolicyKind"
+          },
+          "mode": {
+            "required": true,
+            "type": "string"
+          },
+          "population": {
+            "required": true,
+            "type": "integer"
+          },
+          "sampling_stride": {
+            "required": true,
+            "type": "integer"
+          },
+          "status": {
+            "required": true,
+            "type": "string"
+          },
+          "window_end": {
+            "required": true,
+            "type": "string"
+          },
+          "window_start": {
+            "required": true,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "GET /api/v1/control-plane/simulations/runs/{run_id}": {
+      "required_params": [
+        "run_id"
+      ],
+      "response": {
+        "affected": {
+          "required": true,
+          "type": "integer"
+        },
+        "baseline_stamps": {
+          "required": true,
+          "type": "object"
+        },
+        "candidate_content_hash": {
+          "required": true,
+          "type": "string"
+        },
+        "candidate_revision": {
+          "required": true,
+          "type": "integer|null"
+        },
+        "case_count": {
+          "required": true,
+          "type": "integer"
+        },
+        "created_at": {
+          "required": true,
+          "type": "string"
+        },
+        "failure_reason": {
+          "required": true,
+          "type": "null|string"
+        },
+        "id": {
+          "required": true,
+          "type": "string"
+        },
+        "kind": {
+          "required": true,
+          "type": "object:PolicyKind"
+        },
+        "mode": {
+          "required": true,
+          "type": "string"
+        },
+        "population": {
+          "required": true,
+          "type": "integer"
+        },
+        "report": {
+          "required": true,
+          "type": "null|object"
+        },
+        "sampling_stride": {
+          "required": true,
+          "type": "integer"
+        },
+        "status": {
+          "required": true,
+          "type": "string"
+        },
+        "window_end": {
+          "required": true,
+          "type": "string"
+        },
+        "window_start": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "GET /api/v1/control-plane/simulations/shadow/{content_hash}": {
+      "required_params": [
+        "content_hash"
+      ],
+      "response": {
+        "candidate_content_hash": {
+          "required": true,
+          "type": "string"
+        },
+        "diverged": {
+          "required": true,
+          "type": "integer"
+        },
+        "divergence_rate": {
+          "required": true,
+          "type": "number"
+        },
+        "fields": {
+          "required": true,
+          "type": "object"
+        },
+        "observed": {
+          "required": true,
+          "type": "integer"
+        }
+      }
+    },
     "GET /api/v1/control-plane/taxonomy": {
       "required_params": [],
       "response": {
@@ -833,6 +1086,84 @@
         }
       }
     },
+    "GET /api/v1/review/media/{redacted_sha256}": {
+      "required_params": [
+        "redacted_sha256"
+      ],
+      "response": {}
+    },
+    "GET /api/v1/review/queue": {
+      "required_params": [],
+      "response": {
+        "items": {
+          "required": true,
+          "type": "array<object:ReviewItem>"
+        },
+        "limit": {
+          "required": true,
+          "type": "integer"
+        },
+        "offset": {
+          "required": true,
+          "type": "integer"
+        },
+        "total": {
+          "required": true,
+          "type": "integer"
+        }
+      }
+    },
+    "GET /api/v1/review/queue/{item_id}": {
+      "required_params": [
+        "item_id"
+      ],
+      "response": {
+        "complaint_id": {
+          "required": true,
+          "type": "string"
+        },
+        "created_at": {
+          "required": true,
+          "type": "string"
+        },
+        "decided_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "evidence": {
+          "required": true,
+          "type": "object"
+        },
+        "id": {
+          "required": true,
+          "type": "string"
+        },
+        "occurrences": {
+          "required": true,
+          "type": "integer"
+        },
+        "priority": {
+          "required": true,
+          "type": "integer"
+        },
+        "reason": {
+          "required": true,
+          "type": "string"
+        },
+        "redacted_media": {
+          "required": true,
+          "type": "array<string>"
+        },
+        "status": {
+          "required": true,
+          "type": "string"
+        },
+        "trust_score": {
+          "required": true,
+          "type": "number"
+        }
+      }
+    },
     "GET /api/v1/versions": {
       "required_params": [],
       "response": {
@@ -1085,6 +1416,164 @@
         }
       }
     },
+    "POST /api/v1/control-plane/simulations/evaluation-sets": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/simulations/evaluation-sets/{code}/labels": {
+      "required_params": [
+        "code"
+      ],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/simulations/evaluation-sets/{code}/publish": {
+      "required_params": [
+        "code"
+      ],
+      "response": {
+        "code": {
+          "required": true,
+          "type": "string"
+        },
+        "created_at": {
+          "required": true,
+          "type": "string"
+        },
+        "description": {
+          "required": true,
+          "type": "string"
+        },
+        "kind": {
+          "required": true,
+          "type": "object:PolicyKind"
+        },
+        "label_count": {
+          "required": true,
+          "type": "integer"
+        },
+        "labels_hash": {
+          "required": true,
+          "type": "null|string"
+        },
+        "name": {
+          "required": true,
+          "type": "string"
+        },
+        "pass_ratio": {
+          "required": true,
+          "type": "number"
+        },
+        "published_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "retired_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "status": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "POST /api/v1/control-plane/simulations/evaluation-sets/{code}/retire": {
+      "required_params": [
+        "code"
+      ],
+      "response": {
+        "code": {
+          "required": true,
+          "type": "string"
+        },
+        "created_at": {
+          "required": true,
+          "type": "string"
+        },
+        "description": {
+          "required": true,
+          "type": "string"
+        },
+        "kind": {
+          "required": true,
+          "type": "object:PolicyKind"
+        },
+        "label_count": {
+          "required": true,
+          "type": "integer"
+        },
+        "labels_hash": {
+          "required": true,
+          "type": "null|string"
+        },
+        "name": {
+          "required": true,
+          "type": "string"
+        },
+        "pass_ratio": {
+          "required": true,
+          "type": "number"
+        },
+        "published_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "retired_at": {
+          "required": true,
+          "type": "null|string"
+        },
+        "status": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "POST /api/v1/control-plane/simulations/runs": {
+      "required_params": [],
+      "response": {}
+    },
+    "POST /api/v1/control-plane/simulations/shadow": {
+      "required_params": [],
+      "response": {
+        "candidate_content_hash": {
+          "required": true,
+          "type": "string"
+        },
+        "diverged": {
+          "required": true,
+          "type": "integer"
+        },
+        "divergence_rate": {
+          "required": true,
+          "type": "number"
+        },
+        "fields": {
+          "required": true,
+          "type": "object"
+        },
+        "observed": {
+          "required": true,
+          "type": "integer"
+        }
+      }
+    },
+    "POST /api/v1/control-plane/simulations/tuning/dedup": {
+      "required_params": [],
+      "response": {
+        "direction": {
+          "required": false,
+          "type": "string"
+        },
+        "proposals": {
+          "required": true,
+          "type": "array<object:ProposalResponse>"
+        }
+      }
+    },
+    "POST /api/v1/control-plane/simulations/tuning/dedup/draft": {
+      "required_params": [],
+      "response": {}
+    },
     "POST /api/v1/control-plane/taxonomy": {
       "required_params": [],
       "response": {}
@@ -1155,6 +1644,12 @@
           "type": "string"
         }
       }
+    },
+    "POST /api/v1/review/queue/{item_id}/decision": {
+      "required_params": [
+        "item_id"
+      ],
+      "response": {}
     },
     "PUT /api/v1/control-plane/policies/{kind}/{revision}": {
       "required_params": [

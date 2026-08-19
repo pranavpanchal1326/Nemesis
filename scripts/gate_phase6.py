@@ -243,9 +243,14 @@ def main() -> int:
     results.append(True)
     tenant_id = str(tenant["tenant_id"])
 
+    # Five since Phase 8, which added ``trust_thresholds`` as a fifth baselined
+    # kind. Asserted as a count rather than a set because what this clause is
+    # about is that provisioning seeded *something* governed for every kind that
+    # has a baseline — which kinds those are is `policy.baselines`' business and
+    # has its own test.
     results.append(
         _report(
-            tenant["counts"].get("policies") == 4,
+            tenant["counts"].get("policies") == 5,
             "provisioning seeded the baseline policy documents",
             f"policies={tenant['counts'].get('policies')}",
         )

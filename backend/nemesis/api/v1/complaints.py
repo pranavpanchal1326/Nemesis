@@ -52,7 +52,9 @@ from nemesis.ingest.service import Submission, submit
 from nemesis.observability import metrics
 from nemesis.observability.logging import get_correlation_id
 from nemesis.pipeline.tasks import dispatch_pipeline
+from nemesis.policy.resolver import RESOLVER
 from nemesis.tenancy.context import tenant_scope
+from nemesis.trust import exif
 
 router = APIRouter(tags=["complaints"])
 
@@ -80,6 +82,7 @@ _NO_MEDIA_DETAIL: Final = (
 async def submit_complaint(
     request: Request,
     tenant: TenantDep,
+    session: SessionDep,
     settings: ConfigDep,
     latitude: Annotated[Latitude, Form()],
     longitude: Annotated[Longitude, Form()],
@@ -140,6 +143,10 @@ async def submit_complaint(
     # what the log does not reference belongs in that sweep, where the log is
     # the authority on what is referenced.
 
+    await _enforce_live_capture(
+        session, tenant=tenant, settings=settings, stored_photo=stored_photo
+    )
+
     receipt = await submit(
         tenant_id=tenant.id,
         submission=Submission(
@@ -190,6 +197,68 @@ async def submit_complaint(
         # report" from "my first attempt had already landed".
         response.headers["Idempotent-Replay"] = "true"
     return response
+
+
+async def _enforce_live_capture(
+    session: SessionDep,
+    *,
+    tenant: TenantContext,
+    settings: Settings,
+    stored_photo: StoredMedia | None,
+) -> None:
+    """§11.1's live-capture-only mode — the *real* control for stripped EXIF.
+
+    §11.1 is explicit that absent EXIF must reduce trust rather than reject, and
+    then equally explicit about what to do when a tenant needs more than reduced
+    trust: **require live camera capture and block gallery upload**. Those are
+    two different controls and this is the second one. It is off by default,
+    because turning it on excludes every citizen whose phone or browser cannot
+    do it — an equity decision (§23) a tenant makes rather than a default the
+    platform imposes.
+
+    **Why it is here and not in the trust stage.** A block has to happen where
+    the submitter is still listening. Rejecting in the pipeline would accept the
+    report with a 202, tell the citizen it was received, and then discard it
+    somewhere they cannot see — which is worse than not having the control.
+
+    **Why the file is read back rather than buffered.** The upload streams to
+    disk in bounded chunks precisely so a 15 MB photograph never sits in memory;
+    holding it to check four EXIF tags would undo that on every submission,
+    including the overwhelming majority for tenants that have this switched off.
+    The read happens only when the switch is on, and in a threadpool, because
+    blocking the event loop on file I/O is what ``run_in_threadpool`` exists to
+    prevent one function above.
+
+    The quarantined file is left behind on a rejection, for the reason the
+    comment above this call states: the store is content-addressed, so deleting
+    "the file this request wrote" can delete a file another complaint
+    references.
+    """
+    if stored_photo is None:
+        return
+    resolved = await RESOLVER.trust_thresholds(session, tenant_id=tenant.id)
+    if not resolved.body.exif.live_capture_only:
+        return
+
+    store = MediaStore(settings.upload_dir)
+    path = store.resolve(stored_photo.uri)
+    metadata = await run_in_threadpool(lambda: exif.extract(path.read_bytes()))
+    if metadata.latitude is not None and metadata.longitude is not None:
+        return
+
+    metrics.ingest_submissions_total.labels(outcome="rejected").inc()
+    raise ProblemDetailError(
+        status_code=HTTP_422_UNPROCESSABLE,
+        title="Live capture required",
+        detail=(
+            "This deployment accepts photographs taken in the app, not chosen from "
+            "the gallery, and the upload carries no camera location metadata. Share "
+            "flows such as WhatsApp strip it, so a forwarded photograph will always "
+            "be refused here — take the picture in the app instead."
+        ),
+        problem_type=f"{PROBLEM_BASE}/live-capture-required",
+        extra={"policy_version": resolved.stamp},
+    )
 
 
 @router.get(

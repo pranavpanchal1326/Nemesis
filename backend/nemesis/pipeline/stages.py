@@ -156,9 +156,38 @@ _SPECS: Final[tuple[StageSpec, ...]] = (
         # Never "skip". A report the danger check never saw must not be scored
         # and routed as though it had been cleared.
         fallback=DegradationFallback.HALTED_FOR_REVIEW,
-        next_stage=PipelineStage.CLASSIFICATION,
+        next_stage=PipelineStage.TRUST_VERIFICATION,
         continue_on_degrade=False,
         blueprint="11.2",
+        owner_phase="Phase 8",
+    ),
+    StageSpec(
+        stage=PipelineStage.TRUST_VERIFICATION,
+        # The `ml` queue, because §22.1's face blur needs MediaPipe and
+        # `worker-ml` is the only image carrying it. Deliberately *not* the
+        # safety queue: putting image decoding behind the danger check would
+        # make a saturated CPU delay a gas leak, which is the exact coupling
+        # QUEUE_SAFETY exists to prevent.
+        queue=QUEUE_ML,
+        # Three. The failure modes here are a missing detector and an
+        # undecodable file, both of which raise StagePermanentError and skip the
+        # budget entirely — so what this number actually buys is retries against
+        # a transient disk or database error, and a fourth attempt at those adds
+        # queue depth on the worker with the tightest memory cap in the system.
+        max_attempts=3,
+        retry_backoff_seconds=4.0,
+        # **Never "skip", and this is the load-bearing declaration of the
+        # phase.** §22.1 requires faces blurred before an image is served, and
+        # the redacted copy is the only one anything downstream can resolve. A
+        # `SKIPPED_STAGE` fallback would let a complaint reach classification
+        # and the review queue with no redacted artefact at all — at which point
+        # the only image that exists is the unredacted original, and the
+        # pressure to "just show that one" is a design decision made under
+        # incident conditions. Halting parks the report for a human instead.
+        fallback=DegradationFallback.HALTED_FOR_REVIEW,
+        next_stage=PipelineStage.CLASSIFICATION,
+        continue_on_degrade=False,
+        blueprint="11.1",
         owner_phase="Phase 8",
     ),
     StageSpec(

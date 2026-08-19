@@ -21,6 +21,7 @@ import pytest
 from httpx import AsyncClient
 
 from nemesis.api.v1.control_plane import CONTROL_PLANE_TOKEN_HEADER
+from nemesis.policy import baselines
 from tests.conftest import postgres_required
 
 pytestmark = [postgres_required, pytest.mark.integration]
@@ -315,12 +316,12 @@ async def test_seed_baselines_is_not_parsed_as_a_policy_kind(
     """
     response = await api_client.post(f"{POLICIES}/seed-baselines", headers=headers(tenant_id))
     assert response.status_code == 200
-    assert set(response.json()["seeded_kinds"]) == {
-        "safety_ruleset",
-        "severity_rubric",
-        "dedup_thresholds",
-        "sla_matrix",
-    }
+    # Against ``SEEDED_KINDS`` rather than a literal set. What this test is
+    # about is that the *route* resolves — the seeded set is a property of
+    # ``policy.baselines``, which has its own test, and duplicating it here made
+    # adding Phase 8's trust thresholds fail a routing test for a reason that
+    # had nothing to do with routing.
+    assert set(response.json()["seeded_kinds"]) == {kind.value for kind in baselines.SEEDED_KINDS}
 
 
 async def test_seeding_twice_reports_what_it_skipped(
@@ -330,7 +331,7 @@ async def test_seeding_twice_reports_what_it_skipped(
     await seed(api_client, tenant_id)
     second = await api_client.post(f"{POLICIES}/seed-baselines", headers=headers(tenant_id))
     assert second.json()["seeded_kinds"] == []
-    assert len(second.json()["skipped_kinds"]) == 4
+    assert len(second.json()["skipped_kinds"]) == len(baselines.SEEDED_KINDS)
 
 
 # ---------------------------------------------------------------------------

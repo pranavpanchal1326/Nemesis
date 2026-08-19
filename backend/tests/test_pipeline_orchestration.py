@@ -52,6 +52,32 @@ pytestmark = [postgres_required, pytest.mark.integration]
 
 
 def _safety_provider() -> object:
+    """A safety check that does not fire.
+
+    Emits nothing, which is what ``trust.safety.safety_stage`` does on the
+    overwhelming majority of submissions: a check that appended "nothing
+    dangerous" to every chain would double the log's size to record the absence
+    of a rare thing. The consequence for *this* module is the interesting part —
+    a stage that emits no events has no first append and therefore no redelivery
+    guard, which ``orchestrator`` documents and which is sound precisely because
+    a stage that wrote nothing changes nothing when it runs twice.
+    """
+
+    async def run(ctx: StageContext) -> StageResult:
+        return StageResult()
+
+    return run
+
+
+def _trust_provider() -> object:
+    """Phase 8's stage, reduced to the two events the orchestrator has to carry.
+
+    Two events on one chain in one transaction, which is the shape the real
+    ``trust_stage`` produces and the shape that makes the idempotency rule
+    matter: the guard keys on the *first* append, so a redelivery that emitted
+    three would otherwise write the third onto a chain that had moved on.
+    """
+
     async def run(ctx: StageContext) -> StageResult:
         return StageResult(
             emitted=[
@@ -60,7 +86,22 @@ def _safety_provider() -> object:
                     entity_id=ctx.complaint_id,
                     event_type="exif_check_completed",
                     payload={"exif_present": True, "distance_meters": 4.0, "trust_delta": 0.2},
-                )
+                ),
+                EmittedEvent(
+                    entity_type=EntityType.COMPLAINT,
+                    entity_id=ctx.complaint_id,
+                    event_type="media_redacted",
+                    payload={
+                        "source_sha256": "a" * 64,
+                        "redacted_sha256": "b" * 64,
+                        "media_kind": "image",
+                        "content_type": "image/jpeg",
+                        "faces_detected": 2,
+                        "faces_blurred": 2,
+                        "detector_id": "test-detector@1",
+                        "exif_stripped": True,
+                    },
+                ),
             ]
         )
 
@@ -151,6 +192,7 @@ def _all_providers(cluster_id: uuid.UUID, work_order_id: uuid.UUID) -> ExitStack
     """Register the whole graph for the duration of a block."""
     stack = ExitStack()
     stack.enter_context(provider_scope(PipelineStage.SAFETY_CHECK, _safety_provider()))
+    stack.enter_context(provider_scope(PipelineStage.TRUST_VERIFICATION, _trust_provider()))
     stack.enter_context(provider_scope(PipelineStage.CLASSIFICATION, _classification_provider()))
     stack.enter_context(provider_scope(PipelineStage.DEDUP, _dedup_provider(cluster_id)))
     stack.enter_context(provider_scope(PipelineStage.SEVERITY_SCORING, _severity_provider()))
@@ -216,7 +258,11 @@ async def test_submission_emits_the_full_event_sequence_in_order_on_a_valid_chai
             ]
             assert complaint_events == [
                 "complaint_submitted",
+                # Phase 8's trust stage, between safety and classification: the
+                # classifier reads the *redacted* copy, so redaction has to have
+                # happened before it runs.
                 "exif_check_completed",
+                "media_redacted",
                 "classification_scored",
                 "severity_scored",
             ]

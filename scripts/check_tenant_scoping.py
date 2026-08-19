@@ -36,6 +36,12 @@ BACKEND = ROOT / "backend"
 #: "unchecked", it is *silently exempt*, and the static half of ADR-0014 would
 #: have reported "clean" while the newest and least reviewed query code in the
 #: system went unread.
+#:
+#: `policy` was missed when Phase 6 shipped and is added here by Phase 7 — the
+#: exact failure the paragraph above describes, and it went unnoticed for a
+#: release precisely because the check kept reporting "clean". Both packages
+#: were in fact clean, which is the point: a check that would not have told us
+#: otherwise is not evidence. `simulation` is listed from its first commit.
 DOMAIN_PACKAGES = (
     "nemesis/api",
     "nemesis/db",
@@ -43,8 +49,14 @@ DOMAIN_PACKAGES = (
     "nemesis/ingest",
     "nemesis/outbox",
     "nemesis/pipeline",
+    "nemesis/policy",
     "nemesis/projections",
     "nemesis/realtime",
+    "nemesis/simulation",
+    # Phase 8. Listed from its first commit, for the reason `policy` teaches by
+    # having been missed: a package added to the codebase but not to this tuple
+    # is a package this check reports "clean" for without reading.
+    "nemesis/trust",
 )
 
 MODELS_PACKAGE = BACKEND / "nemesis" / "db" / "models"

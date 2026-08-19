@@ -45,6 +45,7 @@ from nemesis.policy.documents import (
     SeverityTier,
     SlaEntry,
     SlaMatrix,
+    TrustThresholds,
 )
 
 #: The change reason recorded on every seeded document. Stated rather than blank
@@ -270,6 +271,27 @@ def _sla_matrix() -> SlaMatrix:
     )
 
 
+def _trust_thresholds() -> TrustThresholds:
+    """Phase 8's §11 knobs, entirely at their declared defaults.
+
+    **Nothing is restated here, and that is the point.** Every other baseline in
+    this module has to compose parts — a rubric needs its six components spelled
+    out, an SLA matrix needs four tiers and five rows — because the shape has no
+    single sensible whole. ``TrustThresholds`` does: each field's default is
+    argued at the field, next to the section it implements, which is where a
+    reviewer reads it. Repeating the numbers here would create a second place
+    for "200 metres" to live, and the two would disagree the first time somebody
+    changed one of them.
+
+    So this is the platform's *starting* posture: EXIF checked and mismatches
+    queued, re-uploads caught, both §11.3 detectors on, §22.4's retention clocks
+    running, and live-capture-only **off** — the one default that excludes
+    citizens if it is wrong, which makes it a tenant's decision (§23) rather
+    than a platform default.
+    """
+    return TrustThresholds()
+
+
 #: Kind → baseline factory. Absent kinds have no baseline; see the module
 #: docstring on why routing rules and rate cards are not here.
 _BASELINES: Final[dict[PolicyKind, object]] = {
@@ -277,6 +299,7 @@ _BASELINES: Final[dict[PolicyKind, object]] = {
     PolicyKind.DEDUP_THRESHOLDS: _dedup_thresholds,
     PolicyKind.SAFETY_RULESET: _safety_ruleset,
     PolicyKind.SLA_MATRIX: _sla_matrix,
+    PolicyKind.TRUST_THRESHOLDS: _trust_thresholds,
 }
 
 #: The kinds a tenant is provisioned with. Ordered for a readable event log —
@@ -284,6 +307,9 @@ _BASELINES: Final[dict[PolicyKind, object]] = {
 #: the order the pipeline consumes them in.
 SEEDED_KINDS: Final[tuple[PolicyKind, ...]] = (
     PolicyKind.SAFETY_RULESET,
+    # Second, immediately after safety: it is the other document the very first
+    # complaint's pipeline reads, and the two are the tenant's §11 posture.
+    PolicyKind.TRUST_THRESHOLDS,
     PolicyKind.SEVERITY_RUBRIC,
     PolicyKind.DEDUP_THRESHOLDS,
     PolicyKind.SLA_MATRIX,

@@ -264,6 +264,12 @@ def _check(_: list[str]) -> int:
             # Phase 5 gate clause 2: no domain module contains a category, role,
             # ward, or language literal. Host-side AST, same as the two above.
             ("domain literals", [sys.executable, "scripts/check_domain_literals.py"]),
+            # Phase 8 gate clause 2: no code path can persist or serve an
+            # unblurred image (§22.1). Host-side because `scripts/` is not
+            # mounted into the api container — which is also why that script
+            # self-tests its own rules before it scans, rather than relying on a
+            # pytest that would be skipped in exactly this environment.
+            ("media redaction", [sys.executable, "scripts/check_media_redaction.py"]),
         ]
     )
 
@@ -470,6 +476,35 @@ def _gate_phase6(_: list[str]) -> int:
     from an assertion into a measurement.
     """
     return run([sys.executable, "scripts/gate_phase6.py"])
+
+
+@task("gate-phase7", "Phase 7 gate: backtest a rubric over a year of history, then be refused")
+def _gate_phase7(_: list[str]) -> int:
+    """Runs against the live stack, like the Phase 4, 5 and 6 gates.
+
+    Two of the three clauses are only meaningful here. "Backtested over twelve
+    months of seeded history" is a claim about scale that a fixture cannot make,
+    and "shadow mode provably cannot mutate state" is a claim about a guarantee —
+    the script captures the tenant's event count and every chain head, runs
+    shadow mode over real complaints, and compares.
+
+    Seeds its own tenant with real event chains through `nemesis.sandbox`, so it
+    can be run repeatedly without touching anything that already exists.
+    """
+    return run([sys.executable, "scripts/gate_phase7.py"])
+
+
+@task("gate-phase8", "Phase 8 gate: fire the safety bypass, blur a face, work the review queue")
+def _gate_phase8(_: list[str]) -> int:
+    """Four clauses, and three of them are only meaningful against the stack.
+
+    The pytest suite proves the logic in one process with a deterministic
+    detector. This proves the *deployment*: MediaPipe actually loads in
+    `worker-ml`, the safety queue is genuinely a different container from the ml
+    queue, and the review queue is reachable over HTTP by somebody who is not
+    holding a Python interpreter.
+    """
+    return run([sys.executable, "scripts/gate_phase8.py"])
 
 
 @task("api-lock", "Re-lock the published API contract after a deliberate change")

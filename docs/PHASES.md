@@ -21,7 +21,7 @@ teaches nobody, and the same mistakes get made again by the next person.
 |---|---|---|---|
 | 1 | **Domain model hardcoded.** Five fixed categories, a closed role enum, safety keywords in source, languages pinned to hi/mr/en | Ships one vertical for one city. A campus has no potholes — it has elevator faults, lab spills, and HVAC failures. Every new customer is a code change | Track B (Control Plane) |
 | 2 | **No control plane.** Every tuning knob was a constant, a config field, or an env var | An admin cannot change a severity weight without an engineer and a deploy. §13.3's "rubric improves as data accumulates" was unimplementable | Phases 5–7 |
-| 3 | **No way to evaluate a config change before it goes live** | Someone retunes a dedup threshold and discovers the damage in production, on real citizen reports | Phase 7 (simulation & backtesting) |
+| 3 | **No way to evaluate a config change before it goes live** | Someone retunes a dedup threshold and discovers the damage in production, on real citizen reports | Phase 7 (simulation & backtesting) ✅ |
 | 4 | **One environment.** No dev/staging/prod, no IaC, no promotion pipeline | "It works on the laptop" is not a release process. First real customer has nowhere to run | Phase 1 |
 | 5 | **ML without an ML platform.** A single validation run is not MLOps | No drift detection, no model registry, no champion/challenger. Accuracy rots silently and nobody finds out until a citizen does | Phase 11 |
 | 6 | **The feedback loop was thrown away.** Human review decisions and citizen disputes are free, high-quality labels | The system never gets smarter. §4.3's entire moat thesis — the accumulating proprietary dataset — was asserted but never built | Phase 11 |
@@ -91,8 +91,8 @@ that satisfies more of these wins.
 | 4 | Public API, versioning & integration platform ✅ | A · Platform | PLT | 3 |
 | 5 | Tenant, taxonomy & organisation service ✅ | B · Control Plane | PLT | 2 |
 | 6 | Policy & rules engine ✅ | B · Control Plane | PLT · DATA | 5 |
-| 7 | Configuration simulation & backtesting | B · Control Plane | DATA | 6 |
-| 8 | Trust & safety spine | C · Intelligence | DATA · SEC | 3, 6 |
+| 7 | Configuration simulation & backtesting ✅ | B · Control Plane | DATA | 6 |
+| 8 | Trust & safety spine ✅ | C · Intelligence | DATA · SEC | 3, 6 |
 | 9 | Perception layer & model registry | C · Intelligence | DATA | 3, 5 |
 | 10 | Deduplication & clustering engine | C · Intelligence | DATA | 2, 9 |
 | 11 | ML platform: labelling, drift & feedback loop | C · Intelligence | DATA | 9, 10 |
@@ -1326,50 +1326,405 @@ regression test or a fix):
   those phases will call. Wiring the pipeline stages to it now would mean
   building the stages, which is three phases' work being done under this phase's
   gate
-- **Phase 7 is what makes this safe to use at scale.** Activation currently
-  depends on an approver reading a document. Backtesting a candidate against
-  historical events, quantifying the affected population before anyone approves,
-  and blocking activation on a regression against a labelled set are all Phase 7,
-  and the runbook says so where an operator will read it
+- **Phase 7 is what makes this safe to use at scale, and it has since
+  shipped.** Activation depended on an approver reading a document; it now
+  additionally depends on a passing certificate whenever the tenant has
+  published an evaluation set for the kind. `policy.service.activate` grew one
+  guard, `rollback` grew the one waiver, and the rest of this phase is unchanged
+  — which was the point of leaving the seam where it was
 
-## Phase 7 — Configuration simulation & backtesting · DATA
+## Phase 7 — Configuration simulation & backtesting ✅ · DATA
 
-The capability that makes Phase 6 safe to use, and the mechanism behind §13.3's
-promise that the rubric improves as resolution data accumulates.
+Phase 6 made every behavioural knob governed data and named the hole it left in
+its own notes: *activation currently depends on an approver reading a document.*
+Somebody reads forty weights, forms an opinion, and presses a button that changes
+how every future citizen report is scored. This is where the opinion is replaced
+by a measurement.
 
-**Ships**
-- **Replay a candidate policy against historical events** and report the delta: which complaints would have changed severity, which merges would have flipped, which SLAs would have breached
-- Side-by-side diff of current versus candidate, with the affected population quantified before anyone approves
-- Shadow mode: run a candidate policy alongside production, recording what it *would* have decided without acting on it
-- Guardrails that block activation on a regression against a labelled evaluation set
-- Auto-tuning proposals for dedup thresholds derived from human merge/split decisions, surfaced as drafts for approval — never applied automatically
+**Shipped**
+- **A decision engine that is pure, total, and clock-free** — `decide(bundle,
+  case)` takes every input by value, has no session parameter so it cannot
+  query, and derives every instant from the case's own `reported_at` so two runs
+  of the same comparison cannot disagree. It calls production's own arithmetic
+  (`score_severity`, `evaluate_safety`, `evaluate_routing`, `resolve_deadline`)
+  rather than reimplementing it, because a simulator that reimplements what it
+  simulates measures its reimplementation
+- **A corpus built from the event log, never from the projections** (ADR-0029).
+  The `complaints` table is right there, indexed, one query away — and it is
+  current state that every policy change since has already rewritten, so a
+  backtest built on it reports "nothing changed" for a change that would in fact
+  have moved thousands of reports. Chains are folded with `projections.project`
+  — production's own projectors — and an **allow-list** takes observations out
+  of the result. `OBSERVATION_KEYS` and `DECISION_KEYS` are both named, and a
+  test asserts `DecisionCase` declares no field from the second
+- **The guardrail is a row, not a call** (ADR-0028). `policy.service.activate`
+  reads `evaluation_sets` and `policy_certificates` and imports nothing from
+  `nemesis.simulation`; a test parses the AST of every policy module to prove
+  it. A hook registry would have failed *open* the day the wiring changed, and
+  failing open is indistinguishable from having no guardrail. Publishing a set
+  is the switch — there is no `require_certification` flag to fall out of step
+  with it — and a certificate is keyed by **content hash**, which cannot be
+  wrong about which bytes were tested
+- **Shadow mode that is read-only by construction** (ADR-0030). Two independent
+  layers: Postgres's own `SET TRANSACTION READ ONLY` and a `before_execute`
+  statement guard, each tested with the other absent. It runs on a transaction
+  of its own — read-only is a one-way door in Postgres, so marking the caller's
+  transaction would poison it permanently, which the tests for the recording
+  half discovered
+- **A report designed against its own failure modes.** Tier movement is a matrix
+  rather than a net ("40 up, 40 down" and "0 moved" are the same net and very
+  different changes); extremes sit beside means; the changed-case sample leads
+  with the largest movement rather than with January; and a corpus below
+  `MINIMUM_CASES` is **refused** rather than reported, because "no regressions"
+  over three complaints is the exact shape of an answer with none of the content
+- **Coverage gaps are findings, not warnings.** `zone_code` and `tags` have no
+  source in the log yet, and an absent fact compares `False` under every
+  operator — so a candidate rule turning on one would backtest as *"0 complaints
+  affected"*, which is identical output to a genuinely inert change. Every such
+  rule is named in `coverage_gaps`, and a report carrying one is not certifiable
+- **Auto-tuning that can only ever be more conservative.** The single human
+  dedup signal in the catalog is `cluster_merge_reverted`; nothing records a
+  merge that *should* have happened. So proposals only raise thresholds, the API
+  says so in every response, and a test asserts no path lowers one. §14.3
+  already establishes the asymmetry — a false merge suppresses a citizen's
+  report; an unmerged duplicate costs an operator time
+- **Ten endpoints** under `/api/v1/control-plane/simulations`, following the
+  policy router's conventions exactly, plus a shadow-mode kill switch, three
+  ADRs, a runbook (`policy-certification-blocked.md`), and `nem gate-phase7`
 
-**Gate**
-- A rubric change is backtested over 12 months of seeded history, producing a quantified impact report before activation
-- A policy that regresses the labelled evaluation set cannot be activated
-- Shadow mode provably cannot mutate state or emit domain events
+**Gate — met**
+- ✅ **A rubric change is backtested over 12 months of seeded history, producing
+  a quantified impact report before activation.** The live gate seeds **400 real
+  complaint chains over 365 days** through the real `EventStore` — real hashes,
+  real chain tails, no SQL inserts — then replays a candidate over all 400 and
+  asserts the report *moves*: a backtest reporting "nothing changed" for a
+  rubric that inverts every weight is one that is not reading its corpus. It
+  also asserts the candidate is still not live afterwards
+- ✅ **A policy that regresses the labelled evaluation set cannot be activated** —
+  proved at the service layer through the single mutation path, and over HTTP in
+  the gate. Four bypass routes are closed by test: no certificate, a *failing*
+  certificate, a certificate issued against different bytes, and editing the
+  labels after the fact. The gate then certifies the same candidate and
+  activates it, because a guardrail that refuses everything is not one either
+- ✅ **Shadow mode provably cannot mutate state or emit domain events** — two
+  layers, each tested with the other disabled, plus a live check that captures
+  the tenant's event count *and every chain head*, runs shadow mode over 25 real
+  complaints, and finds both unchanged while the observations are non-empty, so
+  the check cannot pass by doing nothing
+- ✅ **22/22 live gate checks passed**, and Phases 4, 5 and 6 re-run green
+  against the same stack
+- ✅ ruff clean · ruff format clean · **mypy --strict clean (132 modules)** ·
+  **905 tests passing, 116 of them new** · **87.59% coverage** against an 85%
+  floor · **`alembic check` clean**, migration applies, reverts, and re-applies ·
+  all eight check scripts green · **API contract re-locked (60 operations, 13
+  added, additive only)**
+
+**Defects the implementation and the gate caught** (each now covered by a
+regression test or a fix):
+1. **`SET TRANSACTION READ ONLY` is a one-way door, and the first version of
+   `read_only` locked the caller out of its own transaction.** Postgres refuses
+   `SET TRANSACTION READ WRITE` after the first query — *"transaction read-write
+   mode must be set before any query"* — so marking the caller's transaction
+   read-only poisoned it permanently, and the failure surfaced at some unrelated
+   statement much later. The scope now runs on a session of its own, borrowed
+   from the caller's engine. Caught by the tests for the *recording* half, not by
+   the tests for the guarantee
+2. **A failed run left no trace.** The row was written into the caller's
+   transaction, so a refused backtest propagated its exception, the handler
+   rolled back, and "we tried and the window was empty" was indistinguishable
+   from "nobody tried". Failures are now recorded in their own committed
+   transaction
+3. **A bare `except Exception` around that bookkeeping hid a programming error** —
+   a synchronous `tenant_scope` in an `async with` list — and the only symptom
+   was a row that never appeared. The handler now logs the exception it swallows
+4. **The seeder placed one complaint outside the window it claimed to fill.** An
+   even spread with a few random hours subtracted puts the first report a
+   fraction of a day early, and the gate found 399 of 400 complaints in a
+   365-day window. The jitter now stays inside each report's own slot. A
+   boundary that lies about itself in a *seeder* is worse than one in a query:
+   every downstream number inherits it
+5. **`nemesis/policy` was silently exempt from two CI checks.** Phase 6 shipped
+   without adding it to `DOMAIN_PACKAGES` in either `check_tenant_scoping.py` or
+   `check_domain_literals.py`, and both kept reporting "clean" for a package
+   they were not reading — the exact failure the first of those scripts warns
+   about in its own comments. Both packages are listed now: tenant scoping went
+   from 68 modules to 86, domain literals from 64 to 81. `policy/baselines.py`
+   is exempted *by name* rather than by leaving the package out, because it
+   holds the platform's starting safety keywords — the same class of artefact as
+   `control_plane/templates` — which means the rest of the package is checked.
+   Everything was in fact clean, which is the point: a check that would not have
+   told us otherwise is not evidence
+6. **The sandbox seeded projection rows with no event log at all.** Correct for
+   the public API, which reads projections, and useless to a backtest, which
+   folds the log by design. `nemesis.sandbox` now has a `--history` path that
+   writes real chains
+
+**Carried forward, not silently absorbed:**
+- **Three declared routing facts have no source in the log** — `zone_code`
+  (Phase 19), `tags` (Phase 14), and the visual half of the safety ruleset
+  (Phase 9). They are listed in `UNAVAILABLE_FACTS`, a rule referencing one is a
+  named coverage gap, and a report carrying a gap cannot back a certificate.
+  Fabricating them from the classifier's output would make a visual rule appear
+  to fire on evidence nothing produced
+- **SLA breach counts are not reported**, only budget changes. A breach needs a
+  resolution time, and Phase 14 owns work orders. The report says which
+  complaints get a *shorter* budget, which is the new risk a shortened SLA
+  creates against work already in flight
+- **Runs are synchronous.** A twelve-month window over a real city would exceed
+  an HTTP timeout long before it exceeds `ABSOLUTE_MAX_CASES`; the honest fix is
+  a Celery task and a polled run row, which is Phase 23's shape. `SimulationRun`
+  already carries `running`/`completed`/`failed` so the async runner has
+  somewhere to land without a migration
+- **Auto-tuning covers dedup thresholds only.** Severity and SLA tuning need
+  outcome data — did "urgent" complaints actually resolve faster — which needs
+  Phase 14's closure loop and Phase 23's metrics
+- **The corpus is sampled above 20,000 cases**, systematically across submission
+  order rather than truncated to the most recent N. The report carries both
+  `case_count` and `population` so "12,000 complaints" and "12,000 of 480,000"
+  stay different claims
+- **Nothing consumes the policies yet, still.** Phases 8, 10 and 12 remain the
+  consumers. What changed is that a candidate can now be measured before it
+  becomes what they consume
 
 ---
 
 # Track C — Intelligence
 
-## Phase 8 — Trust & safety spine · DATA · SEC
+## Phase 8 — Trust & safety spine ✅ · DATA · SEC
 
-Highest credibility-per-hour in the system (§11), now policy-driven.
+Highest credibility-per-hour in the system (§11), now policy-driven — and the
+first phase whose stages actually *consume* the documents Phase 6 made governed
+and Phase 7 made measurable. Phase 7 closed with the note *"nothing consumes the
+policies yet, still."* This is the first consumer.
 
-**Ships**
-- EXIF/GPS cross-check; absent EXIF *reduces trust* rather than rejecting, with live-capture-only mode as the real control (§11.1)
-- Perceptual hashing against submission history, tolerant of recompression and resize
-- Device-velocity and geographic-clustering coordinated-abuse detection (§11.3)
-- **Safety fail-safe (§11.2)** executing the Phase 6 ruleset as a hard deterministic rule, on its dedicated queue
-- MediaPipe face blur applied *before* any persistence, including temp paths
-- Human review queue with the full evidence bundle, and every decision captured as a label for Phase 11 (§11.4)
+**Shipped**
+- **The §11.2 fail-safe, on a queue that is a different container.** The stage
+  resolves the tenant's approved ruleset and runs `evaluate_safety` — document
+  order, first match wins, no regular expressions, linear in submitter-controlled
+  text. "A saturated `ml` queue cannot delay a danger signal" is therefore not a
+  scheduling promise a prefetch setting could break: `QUEUE_SAFETY` is served by
+  `worker-io`, an image that has never imported torch, and the only way to break
+  the separation is to move one line in `stages.py`, which a test asserts. When
+  it fires it **halts** — the successor stages are never enqueued, rather than
+  dispatched and declining to act, which would be four no-ops holding queue slots
+  behind a gas leak
+- **§22.1 face blur, failing closed** (ADR-0032). `active_detector()` raises
+  rather than returning a stand-in, because the alternative is the single worst
+  line this phase could contain: a detector that finds no faces makes every run
+  succeed, records `faces_detected: 0`, ships a copy pixel-identical to the
+  original, and hides the breach from the log as well as from the outside. The
+  blur is Gaussian and applied twice over a box expanded 25% on each side —
+  pixelation was rejected outright, because mosaic redaction is reversible at
+  small block counts and there are published attacks that do it. The output is
+  **re-encoded from decoded pixels**, so the EXIF GPS, the XMP packet and the
+  embedded thumbnail — a second unblurred copy of the whole scene — cannot
+  survive; the strip is a consequence of the design rather than a step
+- **The raw photograph persists, unreachably** (ADR-0031). `docs/PHASES.md` said
+  blur before *any* persistence; §22.4 retains the raw photo for 30 days for the
+  dispute window. Both cannot be literally true and the ADR records which one
+  won and why. What is enforced instead: two named readers of quarantine, one
+  writer of the served root, no route that can express a quarantine path, and a
+  stamped expiry on every artefact from the tenant's own retention policy
+- **§11.1's three EXIF outcomes, kept apart.** `PRESENT_MATCHED`,
+  `PRESENT_MISMATCHED` and `ABSENT` are different facts: a contradiction, a
+  confirmation, and a silence. Collapsing the third into the first is exactly how
+  "absent EXIF reduces trust rather than rejecting" becomes a system that
+  penalises every WhatsApp share. `exifread` was **dropped** in favour of twenty
+  lines over Pillow's GPS IFD — not for elegance, but because `exifread` lives in
+  the `ml` extra, which would have put the §11.1 check in an image the test suite
+  does not run in
+- **§11.1's re-upload check as a 64-bit dHash**, chosen over aHash (collapses
+  under a brightness change) and pHash (needs a DCT nobody can review). Gradients
+  are invariant to monotonic brightness change *by construction*, which is the
+  property §11.1's claim actually rests on, and the tests measure the claim —
+  quality-40 recompression and 0.5×/2.0× resize both stay within tolerance while
+  unrelated images stay outside it. Searched with `bit_count(a # b)` over a
+  partial index, tenant-scoped and window-bounded, with the honest note that the
+  fix at ten million rows is a banded index and that is Phase 23's shape
+- **§11.3's two detectors, which are deliberately not one.** Velocity is *one
+  device, many reports*; clustering is *many devices, one place*. A single
+  detector counting submissions in a window fires on both and distinguishes
+  neither, so a reviewer is handed "suspicious activity" with no way to tell a
+  bot farm from a street that genuinely flooded. Both **flag and cannot block**
+  (ADR-0033): no field for it in the finding, none in the payload, no write in
+  either detector, and no status change in either projector
+- **§11.4's queue, with the bundle frozen at queueing.** Recomputing evidence on
+  read would show a reviewer today's numbers for a flag raised against last
+  week's thresholds — and Phase 11 would then learn from a label attached to
+  evidence that never produced it. A repeat raises `occurrences` rather than a
+  second row, enforced by a partial unique index on `status = 'open'`; partial,
+  so the same reason can legitimately be raised again months later
+- **Every decision is a Phase 11 label by construction.** Architectural principle
+  4 and critique-log defect #6, as a table rather than an intention:
+  `review_decisions` carries the outcome *and* the hash of the evidence the human
+  saw, written in the same transaction as the event, indexed for the query Phase
+  11 will run — and `labels_for_training` is written now, so the index decision
+  is checkable today instead of justified by a query nobody has written
+- **A seventh governed kind, `trust_thresholds`.** Every §11 knob — EXIF radius,
+  Hamming tolerance, velocity limits, cluster radius, §22.4's two retention
+  clocks, and §11.1's live-capture switch — is an approved, effective-dated,
+  hash-chained document. There is deliberately **no field that disables face
+  blur**: §22.1 is an obligation, not a tuning parameter, and a policy field for
+  it would be a documented, approvable path to a breach
+- **§11.1's live-capture-only mode, at the boundary.** §11.1 calls it *the real
+  control* for stripped EXIF, so it refuses the submission where the citizen is
+  still listening — a 422 with an explanation — rather than in the pipeline,
+  which would acknowledge with a 202 and discard the report where they cannot see
+- Four HTTP endpoints, three ADRs, two runbooks, three alerts,
+  `scripts/check_media_redaction.py`, and `nem gate-phase8`
 
-**Gate**
-- The safety bypass provably fires **before** any scoring stage
-- No code path can persist an unblurred image — enforced by a repository-level guard test, not convention
-- Safety-queue latency is unaffected by a saturated `ml` queue, proven under load
-- A tenant with custom safety keywords gets correct behaviour with no code change
+**Gate — met**
+- ✅ **The safety bypass provably fires before any scoring stage.** The live gate
+  submits a hazard report *carrying a photograph* and asserts on what the
+  orchestrator says runs next: the chain is
+  `complaint_submitted → safety_trigger_fired → review_queued`, and it contains
+  no classification, no severity score, and **no trust-verification event at
+  all** — so the claim is about work that was available and never dispatched,
+  not about a stage that ran and declined
+- ✅ **No code path can persist an unblurred image**, by three independent
+  routes. `check_media_redaction.py` parses every module and fails on a second
+  reader of quarantine, a second writer of the served root, or a redactor that
+  stopped calling the detector accessor — and it **self-tests those three rules
+  against synthetic violations before it scans**, because a guard that reports
+  clean and a guard whose rules stopped matching are indistinguishable. The unit
+  tests measure the *pixels*: a high-frequency checkerboard under the detection
+  loses its variance while a region outside it survives, so "the bytes differ"
+  cannot pass for a blur. The live gate proves the deployment: the real MediaPipe
+  detector in `worker-ml` found and blurred a face, the served bytes contain no
+  EXIF segment, and the upload's own content address returned 404
+- ✅ **Safety-queue latency is unaffected by a saturated `ml` queue, proven under
+  load.** 25 image reports were pushed onto the ml queue and a hazard report
+  submitted while it was draining: **0.6 s to `FLAGGED` with 16 reports still
+  queued**, against a 30 s budget — and the gate separately asserts the backlog
+  was still working when the danger signal landed, so the number cannot pass by
+  the queue having drained first
+- ✅ **A tenant with custom safety keywords gets correct behaviour with no code
+  change.** The gate first `git grep`s its invented hazard to prove no module
+  contains it, activates a ruleset naming it through the ordinary
+  draft → review → approve → activate path over HTTP, and shows the report
+  bypassed — with `rule_id = exotic_oxidiser`, the tenant's own rule
+- ✅ **25/25 live gate checks passed**, and Phases 3, 4, 5, 6 and 7 re-run green
+  against the same stack
+- ✅ ruff clean · ruff format clean · **mypy --strict clean (147 modules)** ·
+  **1038 tests passing, 133 of them new** · **87.72% coverage** against an 85%
+  floor · **`alembic check` clean**, migration applies, reverts, and re-applies ·
+  all nine check scripts green · **API contract re-locked (64 operations, 4
+  added, additive only)**
+
+**Defects the implementation and the gate caught** (each now covered by a
+regression test or a fix):
+1. **The partial unique index could not be inferred, and it failed on the second
+   flag rather than the first.** `ON CONFLICT ... WHERE status = 'open'` rendered
+   the predicate as a *bound parameter*, and Postgres cannot match a parameter
+   against an index predicate — so the escalation path failed at plan time with
+   "no unique or exclusion constraint matching the ON CONFLICT specification",
+   while raising a *new* flag worked fine. The literal has to match the index's
+   own predicate exactly
+2. **The tenancy guard refused the review queue's own status update, correctly.**
+   Mutating a loaded ORM object emits `UPDATE ... WHERE id = :id` with no tenant
+   predicate, and a primary key is not a tenant boundary. Replaced with an
+   explicit tenant-scoped `UPDATE`; the same class of problem in `trust.rebuild`
+   was fixed by making the rebuild **insert-only** — it reads the decisions
+   first so an item can be *constructed* already decided rather than inserted
+   open and then updated
+3. **Three queries were correctly scoped and unverifiably so.**
+   `check_tenant_scoping.py` reads the AST at the call site, and a tenant filter
+   assembled into a `filters` list is one it cannot see. The queries were right;
+   the check would have reported "clean" for a package it could not read, which
+   is the exact failure Phase 7's defect #5 describes. All three now write the
+   predicate inline
+4. **The face detector looked in the wrong directory.** `fetch_models.py` writes
+   `<cache>/mediapipe/<file>` and the detector read `<cache>/<file>`. The symptom
+   would have been "model absent" → every complaint carrying a photograph halts,
+   which is *correct behaviour for a genuinely missing model* and a very
+   confusing way to discover a path typo. The gate now asserts the detector id
+   in the stored record starts with `mediapipe:`
+5. **`worker-io` logged a WARNING about a model it has no use for, on every pool
+   child.** `install_mediapipe_detector` checked the model path before checking
+   whether MediaPipe was importable, so the four images that are *supposed* not
+   to redact each produced an alarming line at startup — which is how a
+   genuinely important warning stops being read. The import check comes first
+   now, and the two states log at different levels on purpose
+6. **A misleading conflict hid a missing migration.** Adding a seventh
+   `PolicyKind` without widening five CHECK constraints produced a violation that
+   `policy.service.draft` announced as *"created concurrently; re-read and
+   retry"* — a phantom race on a single-threaded seeding call. The handler now
+   distinguishes a `kind_is_known` violation and says the enum and the schema
+   have drifted apart
+7. **Pillow's `getdata` is deprecated and this suite runs
+   `filterwarnings = ["error"]`.** The §11.1 hash would have started failing on a
+   Pillow upgrade rather than on a code change. Replaced with `tobytes`, which is
+   also the layout the indexing already assumed
+8. **The Phase 3 gate's degradation clause was pinned to a stage name.** Phase 8
+   registering two providers moved the first stop from `safety_check` to
+   `trust_verification` — because the gate uploads a JPEG magic number with 2 KB
+   of zeroes behind it, which §22.1 correctly refuses to let through. The clause
+   now asserts the *property* (the pipeline stopped at a stage declaring
+   `HALTED_FOR_REVIEW`, the API says so, there is a dead letter) rather than the
+   name, which survives Phase 9 too
+9. **`visual_only_rules` could never return anything.** It looked for rules with
+   visual prompts and no keywords, and `SafetyRule.terms` requires at least one —
+   so it was dead code with a docstring claiming a guarantee. Replaced with
+   `rules_with_unscored_visual_prompts`, which reports every rule whose visual
+   half this build cannot score, and a test pins the constraint that makes a
+   wholly-inert rule impossible
+
+**Carried forward, not silently absorbed:**
+- **Distant-face recall is not measured, and Phase 0 asked this phase to measure
+  it.** Phase 0's carried-forward note is explicit: `blaze_face_short_range`
+  detects faces within roughly two metres, street photography contains small
+  distant bystanders — exactly the population §22.1 requires blurring — and
+  MediaPipe 1.x ships no full-range alternative. **That gap is unchanged and is
+  the largest honest weakness in this phase.** What shipped around it: the
+  confidence threshold stays biased to 0.4, every detection is expanded 25%
+  before blurring, and `media_redacted` records `faces_detected` and
+  `faces_blurred` as *separate* fields so a future change that starts dropping
+  boxes shows up as a divergence rather than as an unchanged boolean. What did
+  not ship is the measurement, because a recall number needs a labelled set of
+  real street photographs with annotated faces, and building one is Phase 9's
+  validation-harness work rather than something to improvise here. Phase 9's
+  gate — which already publishes a reproducible per-category F1 — is where this
+  belongs, and it is named there rather than left as a note nobody owns
+- **The visual half of §11.2 does not fire.** §11.2 names a CLIP zero-shot
+  trigger prompt set alongside the keywords, and `SafetyRule` carries both so
+  they are approved together as one danger definition. Scoring prompts is Phase
+  9. `rules_with_unscored_visual_prompts` names every rule whose visual half is
+  inert, so the shortfall is reportable rather than silent — and no rule can be
+  *wholly* visual, because `terms` requires at least one keyword
+- **A voice-only report reaches the safety check with nothing to match.**
+  Transcription is Phase 9 and runs *after* this stage. A second safety pass
+  after transcription is the honest fix and it needs Phase 9's output to exist
+  before it can be tested. This is a real gap for exactly the submission path
+  §8.4 says the least-served citizens use, and it is stated rather than hidden
+  behind a re-run that nothing could verify
+- **`trust_thresholds` is not backtestable**, and `runs.run_backtest` refuses it
+  by name rather than producing a report about it. Phase 7's decision engine
+  reads pixels, EXIF distances and device fingerprints nowhere — the log records
+  what each check *concluded*, not what it ran on — so a comparison would report
+  "0 affected" for a candidate that inverts every value, which is the exact shape
+  of an answer with none of the content. `DECIDABLE_KINDS` names the five kinds
+  that can be compared, and `rate_card` is excluded for the same reason
+- **`submission_media` is not rebuildable from the log**, and the model docstring
+  says so with the argument. It holds the EXIF coordinates, capture time and
+  perceptual hash — precisely the values §22.4 requires purged after 90 days —
+  and an append-only chain is the one place a value can never be expired from.
+  Putting them in a payload would be choosing, permanently and for every tenant,
+  that the retention schedule cannot be honoured. The two review tables *are*
+  rebuildable and `trust.rebuild` proves it field-for-field
+- **Retention is stamped, not swept.** Every artefact carries `purge_raw_after`
+  and `purge_exif_after` from the tenant's own policy, indexed for the sweep.
+  The sweep is Phase 26's; what this phase owed it is something to find
+- **Quarantine orphans are not reclaimed.** A submission whose audio part was
+  rejected after its photo stored leaves an unreferenced file, and the tempting
+  fix is worse — content addressing means deleting "the file this request wrote"
+  can delete a file another complaint references. The reclaim belongs in the same
+  sweep, where the log is the authority on what is referenced
+- **A backlog in the review queue has no owner.** §11.4's queue is reachable over
+  HTTP and nothing assigns it. Phase 13 gives operators identities and Phase 27
+  gives them a console; until then `review-queue-backlog.md` is explicit that
+  "nobody is working it" is the most common cause and the least technical one
+
+---
 
 ## Phase 9 — Perception layer & model registry · DATA
 
@@ -1380,6 +1735,11 @@ Highest credibility-per-hour in the system (§11), now policy-driven.
 - **Model registry**: versioned model + prompt-set pairs, warm-loaded with a single-flight guard so concurrent tasks never double-load weights, and a bounded memory ceiling
 - Per-tenant, per-category confidence calibration derived from measured curves
 - Validation harness computing per-category precision/recall/F1 on a stratified held-out set, emitting a committed report artefact
+- **Distant-face recall for §22.1**, measured on the same harness. Carried
+  forward from Phase 0 and *not* discharged by Phase 8: `blaze_face_short_range`
+  is a two-metre model and street photography is full of small bystanders, who
+  are exactly the population §22.1 protects. The number ships either way, and a
+  shortfall means a second detector or a tiled pass, not a footnote
 
 **Gate**
 - A **published per-category F1 number** in the repo, reproducible by one command

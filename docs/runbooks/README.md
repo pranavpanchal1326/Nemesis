@@ -97,7 +97,20 @@ integrity of evidence rather than about availability.
 | [event-chain-integrity.md](event-chain-integrity.md) | A chain no longer recomputes, or the sweep that detects that has stopped | **critical** |
 | [taxonomy-misconfiguration.md](taxonomy-misconfiguration.md) | A control-plane change made a tenant's complaints stop making sense | warning |
 | [policy-rollback.md](policy-rollback.md) | A governed policy change made things worse; roll it back | warning |
+| [policy-certification-blocked.md](policy-certification-blocked.md) | An activation was refused because the candidate has no passing certificate | info |
 | [event-partition-maintenance.md](event-partition-maintenance.md) | Rows stranded in the DEFAULT partition; retention and archival | warning |
+
+### Trust & safety (Phase 8)
+
+Both pages open by saying that nothing is broken, and both mean it differently.
+§22.1 failing closed is the system *refusing* rather than degrading, which looks
+like an outage and is a control working. A review-queue backlog is neither — it
+is the one place in §11 where inaction has a cost and no alarm rings on its own.
+
+| Page | Covers | Severity |
+|---|---|---|
+| [media-redaction-unavailable.md](media-redaction-unavailable.md) | §22.1 face blur cannot run, so complaints with photographs halt | **critical** |
+| [review-queue-backlog.md](review-queue-backlog.md) | The §11.4 queue is filling faster than it is worked | warning |
 
 ### Public API & integrations (Phase 4)
 

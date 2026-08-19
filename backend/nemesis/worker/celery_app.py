@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from celery import Celery
-from celery.signals import worker_process_shutdown, worker_ready
+from celery.signals import worker_process_init, worker_process_shutdown, worker_ready
 
 from nemesis.config import get_settings
 from nemesis.observability.worker_metrics import (
@@ -184,6 +184,41 @@ def _start_metrics_export(**_: Any) -> None:
         # complaints the instant the worker came up.
         get_logger(__name__).info("worker_metrics_reset", stale_files_removed=removed)
     start_worker_metrics_server()
+
+
+@worker_process_init.connect
+def _install_stage_providers(**_: Any) -> None:
+    """Bind Phase 8's stage providers in *this* child process.
+
+    ``worker_process_init``, not ``worker_ready``. On the prefork pool the
+    parent forks its children and only then emits ``worker_ready``, so anything
+    registered in the parent at that point is registered in a process that never
+    executes a task. The provider registry is module-global, tasks run in the
+    children, and a registration the children do not have is a stage that
+    reports ``provider_unavailable`` and degrades every complaint — while the
+    parent's logs cheerfully say it was installed.
+
+    Imported inside the function rather than at module scope: this module is
+    imported by the API and by ``beat``, neither of which executes a stage, and
+    importing the trust package there would pull Pillow into two processes that
+    have no use for it.
+    """
+    from nemesis.observability.logging import get_logger
+    from nemesis.trust.providers import install_trust_workers
+
+    try:
+        install_trust_workers()
+    except Exception as exc:  # pragma: no cover — a broken import, not a data error
+        # Logged and re-raised. A worker that comes up without its providers
+        # accepts work it cannot do and degrades every complaint routed to it,
+        # which looks like a data problem for as long as it takes somebody to
+        # read the startup logs. Failing here fails the container instead.
+        get_logger(__name__).error(
+            "stage_provider_registration_failed",
+            error_type=type(exc).__name__,
+            consequence="this worker would degrade every complaint it accepted",
+        )
+        raise
 
 
 @worker_process_shutdown.connect

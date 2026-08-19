@@ -172,6 +172,16 @@ _TRUNCATED_TABLES = (
     # a singleton row created by the migration, and truncating it would delete
     # the row the fan-out locks — which fails as `scalar_one()` finding no rows,
     # in whichever webhook test happened to run first.
+    # Phase 7 simulation tables. Reached by CASCADE from `tenants` like every
+    # other scoped table, and named anyway for the reason the Phase 5 block is:
+    # this tuple is the readable answer to "what does a test start with", and a
+    # table that is only ever cleaned as a side effect of another one's cascade
+    # is a table nobody notices when the cascade path changes.
+    "policy_certificates",
+    "evaluation_labels",
+    "evaluation_sets",
+    "shadow_observations",
+    "simulation_runs",
     "api_key_usage",
     "api_keys",
     "webhook_deliveries",

@@ -133,6 +133,53 @@ _FLAGS: tuple[FlagSpec, ...] = (
         blueprint="27.3",
     ),
     _spec(
+        name="simulation_shadow_mode",
+        description=(
+            "Evaluate candidate policies alongside the live ones and record what "
+            "they would have decided. Killing this stops the observation only — no "
+            "decision changes, because shadow mode never made one. It exists "
+            "because the work is unbounded by design (every complaint, no "
+            "sampling), and the handle to stop it has to be reachable without a "
+            "deploy on the day somebody points it at a year of traffic."
+        ),
+        owner="DATA",
+        default=True,
+        created=date(2026, 8, 19),
+        remove_by=date(2027, 8, 19),
+        kill_switch=True,
+        blueprint="13.3",
+    ),
+    _spec(
+        name="trust_abuse_detection",
+        description=(
+            "Run the §11.3 coordinated-abuse detectors — device velocity and "
+            "geographic clustering. Killing this stops both from firing; nothing "
+            "else changes, because §11.3 flags and never blocks. It exists "
+            "because these two are the noisiest heuristics in the phase: a "
+            "genuine street-level incident produces exactly the pattern the "
+            "cluster detector looks for, and the handle to stop a review queue "
+            "filling with one flood has to be reachable without a deploy."
+        ),
+        owner="DATA",
+        default=True,
+        created=date(2026, 8, 19),
+        remove_by=date(2027, 8, 19),
+        kill_switch=True,
+        blueprint="11.3",
+    ),
+    # **There is deliberately no kill switch for face blur or for the safety
+    # fail-safe**, and the absence is a decision rather than an oversight.
+    #
+    # §22.1 is a legal obligation and §11.2 is the control whose whole design
+    # argument is that false negatives on danger signals are unacceptable. A
+    # documented, one-command way to turn either off is a documented way to
+    # cause a privacy breach or miss a gas leak — and a switch that exists gets
+    # pulled on the afternoon the queue is backed up and somebody is under
+    # pressure. Both fail *closed* instead: no face detector means the trust
+    # stage halts the complaint for human review (never serves an unblurred
+    # image), and a safety ruleset with every rule inactive is refused by
+    # ``SafetyRuleset`` at validation time.
+    _spec(
         name="experience_webgl_scenes",
         description=(
             "Render the Three.js severity map. Killing this drops every client to "

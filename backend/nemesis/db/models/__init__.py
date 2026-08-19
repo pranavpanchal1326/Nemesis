@@ -42,8 +42,20 @@ from nemesis.db.models.organisation import (
 )
 from nemesis.db.models.outbox import OutboxMessage, PipelineDeadLetter
 from nemesis.db.models.policy import PolicyVersion
+from nemesis.db.models.simulation import (
+    EvaluationLabel,
+    EvaluationSet,
+    PolicyCertificate,
+    ShadowObservation,
+    SimulationRun,
+)
 from nemesis.db.models.taxonomy import TaxonomyNode, TaxonomyPromptSet
 from nemesis.db.models.tenant import Tenant
+from nemesis.db.models.trust import (
+    ReviewDecision,
+    ReviewQueueItem,
+    SubmissionMedia,
+)
 from nemesis.db.models.work_order import BudgetAllocation, WorkOrder
 from nemesis.tenancy.registry import TENANT_COLUMN, register_tenant_scoped_table
 
@@ -63,14 +75,22 @@ __all__ = [
     "Contractor",
     "ContractorCertification",
     "Department",
+    "EvaluationLabel",
+    "EvaluationSet",
     "Event",
     "EventChainHead",
     "EventIdempotency",
     "EventSnapshot",
     "OutboxMessage",
     "PipelineDeadLetter",
+    "PolicyCertificate",
     "PolicyVersion",
+    "ReviewDecision",
+    "ReviewQueueItem",
+    "ShadowObservation",
     "Shift",
+    "SimulationRun",
+    "SubmissionMedia",
     "TaxonomyNode",
     "TaxonomyPromptSet",
     "Tenant",

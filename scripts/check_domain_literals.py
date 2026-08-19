@@ -61,14 +61,29 @@ DOMAIN_PACKAGES = (
     "nemesis/events",
     "nemesis/ingest",
     "nemesis/pipeline",
+    "nemesis/policy",
     "nemesis/projections",
     "nemesis/realtime",
+    "nemesis/simulation",
+    # Phase 8. Listed from its first commit, for the reason `policy` teaches by
+    # having been missed: a package added to the codebase but not to this tuple
+    # is a package this check reports "clean" for without reading.
+    "nemesis/trust",
 )
 
 #: Files inside a domain package that may carry an otherwise-flagged literal,
 #: each with the reason. Membership is not a bypass — it is a claim somebody has
 #: to defend in review, which is the same standard ``UNSCOPED_TABLES`` applies.
 EXEMPT_MODULES: dict[str, str] = {
+    "nemesis/policy/baselines.py": (
+        "the platform *baseline* documents — the starting rubric, bands, SLA "
+        "matrix and safety ruleset a tenant is provisioned with and may revise "
+        "without a deploy. Critique-log defect #1 is safety keywords in source "
+        "*deciding* things; these decide nothing a tenant cannot override, and "
+        "they are the same class of artefact as control_plane/templates, which "
+        "this check exempts by leaving the whole package out. Listing the one "
+        "file instead means the rest of nemesis/policy is checked"
+    ),
     "nemesis/db/models/i18n.py": (
         "declares the translation namespaces themselves; naming 'taxonomy' as a "
         "namespace is not the same as naming a category"

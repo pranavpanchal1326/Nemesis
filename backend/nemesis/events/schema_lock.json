@@ -1,5 +1,11 @@
 {
   "events": {
+    "abuse_pattern_flagged@1": {
+      "entity_type": "complaint",
+      "fingerprint": "993759557a732683468d20b05f8abc94fbec1d5d9b98cd457a4477ce46e301c4",
+      "has_upcaster": false,
+      "model": "AbusePatternFlaggedV1"
+    },
     "admin_action@1": {
       "entity_type": "admin_action",
       "fingerprint": "069fde268974f0a08e9a2a2ac2fc18fd186e56a645953fae870599d5d736784d",
@@ -54,11 +60,29 @@
       "has_upcaster": false,
       "model": "ComplaintSubmittedV1"
     },
+    "evaluation_set_published@1": {
+      "entity_type": "tenant",
+      "fingerprint": "e91aee664f329f3b145eb53a733652c31709dfdac73d54e4961d5ac3ee561d41",
+      "has_upcaster": false,
+      "model": "EvaluationSetPublishedV1"
+    },
+    "evaluation_set_retired@1": {
+      "entity_type": "tenant",
+      "fingerprint": "bc9aba56bdde3404f2ca47b4b5bb43ed6e37bb523b526ca8133941dd83725699",
+      "has_upcaster": false,
+      "model": "EvaluationSetRetiredV1"
+    },
     "exif_check_completed@1": {
       "entity_type": "complaint",
       "fingerprint": "b234ea60a075cafd4b74ef9525d2af3e57a7b2a4facd2ded48287376bcf859b1",
       "has_upcaster": false,
       "model": "ExifCheckCompletedV1"
+    },
+    "media_redacted@1": {
+      "entity_type": "complaint",
+      "fingerprint": "0a5d43d73889adb588b7e394c6b579ad6908086561b0d4617b490160b78bd144",
+      "has_upcaster": false,
+      "model": "MediaRedactedV1"
     },
     "organisation_changed@1": {
       "entity_type": "tenant",
@@ -66,11 +90,29 @@
       "has_upcaster": false,
       "model": "OrganisationChangedV1"
     },
+    "perceptual_duplicate_detected@1": {
+      "entity_type": "complaint",
+      "fingerprint": "615b40312f6227504567907bcb42dc066e4f71b08c598ad64160f364b52d3723",
+      "has_upcaster": false,
+      "model": "PerceptualDuplicateDetectedV1"
+    },
     "pipeline_stage_degraded@1": {
       "entity_type": "complaint",
       "fingerprint": "1356f6f3c419e48e6d968837077d13a71b9f275b7c431cdf40a55221f5111301",
       "has_upcaster": false,
       "model": "PipelineStageDegradedV1"
+    },
+    "policy_certification_waived@1": {
+      "entity_type": "tenant",
+      "fingerprint": "f6f98c7cc68fd6f012c6a949bc56cc27fe36c90b58999ac1b405cb252d7cb436",
+      "has_upcaster": false,
+      "model": "PolicyCertificationWaivedV1"
+    },
+    "policy_certified@1": {
+      "entity_type": "tenant",
+      "fingerprint": "531b6e2ef0ce351b1c49d8b22c2a473134a9d745bc22f4e449b0c957f58de5f2",
+      "has_upcaster": false,
+      "model": "PolicyCertifiedV1"
     },
     "policy_drafted@1": {
       "entity_type": "tenant",
@@ -83,6 +125,18 @@
       "fingerprint": "0f7398c81c08757247b20a36999e885cdb5f04e00f8145c0b4db5993c242fdfe",
       "has_upcaster": false,
       "model": "PolicyTransitionedV1"
+    },
+    "review_decided@1": {
+      "entity_type": "complaint",
+      "fingerprint": "098a15b178db34140a709923646f1ff448add00c5d4b61426122fd6162b7d0bd",
+      "has_upcaster": false,
+      "model": "ReviewDecidedV1"
+    },
+    "review_queued@1": {
+      "entity_type": "complaint",
+      "fingerprint": "9ccb0de84c2ec063b137379227e749c1a9e45abc2e9479d2ea3ce5d2d666f2bf",
+      "has_upcaster": false,
+      "model": "ReviewQueuedV1"
     },
     "safety_trigger_fired@1": {
       "entity_type": "complaint",
