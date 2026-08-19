@@ -48,7 +48,7 @@ dependencies = [
     # three could be exercised in the API image the test suite runs in — so the
     # part of the trust spine with a legal obligation attached would have been
     # the part with no unit tests. Pillow is a ~4MB wheel with no torch in it.
-    "pillow>=11.0.0",
+    "pillow>=12.3.0",
 ]
 
 [project.optional-dependencies]
