@@ -70,6 +70,15 @@ nem psql           # open a shell on the database
 nem help           # everything else
 ```
 
+`nem check` deliberately does **not** run the perception harness. It needs the
+`ml` image and several minutes of real inference, which is the wrong shape for a
+command you run before every commit — so it is its own command, and it is the
+one to run after touching a prompt set, a checkpoint, or the scoring rule:
+
+```bash
+nem f1             # measure per-category F1 and rewrite docs/reports/perception-f1.md
+```
+
 ## Optional: pre-commit hooks
 
 ```bash

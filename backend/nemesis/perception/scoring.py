@@ -21,9 +21,23 @@ negative prompts because CLIP is a comparison and not a detector: with no
 contrast set, every image is whichever category was listed first, at a
 confidence that looks entirely credible. Subtracting a negative score from a
 positive one would let a strong negative push a category *below* an unrelated
-one it never competed with. Entering them into the same softmax makes them do
-what they are for — take probability mass away from the category they contradict,
-and from nothing else.
+one it never competed with, so instead each negative pool enters the same
+softmax as an extra competitor.
+
+**What that does and does not do, stated precisely, because an earlier version of
+this paragraph got it wrong.** A softmax denominator is shared, so a negative
+that matches strongly suppresses the confidence of *every* category, not only the
+one whose prompt set it belongs to. It therefore does two things: it stops a
+report that matches nothing from being assigned the least-bad category at a
+credible-looking confidence (which is what it is for), and it lowers confidences
+across the board, which pushes borderline reports toward the §24.2 abstain path.
+It does **not** selectively penalise its own category relative to the others —
+the ranking among positives is untouched by any negative. A design where a
+negative penalises only its owner is a per-category contrast rather than a shared
+softmax; it is a real alternative, it is not what ships today, and the two have
+not been measured against each other. Recorded here rather than implied, because
+the difference is invisible in the output and a reader would reasonably assume
+the stronger property.
 
 *Temperature is per category and comes from a governed document.* Raw CLIP
 cosines live in a narrow band (roughly 0.15 to 0.35 for ViT-B-32), so an
@@ -36,6 +50,16 @@ prompts sit low. The numbers come from ``PerceptionCalibration`` rather than fro
 this file, because they are measured from a tenant's own data and must be
 approvable, effective-dated, and simulatable — which is Phase 6 and Phase 7's
 whole point.
+
+*Bias is applied in similarity space, before the temperature, and it is what
+makes a per-category temperature legal at all.* ``logit = (cosine + bias) /
+temperature``. A softmax is invariant to a shift applied to every logit, so a
+single global temperature needs no offset — but the moment two categories divide
+by different temperatures, their logits are on different scales and the one with
+the smaller temperature wins everything regardless of the similarities. The bias
+is the per-category centre that puts them back on a common scale, which is why it
+is a *cosine* (bounded, readable by an approver, in the model's own units) rather
+than a raw logit offset in the hundreds.
 
 *Abstention is an outcome, not a failure.* Below the floor, or with too small a
 margin over the runner-up, this returns no category. §24.2's degraded path then
@@ -87,6 +111,8 @@ class Calibration:
     """
 
     temperature: float
+    #: Added to the cosine *before* the temperature divides it. See the module
+    #: docstring: it is the per-category centre, in similarity units.
     bias: float = 0.0
     #: Confidence below which no category is claimed.
     abstain_below: float = 0.0
@@ -113,6 +139,17 @@ class ScoreResult:
     raw_similarities: dict[str, float]
     abstained: bool
     abstain_reason: str | None = None
+    #: The highest-ranked category, **whether or not it was claimed**.
+    #:
+    #: Carried separately from ``category`` because an abstention has a winner it
+    #: declined to name, and ``alternatives`` is everything *except* that winner —
+    #: so a caller reading the top of ``alternatives`` on an abstained result
+    #: gets the runner-up while believing it has the winner. That is not a
+    #: hypothetical: it is the defect the validation harness found on its first
+    #: real run, where it turned a 70%-correct ranking into a forced-choice
+    #: accuracy indistinguishable from chance, in a number nobody would have
+    #: known to disbelieve.
+    top_category: str | None = None
 
     @property
     def decided(self) -> bool:
@@ -155,15 +192,23 @@ def score_against(
 
         best_positive = max(cosine(embedding, vector) for vector in entry.positives)
         raw[entry.category] = round(best_positive, 6)
-        pooled[entry.category] = best_positive / temperature + settings.bias
+        pooled[entry.category] = (best_positive + settings.bias) / temperature
 
         if entry.negatives:
             best_negative = max(cosine(embedding, vector) for vector in entry.negatives)
-            # The negative pool uses the same temperature and *no* bias. Bias is
-            # a correction on a category's measured curve; applying it to the
-            # contrast pool would move the thing the correction is measured
-            # against, which makes the calibration self-referential.
-            contrast[entry.category] = best_negative / temperature
+            # **The same affine transform as the positive pool, bias included.**
+            # A category's negative prompts describe the same category from the
+            # other side; they live on its similarity scale and nowhere else. An
+            # earlier version applied the temperature here and not the bias, on
+            # the reasoning that a correction should not move what it is measured
+            # against — which is a coherent argument and is wrong once the bias is
+            # a *centring* rather than a nudge. At a fitted temperature of 0.006
+            # an uncentred contrast logit is ~140 while the centred positives sit
+            # near zero, so every category's contrast takes the entire softmax
+            # and the layer abstains on everything. That is what it did, on the
+            # harness's first real run, and the arithmetic reason is exactly this
+            # line.
+            contrast[entry.category] = (best_negative + settings.bias) / temperature
 
     probabilities = _softmax({**pooled, **{f"\0{k}": v for k, v in contrast.items()}})
     # Drop the contrast entries after the normalisation they exist to affect.
@@ -191,6 +236,7 @@ def score_against(
                 f"top category {winner!r} reached {confidence:.3f}, below the "
                 f"{settings.abstain_below:.3f} floor its calibration sets"
             ),
+            top_category=winner,
         )
     if settings.min_margin > 0.0 and margin < settings.min_margin:
         return ScoreResult(
@@ -205,6 +251,7 @@ def score_against(
                 f"{settings.min_margin:.3f} margin its calibration requires; two "
                 f"categories this close is a question for a human, not a coin flip"
             ),
+            top_category=winner,
         )
 
     return ScoreResult(
@@ -214,6 +261,7 @@ def score_against(
         alternatives=alternatives,
         raw_similarities=raw,
         abstained=False,
+        top_category=winner,
     )
 
 
@@ -271,6 +319,103 @@ def combine(
         alternatives={key: round(value, 6) for key, value in ranked[1:]},
         raw_similarities={**text.raw_similarities, **image.raw_similarities},
         abstained=False,
+        top_category=winner,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class Decision:
+    """The fused verdict plus whether the tenant's calibration permits claiming it.
+
+    **Why this is a return value rather than an exception.** The pipeline stage
+    turns an abstention into ``StageAbstainedError`` because that is what §24.2's
+    degraded path is wired to; the validation harness has to *count* abstentions
+    across a corpus and cannot do that against a control-flow exception without
+    catching one per example. Returning the decision and letting the stage raise
+    keeps one rule in one place with two callers, which is the only arrangement
+    where the published F1 number is a measurement of the shipped behaviour
+    rather than of a re-implementation that agrees with it today.
+    """
+
+    category: str | None
+    confidence: float
+    margin: float
+    abstained: bool
+    abstain_reason: str | None
+    #: The full fused distribution, kept so a caller can report the runner-up of
+    #: an abstention — which is the single most useful thing to know about one.
+    fused: ScoreResult
+
+
+def decide(
+    image: ScoreResult | None,
+    text: ScoreResult | None,
+    *,
+    calibration: Mapping[str, Calibration],
+    default: Calibration,
+    image_weight: float,
+) -> Decision:
+    """Fuse the modalities and apply the tenant's abstain rule to the result.
+
+    **The abstain decision is taken on the fused result, against the winner's own
+    calibration entry.** Taking it per modality would abstain on a photograph
+    that is ambiguous alone and decisive alongside the description — which is the
+    case fusion exists for.
+    """
+    fused = combine(image, text, image_weight=image_weight)
+
+    # **A single-modality result passes through ``combine`` unchanged, abstention
+    # and all, so its own reason has to survive.** Without this branch, a report
+    # that abstained on the *margin* is re-reported here as having failed the
+    # *floor* — because ``fused.category`` is ``None`` and the floor branch below
+    # tests exactly that. The wrong message is worse than no message: "reached
+    # 0.500, below the 0.150 floor" is arithmetic nobody can reconcile, and the
+    # person reading it is looking at a report the system declined to route.
+    if fused.abstained:
+        return Decision(
+            category=None,
+            confidence=fused.confidence,
+            margin=fused.margin,
+            abstained=True,
+            abstain_reason=fused.abstain_reason,
+            fused=fused,
+        )
+
+    entry = calibration.get(fused.category or "", default)
+
+    if fused.category is None or fused.confidence < entry.abstain_below:
+        return Decision(
+            category=None,
+            confidence=fused.confidence,
+            margin=fused.margin,
+            abstained=True,
+            abstain_reason=(
+                f"the best category reached {fused.confidence:.3f}, below the "
+                f"{entry.abstain_below:.3f} floor this tenant's approved calibration sets. "
+                f"Parking the report for a human is the designed outcome, not a failure"
+            ),
+            fused=fused,
+        )
+    if entry.min_margin > 0.0 and fused.margin < entry.min_margin:
+        return Decision(
+            category=None,
+            confidence=fused.confidence,
+            margin=fused.margin,
+            abstained=True,
+            abstain_reason=(
+                f"{fused.category!r} led the runner-up by {fused.margin:.3f}, under the "
+                f"{entry.min_margin:.3f} margin required. Two categories this close is a "
+                f"question for a human, not a coin flip"
+            ),
+            fused=fused,
+        )
+    return Decision(
+        category=fused.category,
+        confidence=fused.confidence,
+        margin=fused.margin,
+        abstained=False,
+        abstain_reason=None,
+        fused=fused,
     )
 
 
@@ -310,7 +455,9 @@ __all__ = [
     "MIN_TEMPERATURE",
     "Calibration",
     "CategoryVectors",
+    "Decision",
     "ScoreResult",
     "combine",
+    "decide",
     "score_against",
 ]

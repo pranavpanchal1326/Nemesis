@@ -507,6 +507,56 @@ def _gate_phase8(_: list[str]) -> int:
     return run([sys.executable, "scripts/gate_phase8.py"])
 
 
+@task("f1", "Phase 9: measure per-category precision/recall/F1 and publish the report")
+def _f1(args: list[str]) -> int:
+    """The one command Phase 9's gate names.
+
+    Runs inside `worker-ml` because that is the only image carrying the ml
+    extra, and a number measured anywhere else would be a number about a
+    deterministic fake. The artefacts are written into the container's copy of
+    `./backend` — the only path mounted from the host — and moved into
+    `docs/reports/` here, because a bind mount for `docs/` would exist solely so
+    one script could write to it.
+    """
+    staging = ROOT / "backend" / ".f1-report"
+    reports = ROOT / "docs" / "reports"
+    code = run(
+        [
+            *COMPOSE,
+            "exec",
+            "-T",
+            "worker-ml",
+            "sh",
+            "-c",
+            "PYTHONPATH=/app python scripts/eval_perception.py --out /app/.f1-report "
+            + " ".join(args),
+        ]
+    )
+    try:
+        if code == 0 and staging.is_dir():
+            reports.mkdir(parents=True, exist_ok=True)
+            for artefact in sorted(staging.iterdir()):
+                shutil.copy2(artefact, reports / artefact.name)
+                print(f"  wrote docs/reports/{artefact.name}")
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    return code
+
+
+@task("gate-phase9", "Phase 9 gate: reproduce the F1 report, then classify an invented category")
+def _gate_phase9(_: list[str]) -> int:
+    """Four clauses, and none of them can be checked from inside the test suite.
+
+    The published number has to be *reproducible*, which means running the
+    command again in the container that has the models. The new-category clause
+    has to be *without a deploy*, which means comparing the API container's
+    identity across the run. And the latency clause says "measured not
+    estimated", which means measuring it here rather than reading it off a
+    budget.
+    """
+    return run([sys.executable, "scripts/gate_phase9.py"])
+
+
 @task("api-lock", "Re-lock the published API contract after a deliberate change")
 def _api_lock(_: list[str]) -> int:
     """Deliberately separate from `nem check`.
