@@ -55,7 +55,7 @@ from nemesis.perception.encoders import (
     encoder_is_registered,
 )
 from nemesis.perception.errors import EncoderUnavailableError, PromptSetUnavailableError
-from nemesis.perception.scoring import ScoreResult, combine, score_against
+from nemesis.perception.scoring import ScoreResult, decide, score_against
 from nemesis.pipeline.stages import (
     EmittedEvent,
     StageAbstainedError,
@@ -95,6 +95,12 @@ class _Perceived:
     image_vector: tuple[float, ...] | None = None
     text_vector: tuple[float, ...] | None = None
     visual_matches: tuple[str, ...] = ()
+    #: (encoder, locale) pairs the tenant has authored no prompts for. Collected
+    #: rather than raised so the abstention message can name the configuration
+    #: gap instead of claiming the submission carried nothing scoreable — which
+    #: is the difference between an operator fixing it in a minute and an
+    #: operator opening a model investigation.
+    prompts_missing: list[str] = field(default_factory=list)
     model_ids: dict[str, str] = field(default_factory=dict)
     prompt_version: str = ""
 
@@ -387,6 +393,17 @@ async def _score_image(
     visible rather than showing up as a slow drift in accuracy. With no text to
     fall back to there is nothing to score, and that is permanent: a file that
     will not decode will not decode in thirty seconds either.
+
+    **A tenant with no CLIP prompts is a configuration gap, not a stage failure,
+    and it is handled here exactly as the text side handles its own version.**
+    An earlier revision let ``PromptSetUnavailableError`` propagate out of this
+    function, which meant a tenant who had authored text prompts and no image
+    prompts had *every photographed report* retried three times and then degraded
+    to ``pending_classification`` — including reports whose description the text
+    side would have classified correctly. The asymmetry was backwards: the image
+    modality is the optional one when the tenant has not configured it. The
+    embedding is kept regardless, because Phase 10's dedup needs it whether or
+    not anything was scored against it.
     """
     try:
         data = media.redacted_image_bytes(ctx.state)
@@ -408,21 +425,37 @@ async def _score_image(
     perceived.image_vector = vector
     perceived.model_ids[EncoderKind.IMAGE.value] = encoder.model_id
 
-    bundle = await prompts.load_bundle(
-        ctx.session,
-        tenant_id=ctx.tenant_id,
-        locale=locale,
-        encoder=prompts.ENCODER_IMAGE,
-        fallback_locales=locales,
-    )
-    embedded = prompts.embed(bundle, encoder=encoder)
-    perceived.prompt_version = bundle.version
-    perceived.image_result = score_against(
-        vector,
-        embedded.categories,
-        calibration=calibration_module.per_category(policy),
-        default=calibration_module.default_of(policy),
-    )
+    try:
+        bundle = await prompts.load_bundle(
+            ctx.session,
+            tenant_id=ctx.tenant_id,
+            locale=locale,
+            encoder=prompts.ENCODER_IMAGE,
+            fallback_locales=locales,
+        )
+    except PromptSetUnavailableError as exc:
+        perceived.prompts_missing.append(f"{prompts.ENCODER_IMAGE}/{locale or '(none)'}")
+        log.info(
+            "image_prompts_absent",
+            complaint_id=str(ctx.complaint_id),
+            reason=str(exc)[:200],
+            note="scoring falls back to the text modality; the image embedding is still "
+            "stored, and the §11.2 visual pass below still runs",
+        )
+    else:
+        embedded = prompts.embed(bundle, encoder=encoder)
+        perceived.prompt_version = bundle.version
+        perceived.image_result = score_against(
+            vector,
+            embedded.categories,
+            calibration=calibration_module.per_category(policy),
+            default=calibration_module.default_of(policy),
+        )
+
+    # Outside the branch on purpose. §11.2's visual prompts come from the safety
+    # ruleset, not from the taxonomy, so a tenant with no CLIP *category* prompts
+    # still has a working visual half to its danger rules — and skipping it here
+    # would make the fail-safe depend on an unrelated piece of configuration.
     perceived.visual_matches = await _visual_safety_matches(
         ctx, policy=policy, encoder=encoder, vector=vector
     )
@@ -469,6 +502,7 @@ async def _score_text(
         # submission with a photograph still classifies. The embedding is kept
         # regardless, because Phase 10's dedup needs it whether or not anything
         # was scored against it.
+        perceived.prompts_missing.append(f"{prompts.ENCODER_TEXT}/{locale or '(none)'}")
         log.info(
             "text_prompts_absent",
             complaint_id=str(ctx.complaint_id),
@@ -560,39 +594,40 @@ def _conclude(
     """Emit the classification, or abstain and let §24.2 park the report."""
     if perceived.image_result is None and perceived.text_result is None:
         metrics.perception_classifications_total.labels(outcome="no_evidence").inc()
+        if perceived.prompts_missing:
+            # Distinguished from "nothing scoreable" deliberately. Both park the
+            # report, and only one of them is fixed by somebody typing prompts
+            # into the control plane — so they must not read the same in a log.
+            raise StageAbstainedError(
+                f"this tenant has authored no prompts for "
+                f"{', '.join(sorted(set(perceived.prompts_missing)))}, so there is "
+                f"nothing to score this submission against. The evidence is intact and "
+                f"the embeddings are stored; add the prompt sets through the taxonomy "
+                f"API and the next submission classifies. This is a configuration gap, "
+                f"not a model failure"
+            )
         raise StageAbstainedError(
             "this submission carries nothing scoreable — no photograph, and no text "
             "from either a description or a transcript. There is no category to claim "
             "and no evidence to claim it from"
         )
 
-    fused = combine(
+    # One decision rule, two callers. ``scoring.decide`` is also what the
+    # validation harness runs, which is what makes the published per-category F1
+    # a measurement of this stage rather than of a re-implementation that agrees
+    # with it on the day it was written.
+    decision = decide(
         perceived.image_result,
         perceived.text_result,
+        calibration=calibration_module.per_category(policy),
+        default=calibration_module.default_of(policy),
         image_weight=policy.image_weight,
     )
-
-    # The abstain decision is taken on the *fused* result, against the winner's
-    # own calibration entry. Taking it per modality would abstain on a
-    # photograph that is ambiguous alone and decisive alongside the description,
-    # which is the case fusion exists for.
-    entry = calibration_module.per_category(policy).get(
-        fused.category or "", calibration_module.default_of(policy)
-    )
-    if fused.category is None or fused.confidence < entry.abstain_below:
+    fused = decision.fused
+    if decision.abstained:
         metrics.perception_classifications_total.labels(outcome="abstained").inc()
-        raise StageAbstainedError(
-            f"the best category reached {fused.confidence:.3f}, below the "
-            f"{entry.abstain_below:.3f} floor this tenant's approved calibration sets. "
-            f"Parking the report for a human is the designed outcome, not a failure"
-        )
-    if entry.min_margin > 0.0 and fused.margin < entry.min_margin:
-        metrics.perception_classifications_total.labels(outcome="abstained").inc()
-        raise StageAbstainedError(
-            f"{fused.category!r} led the runner-up by {fused.margin:.3f}, under the "
-            f"{entry.min_margin:.3f} margin required. Two categories this close is a "
-            f"question for a human, not a coin flip"
-        )
+        assert decision.abstain_reason is not None
+        raise StageAbstainedError(decision.abstain_reason)
 
     metrics.perception_classifications_total.labels(outcome="classified").inc()
     metrics.perception_confidence.observe(fused.confidence)

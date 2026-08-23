@@ -91,3 +91,5 @@ The concrete signal that should reopen this decision.
 | [0031](0031-the-raw-photograph-persists-unreachably.md) | The raw photograph persists for §22.4's window, unreachable rather than absent | Accepted | DATA · SEC |
 | [0032](0032-a-missing-face-detector-halts-the-pipeline.md) | A missing face detector halts the complaint; §22.1 fails closed and has no kill switch | Accepted | SEC · DATA |
 | [0033](0033-abuse-detection-flags-and-cannot-block.md) | Coordinated-abuse detection flags, and the blocking path does not exist to be re-enabled | Accepted | DATA · SEC |
+| [0034](0034-the-published-f1-runs-the-shipped-decision-rule.md) | The published F1 runs the shipped decision rule, on a split the corpus computes | Accepted | DATA |
+| [0035](0035-per-category-temperature-requires-a-per-category-centre.md) | A per-category temperature requires a per-category centre, in similarity space | Accepted | DATA |

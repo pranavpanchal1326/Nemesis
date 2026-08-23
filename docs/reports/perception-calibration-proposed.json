@@ -1,0 +1,86 @@
+{
+  "image_weight": 0.45,
+  "categories": [
+    {
+      "category": "dead_animal",
+      "temperature": 0.007183,
+      "bias": -0.807627,
+      "abstain_below": 0.0958,
+      "min_margin": 0.05,
+      "sample_size": 54,
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+    },
+    {
+      "category": "exposed_cable",
+      "temperature": 0.008015,
+      "bias": -0.815316,
+      "abstain_below": 0.0958,
+      "min_margin": 0.05,
+      "sample_size": 54,
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+    },
+    {
+      "category": "footpath_damage",
+      "temperature": 0.00868,
+      "bias": -0.819681,
+      "abstain_below": 0.0958,
+      "min_margin": 0.05,
+      "sample_size": 54,
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+    },
+    {
+      "category": "garbage_pile",
+      "temperature": 0.006,
+      "bias": -0.830491,
+      "abstain_below": 0.0958,
+      "min_margin": 0.05,
+      "sample_size": 54,
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+    },
+    {
+      "category": "open_manhole",
+      "temperature": 0.008128,
+      "bias": -0.817432,
+      "abstain_below": 0.0958,
+      "min_margin": 0.05,
+      "sample_size": 54,
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+    },
+    {
+      "category": "pothole",
+      "temperature": 0.007109,
+      "bias": -0.816289,
+      "abstain_below": 0.0958,
+      "min_margin": 0.05,
+      "sample_size": 54,
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+    },
+    {
+      "category": "streetlight_out",
+      "temperature": 0.006,
+      "bias": -0.824984,
+      "abstain_below": 0.0958,
+      "min_margin": 0.05,
+      "sample_size": 54,
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+    },
+    {
+      "category": "water_leak",
+      "temperature": 0.008821,
+      "bias": -0.814944,
+      "abstain_below": 0.0958,
+      "min_margin": 0.05,
+      "sample_size": 54,
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+    },
+    {
+      "category": "waterlogging",
+      "temperature": 0.013502,
+      "bias": -0.832628,
+      "abstain_below": 0.0958,
+      "min_margin": 0.05,
+      "sample_size": 54,
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+    }
+  ]
+}

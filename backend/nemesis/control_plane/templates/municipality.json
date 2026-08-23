@@ -1,21 +1,74 @@
 {
   "name": "municipality",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "An Indian urban local body: wards, civic defect categories, a monsoon window, and a six-day working week.",
-  "locales": ["en", "hi", "mr"],
-
+  "locales": [
+    "en",
+    "hi",
+    "mr"
+  ],
   "calendars": [
     {
       "code": "civic-standard",
       "name": "Standard municipal working week",
       "is_default": true,
       "working_hours": {
-        "1": [{ "start": "10:00", "end": "13:30" }, { "start": "14:15", "end": "17:45" }],
-        "2": [{ "start": "10:00", "end": "13:30" }, { "start": "14:15", "end": "17:45" }],
-        "3": [{ "start": "10:00", "end": "13:30" }, { "start": "14:15", "end": "17:45" }],
-        "4": [{ "start": "10:00", "end": "13:30" }, { "start": "14:15", "end": "17:45" }],
-        "5": [{ "start": "10:00", "end": "13:30" }, { "start": "14:15", "end": "17:45" }],
-        "6": [{ "start": "10:00", "end": "13:30" }]
+        "1": [
+          {
+            "start": "10:00",
+            "end": "13:30"
+          },
+          {
+            "start": "14:15",
+            "end": "17:45"
+          }
+        ],
+        "2": [
+          {
+            "start": "10:00",
+            "end": "13:30"
+          },
+          {
+            "start": "14:15",
+            "end": "17:45"
+          }
+        ],
+        "3": [
+          {
+            "start": "10:00",
+            "end": "13:30"
+          },
+          {
+            "start": "14:15",
+            "end": "17:45"
+          }
+        ],
+        "4": [
+          {
+            "start": "10:00",
+            "end": "13:30"
+          },
+          {
+            "start": "14:15",
+            "end": "17:45"
+          }
+        ],
+        "5": [
+          {
+            "start": "10:00",
+            "end": "13:30"
+          },
+          {
+            "start": "14:15",
+            "end": "17:45"
+          }
+        ],
+        "6": [
+          {
+            "start": "10:00",
+            "end": "13:30"
+          }
+        ]
       },
       "exceptions": [
         {
@@ -41,14 +94,16 @@
       "is_continuous": true
     }
   ],
-
   "departments": [
     {
       "code": "OPS",
       "name": "Municipal Operations",
       "kind": "directorate",
       "is_assignable": false,
-      "translations": { "hi": "नगर संचालन", "mr": "नगर परिचालन" }
+      "translations": {
+        "hi": "नगर संचालन",
+        "mr": "नगर परिचालन"
+      }
     },
     {
       "code": "PW",
@@ -56,7 +111,10 @@
       "kind": "department",
       "parent_code": "OPS",
       "calendar_code": "civic-standard",
-      "translations": { "hi": "लोक निर्माण", "mr": "सार्वजनिक बांधकाम" }
+      "translations": {
+        "hi": "लोक निर्माण",
+        "mr": "सार्वजनिक बांधकाम"
+      }
     },
     {
       "code": "SWM",
@@ -64,7 +122,10 @@
       "kind": "department",
       "parent_code": "OPS",
       "calendar_code": "civic-standard",
-      "translations": { "hi": "ठोस अपशिष्ट प्रबंधन", "mr": "घनकचरा व्यवस्थापन" }
+      "translations": {
+        "hi": "ठोस अपशिष्ट प्रबंधन",
+        "mr": "घनकचरा व्यवस्थापन"
+      }
     },
     {
       "code": "WATER",
@@ -72,7 +133,10 @@
       "kind": "department",
       "parent_code": "OPS",
       "calendar_code": "civic-standard",
-      "translations": { "hi": "जल आपूर्ति एवं मलनिकास", "mr": "पाणीपुरवठा व मलनिस्सारण" }
+      "translations": {
+        "hi": "जल आपूर्ति एवं मलनिकास",
+        "mr": "पाणीपुरवठा व मलनिस्सारण"
+      }
     },
     {
       "code": "ELEC",
@@ -80,7 +144,10 @@
       "kind": "department",
       "parent_code": "OPS",
       "calendar_code": "civic-standard",
-      "translations": { "hi": "पथ प्रकाश", "mr": "पथदिवे" }
+      "translations": {
+        "hi": "पथ प्रकाश",
+        "mr": "पथदिवे"
+      }
     },
     {
       "code": "EMG",
@@ -88,16 +155,26 @@
       "kind": "cell",
       "parent_code": "OPS",
       "calendar_code": "control-room",
-      "translations": { "hi": "आपातकालीन प्रतिक्रिया कक्ष", "mr": "आपत्कालीन प्रतिसाद कक्ष" }
+      "translations": {
+        "hi": "आपातकालीन प्रतिक्रिया कक्ष",
+        "mr": "आपत्कालीन प्रतिसाद कक्ष"
+      }
     }
   ],
-
   "shifts": [
     {
       "department_code": "EMG",
       "code": "night",
       "name": "Night control room",
-      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "weekdays": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
       "starts_at": "20:00",
       "ends_at": "08:00"
     },
@@ -105,22 +182,61 @@
       "department_code": "SWM",
       "code": "early",
       "name": "Early collection round",
-      "weekdays": [1, 2, 3, 4, 5, 6],
+      "weekdays": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
       "starts_at": "06:00",
       "ends_at": "10:00"
     }
   ],
-
   "zones": [
-    { "code": "CITY", "name": "City", "kind": "city" },
-    { "code": "Z-EAST", "name": "East Zone", "kind": "zone", "parent_code": "CITY" },
-    { "code": "Z-WEST", "name": "West Zone", "kind": "zone", "parent_code": "CITY" },
-    { "code": "W-01", "name": "Ward 1", "kind": "ward", "parent_code": "Z-EAST" },
-    { "code": "W-02", "name": "Ward 2", "kind": "ward", "parent_code": "Z-EAST" },
-    { "code": "W-03", "name": "Ward 3", "kind": "ward", "parent_code": "Z-WEST" },
-    { "code": "W-04", "name": "Ward 4", "kind": "ward", "parent_code": "Z-WEST" }
+    {
+      "code": "CITY",
+      "name": "City",
+      "kind": "city"
+    },
+    {
+      "code": "Z-EAST",
+      "name": "East Zone",
+      "kind": "zone",
+      "parent_code": "CITY"
+    },
+    {
+      "code": "Z-WEST",
+      "name": "West Zone",
+      "kind": "zone",
+      "parent_code": "CITY"
+    },
+    {
+      "code": "W-01",
+      "name": "Ward 1",
+      "kind": "ward",
+      "parent_code": "Z-EAST"
+    },
+    {
+      "code": "W-02",
+      "name": "Ward 2",
+      "kind": "ward",
+      "parent_code": "Z-EAST"
+    },
+    {
+      "code": "W-03",
+      "name": "Ward 3",
+      "kind": "ward",
+      "parent_code": "Z-WEST"
+    },
+    {
+      "code": "W-04",
+      "name": "Ward 4",
+      "kind": "ward",
+      "parent_code": "Z-WEST"
+    }
   ],
-
   "taxonomy": [
     {
       "key": "roads",
@@ -128,8 +244,13 @@
       "is_selectable": false,
       "icon": "road",
       "sort_order": 10,
-      "routing_hints": { "department_code": "PW" },
-      "translations": { "hi": "सड़क और फुटपाथ", "mr": "रस्ते व पदपथ" }
+      "routing_hints": {
+        "department_code": "PW"
+      },
+      "translations": {
+        "hi": "सड़क और फुटपाथ",
+        "mr": "रस्ते व पदपथ"
+      }
     },
     {
       "key": "pothole",
@@ -137,34 +258,64 @@
       "display_name": "Pothole",
       "icon": "pothole",
       "sort_order": 11,
-      "severity_semantics": { "floor": 2.0, "multiplier": 1.0 },
-      "routing_hints": { "department_code": "PW", "default_sla_tier": "medium" },
-      "translations": { "hi": "गड्ढा", "mr": "खड्डा" }
+      "severity_semantics": {
+        "floor": 2.0,
+        "multiplier": 1.0
+      },
+      "routing_hints": {
+        "department_code": "PW",
+        "default_sla_tier": "medium"
+      },
+      "translations": {
+        "hi": "गड्ढा",
+        "mr": "खड्डा"
+      }
     },
     {
       "key": "footpath_damage",
       "parent_key": "roads",
       "display_name": "Damaged footpath",
       "sort_order": 12,
-      "routing_hints": { "department_code": "PW", "default_sla_tier": "low" },
-      "translations": { "hi": "क्षतिग्रस्त फुटपाथ", "mr": "खराब पदपथ" }
+      "routing_hints": {
+        "department_code": "PW",
+        "default_sla_tier": "low"
+      },
+      "translations": {
+        "hi": "क्षतिग्रस्त फुटपाथ",
+        "mr": "खराब पदपथ"
+      }
     },
     {
       "key": "open_manhole",
       "parent_key": "roads",
       "display_name": "Open or missing manhole cover",
       "sort_order": 13,
-      "severity_semantics": { "floor": 8.0, "multiplier": 1.0, "bypasses_scoring": true },
-      "routing_hints": { "department_code": "EMG", "default_sla_tier": "urgent" },
-      "translations": { "hi": "खुला मैनहोल", "mr": "उघडे मॅनहोल" }
+      "severity_semantics": {
+        "floor": 8.0,
+        "multiplier": 1.0,
+        "bypasses_scoring": true
+      },
+      "routing_hints": {
+        "department_code": "EMG",
+        "default_sla_tier": "urgent"
+      },
+      "translations": {
+        "hi": "खुला मैनहोल",
+        "mr": "उघडे मॅनहोल"
+      }
     },
     {
       "key": "waste",
       "display_name": "Waste and sanitation",
       "is_selectable": false,
       "sort_order": 20,
-      "routing_hints": { "department_code": "SWM" },
-      "translations": { "hi": "कचरा और स्वच्छता", "mr": "कचरा व स्वच्छता" }
+      "routing_hints": {
+        "department_code": "SWM"
+      },
+      "translations": {
+        "hi": "कचरा और स्वच्छता",
+        "mr": "कचरा व स्वच्छता"
+      }
     },
     {
       "key": "garbage_pile",
@@ -172,25 +323,45 @@
       "display_name": "Uncollected garbage",
       "icon": "waste",
       "sort_order": 21,
-      "routing_hints": { "department_code": "SWM", "default_sla_tier": "medium" },
-      "translations": { "hi": "बिना उठाया कचरा", "mr": "न उचललेला कचरा" }
+      "routing_hints": {
+        "department_code": "SWM",
+        "default_sla_tier": "medium"
+      },
+      "translations": {
+        "hi": "बिना उठाया कचरा",
+        "mr": "न उचललेला कचरा"
+      }
     },
     {
       "key": "dead_animal",
       "parent_key": "waste",
       "display_name": "Dead animal",
       "sort_order": 22,
-      "severity_semantics": { "floor": 5.0, "multiplier": 1.0 },
-      "routing_hints": { "department_code": "SWM", "default_sla_tier": "high" },
-      "translations": { "hi": "मृत पशु", "mr": "मृत जनावर" }
+      "severity_semantics": {
+        "floor": 5.0,
+        "multiplier": 1.0
+      },
+      "routing_hints": {
+        "department_code": "SWM",
+        "default_sla_tier": "high"
+      },
+      "translations": {
+        "hi": "मृत पशु",
+        "mr": "मृत जनावर"
+      }
     },
     {
       "key": "water",
       "display_name": "Water and drainage",
       "is_selectable": false,
       "sort_order": 30,
-      "routing_hints": { "department_code": "WATER" },
-      "translations": { "hi": "जल और निकासी", "mr": "पाणी व निचरा" }
+      "routing_hints": {
+        "department_code": "WATER"
+      },
+      "translations": {
+        "hi": "जल और निकासी",
+        "mr": "पाणी व निचरा"
+      }
     },
     {
       "key": "water_leak",
@@ -198,37 +369,70 @@
       "display_name": "Water pipeline leak",
       "icon": "water",
       "sort_order": 31,
-      "severity_semantics": { "floor": 3.0, "multiplier": 1.2 },
-      "routing_hints": { "department_code": "WATER", "default_sla_tier": "high" },
-      "translations": { "hi": "जल पाइपलाइन रिसाव", "mr": "जलवाहिनी गळती" }
+      "severity_semantics": {
+        "floor": 3.0,
+        "multiplier": 1.2
+      },
+      "routing_hints": {
+        "department_code": "WATER",
+        "default_sla_tier": "high"
+      },
+      "translations": {
+        "hi": "जल पाइपलाइन रिसाव",
+        "mr": "जलवाहिनी गळती"
+      }
     },
     {
       "key": "waterlogging",
       "parent_key": "water",
       "display_name": "Waterlogging",
       "sort_order": 32,
-      "severity_semantics": { "floor": 4.0, "multiplier": 1.3 },
-      "routing_hints": { "department_code": "WATER", "default_sla_tier": "high" },
-      "translations": { "hi": "जलभराव", "mr": "पाणी साचणे" }
+      "severity_semantics": {
+        "floor": 4.0,
+        "multiplier": 1.3
+      },
+      "routing_hints": {
+        "department_code": "WATER",
+        "default_sla_tier": "high"
+      },
+      "translations": {
+        "hi": "जलभराव",
+        "mr": "पाणी साचणे"
+      }
     },
     {
       "key": "streetlight_out",
       "display_name": "Street light not working",
       "icon": "lamp",
       "sort_order": 40,
-      "routing_hints": { "department_code": "ELEC", "default_sla_tier": "medium" },
-      "translations": { "hi": "स्ट्रीट लाइट बंद", "mr": "पथदिवा बंद" }
+      "routing_hints": {
+        "department_code": "ELEC",
+        "default_sla_tier": "medium"
+      },
+      "translations": {
+        "hi": "स्ट्रीट लाइट बंद",
+        "mr": "पथदिवा बंद"
+      }
     },
     {
       "key": "exposed_cable",
       "display_name": "Exposed electrical cable",
       "sort_order": 41,
-      "severity_semantics": { "floor": 9.0, "multiplier": 1.0, "bypasses_scoring": true },
-      "routing_hints": { "department_code": "EMG", "default_sla_tier": "urgent" },
-      "translations": { "hi": "खुला बिजली का तार", "mr": "उघडी वीज तार" }
+      "severity_semantics": {
+        "floor": 9.0,
+        "multiplier": 1.0,
+        "bypasses_scoring": true
+      },
+      "routing_hints": {
+        "department_code": "EMG",
+        "default_sla_tier": "urgent"
+      },
+      "translations": {
+        "hi": "खुला बिजली का तार",
+        "mr": "उघडी वीज तार"
+      }
     }
   ],
-
   "prompt_sets": [
     {
       "node_key": "pothole",
@@ -255,7 +459,10 @@
         "overflowing rubbish bins on a pavement",
         "a heap of household waste dumped at a roadside"
       ],
-      "negative_prompts": ["a photo of a clean empty street", "a closed municipal waste bin"]
+      "negative_prompts": [
+        "a photo of a clean empty street",
+        "a closed municipal waste bin"
+      ]
     },
     {
       "node_key": "streetlight_out",
@@ -267,7 +474,9 @@
         "a dark street with an unlit lamp post",
         "a broken street lamp fixture"
       ],
-      "negative_prompts": ["a photo of a brightly lit street at night"]
+      "negative_prompts": [
+        "a photo of a brightly lit street at night"
+      ]
     },
     {
       "node_key": "water_leak",
@@ -279,7 +488,10 @@
         "water gushing out of a broken water main",
         "a flooded road caused by a pipeline leak"
       ],
-      "negative_prompts": ["a photo of a dry road surface", "a photo of rain falling on a street"]
+      "negative_prompts": [
+        "a photo of a dry road surface",
+        "a photo of rain falling on a street"
+      ]
     },
     {
       "node_key": "open_manhole",
@@ -290,7 +502,9 @@
         "a photo of an open manhole with no cover",
         "a missing drain cover leaving an open hole in the pavement"
       ],
-      "negative_prompts": ["a photo of a closed manhole cover flush with the road"]
+      "negative_prompts": [
+        "a photo of a closed manhole cover flush with the road"
+      ]
     },
     {
       "node_key": "exposed_cable",
@@ -301,10 +515,436 @@
         "a photo of exposed live electrical cables hanging in a street",
         "a damaged electrical junction box with bare wires"
       ],
-      "negative_prompts": ["a photo of a sealed electrical distribution box"]
+      "negative_prompts": [
+        "a photo of a sealed electrical distribution box"
+      ]
+    },
+    {
+      "node_key": "footpath_damage",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "a photo of a broken footpath with cracked and lifted paving tiles",
+        "a damaged pavement with loose paver blocks and missing slabs",
+        "a collapsed pedestrian walkway beside a road"
+      ],
+      "negative_prompts": [
+        "a photo of a clean intact tiled footpath",
+        "a photo of a smooth asphalt road surface"
+      ]
+    },
+    {
+      "node_key": "dead_animal",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "a photo of a dead animal carcass lying on a street",
+        "a dead stray dog on the roadside"
+      ],
+      "negative_prompts": [
+        "a photo of a live stray dog walking on a street",
+        "a photo of an empty clean roadside"
+      ]
+    },
+    {
+      "node_key": "waterlogging",
+      "locale": "en",
+      "encoder": "clip",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "a photo of a street flooded with standing rainwater",
+        "a waterlogged road with vehicles driving through deep water",
+        "stagnant water covering a lane after heavy rain"
+      ],
+      "negative_prompts": [
+        "a photo of a dry road on a sunny day",
+        "a photo of water spraying from a broken pipe"
+      ]
+    },
+    {
+      "node_key": "pothole",
+      "locale": "en",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "a road surface defect: a deep hole, crater or sunken patch in the carriageway where the tar has broken away",
+        "citizens reporting that vehicles skid into or are damaged by holes in the road surface"
+      ],
+      "negative_prompts": [
+        "a complaint about a broken footpath or pavement beside the road",
+        "a complaint about a manhole or drain cover missing from the road",
+        "a complaint about a street light that does not switch on"
+      ]
+    },
+    {
+      "node_key": "pothole",
+      "locale": "hi",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "सड़क की सतह का दोष: तारकोल उखड़ने से बना गहरा गड्ढा या धंसा हुआ हिस्सा",
+        "सड़क के गड्ढों में वाहनों के फिसलने या क्षतिग्रस्त होने की नागरिक शिकायत"
+      ],
+      "negative_prompts": [
+        "सड़क किनारे टूटे फुटपाथ की शिकायत",
+        "सड़क से मैनहोल या नाली का ढक्कन गायब होने की शिकायत",
+        "स्ट्रीट लाइट न जलने की शिकायत"
+      ]
+    },
+    {
+      "node_key": "pothole",
+      "locale": "mr",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "रस्त्याच्या पृष्ठभागाचा दोष: डांबर निघाल्याने पडलेला खोल खड्डा किंवा खचलेला भाग",
+        "रस्त्यातील खड्ड्यांत वाहने घसरत असल्याची किंवा खराब होत असल्याची नागरिकांची तक्रार"
+      ],
+      "negative_prompts": [
+        "रस्त्याच्या कडेच्या तुटलेल्या पदपथाची तक्रार",
+        "रस्त्यातील मॅनहोल किंवा गटाराचे झाकण गायब असल्याची तक्रार",
+        "पथदिवा लागत नसल्याची तक्रार"
+      ]
+    },
+    {
+      "node_key": "footpath_damage",
+      "locale": "en",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "a complaint about a broken footpath, cracked paving tiles or loose paver blocks",
+        "a report that pedestrians cannot use the sidewalk because the slabs are damaged"
+      ],
+      "negative_prompts": [
+        "a complaint about a hole in the road surface that vehicles drive over",
+        "a complaint about a manhole or drain cover missing from the road",
+        "a complaint about a street light that does not switch on"
+      ]
+    },
+    {
+      "node_key": "footpath_damage",
+      "locale": "hi",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "टूटे फुटपाथ, दरार वाली टाइलों या ढीले पेवर ब्लॉक की शिकायत",
+        "स्लैब क्षतिग्रस्त होने से पैदल चलने वालों को फुटपाथ इस्तेमाल न कर पाने की शिकायत"
+      ],
+      "negative_prompts": [
+        "सड़क की सतह पर वाहनों के गुजरने वाले गड्ढे की शिकायत",
+        "सड़क से मैनहोल या नाली का ढक्कन गायब होने की शिकायत",
+        "स्ट्रीट लाइट न जलने की शिकायत"
+      ]
+    },
+    {
+      "node_key": "footpath_damage",
+      "locale": "mr",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "तुटलेला पदपथ, तडे गेलेल्या फरशा किंवा सैल पेव्हर ब्लॉकची तक्रार",
+        "स्लॅब खराब झाल्याने पादचाऱ्यांना पदपथ वापरता येत नसल्याची तक्रार"
+      ],
+      "negative_prompts": [
+        "रस्त्याच्या पृष्ठभागावरील वाहने जाणाऱ्या खड्ड्याची तक्रार",
+        "रस्त्यातील मॅनहोल किंवा गटाराचे झाकण गायब असल्याची तक्रार",
+        "पथदिवा लागत नसल्याची तक्रार"
+      ]
+    },
+    {
+      "node_key": "open_manhole",
+      "locale": "en",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "a manhole or drainage chamber whose cover is missing, broken or displaced, leaving the opening exposed",
+        "an uncovered sewer or gutter opening in a road that a person or a vehicle could fall into"
+      ],
+      "negative_prompts": [
+        "a complaint about a dead animal that has to be removed",
+        "a complaint about exposed electrical wires",
+        "a complaint about a hole in the road caused by broken tar"
+      ]
+    },
+    {
+      "node_key": "open_manhole",
+      "locale": "hi",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "मैनहोल या नाली के चेंबर का ढक्कन गायब, टूटा या खिसका होने से मुंह खुला रहना",
+        "सड़क में बिना ढका सीवर या गटर का मुंह जिसमें व्यक्ति या वाहन गिर सकता है"
+      ],
+      "negative_prompts": [
+        "मरे हुए जानवर को हटवाने की शिकायत",
+        "खुले बिजली के तारों की शिकायत",
+        "तारकोल उखड़ने से सड़क में बने गड्ढे की शिकायत"
+      ]
+    },
+    {
+      "node_key": "open_manhole",
+      "locale": "mr",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "मॅनहोल किंवा गटार चेंबरचे झाकण गायब, तुटलेले किंवा सरकलेले असल्याने तोंड उघडे राहणे",
+        "रस्त्यातील न झाकलेले सांडपाणी किंवा गटाराचे तोंड ज्यात व्यक्ती किंवा वाहन पडू शकते"
+      ],
+      "negative_prompts": [
+        "मेलेले जनावर हटवण्याबाबतची तक्रार",
+        "उघड्या विजेच्या तारांची तक्रार",
+        "डांबर निघाल्याने रस्त्यात पडलेल्या खड्ड्याची तक्रार"
+      ]
+    },
+    {
+      "node_key": "garbage_pile",
+      "locale": "en",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "a complaint about uncollected garbage piling up on a street or an overflowing bin",
+        "a report that household waste is being dumped in the open and is smelling"
+      ],
+      "negative_prompts": [
+        "a complaint about a dead animal carcass that has to be removed",
+        "a complaint about standing rainwater that will not drain"
+      ]
+    },
+    {
+      "node_key": "garbage_pile",
+      "locale": "hi",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "सड़क पर कचरा न उठने या कूड़ेदान भर जाने की शिकायत",
+        "खुले में घरेलू कचरा फेंके जाने और बदबू आने की शिकायत"
+      ],
+      "negative_prompts": [
+        "मरे हुए जानवर का शव हटवाने की शिकायत",
+        "जमा बारिश के पानी के न निकलने की शिकायत"
+      ]
+    },
+    {
+      "node_key": "garbage_pile",
+      "locale": "mr",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "रस्त्यावर कचरा न उचलल्याची किंवा कचराकुंडी भरून वाहत असल्याची तक्रार",
+        "उघड्यावर घरातील कचरा टाकल्याने दुर्गंधी येत असल्याची तक्रार"
+      ],
+      "negative_prompts": [
+        "मेलेल्या जनावराचा मृतदेह हटवण्याबाबतची तक्रार",
+        "साचलेले पावसाचे पाणी वाहून जात नसल्याची तक्रार"
+      ]
+    },
+    {
+      "node_key": "dead_animal",
+      "locale": "en",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "the carcass of a dead animal — a dog, cat, cow, rat or bird — that is decomposing and has to be removed",
+        "a request for carcass removal because a dead animal is smelling"
+      ],
+      "negative_prompts": [
+        "a complaint about uncollected household rubbish or an overflowing bin",
+        "a complaint about a broken road surface or footpath",
+        "a complaint about a street light that does not switch on"
+      ]
+    },
+    {
+      "node_key": "dead_animal",
+      "locale": "hi",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "मरे हुए जानवर — कुत्ता, बिल्ली, गाय, चूहा या पक्षी — का सड़ता हुआ शव जिसे हटाया जाना चाहिए",
+        "मरे हुए जानवर से बदबू आने के कारण शव हटाने का अनुरोध"
+      ],
+      "negative_prompts": [
+        "न उठाए गए घरेलू कचरे या भरे कूड़ेदान की शिकायत",
+        "टूटी सड़क या फुटपाथ की शिकायत",
+        "स्ट्रीट लाइट न जलने की शिकायत"
+      ]
+    },
+    {
+      "node_key": "dead_animal",
+      "locale": "mr",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "मेलेल्या जनावराचा — कुत्रा, मांजर, गाय, उंदीर किंवा पक्षी — कुजणारा मृतदेह जो हटवायला हवा",
+        "मेलेल्या जनावरामुळे दुर्गंधी येत असल्याने मृतदेह हटवण्याची विनंती"
+      ],
+      "negative_prompts": [
+        "न उचललेल्या घरगुती कचऱ्याची किंवा भरलेल्या कचराकुंडीची तक्रार",
+        "तुटलेल्या रस्त्याची किंवा पदपथाची तक्रार",
+        "पथदिवा लागत नसल्याची तक्रार"
+      ]
+    },
+    {
+      "node_key": "water_leak",
+      "locale": "en",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "a complaint that a water supply pipeline has burst and treated water is running to waste",
+        "a report of a leaking valve or joint on the municipal water main"
+      ],
+      "negative_prompts": [
+        "a report about rainwater that has collected and is not draining away"
+      ]
+    },
+    {
+      "node_key": "water_leak",
+      "locale": "hi",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "जल आपूर्ति पाइपलाइन फटने और साफ पानी बर्बाद होने की शिकायत",
+        "नगरपालिका की मुख्य जल लाइन के वाल्व या जोड़ से रिसाव की शिकायत"
+      ],
+      "negative_prompts": [
+        "बारिश का पानी जमा होकर न निकलने की शिकायत"
+      ]
+    },
+    {
+      "node_key": "water_leak",
+      "locale": "mr",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "जलवाहिनी फुटून शुद्ध पाणी वाया जात असल्याची तक्रार",
+        "महापालिकेच्या मुख्य जलवाहिनीच्या व्हॉल्व्ह किंवा जोडातून गळतीची तक्रार"
+      ],
+      "negative_prompts": [
+        "पावसाचे पाणी साचून वाहून जात नसल्याची तक्रार"
+      ]
+    },
+    {
+      "node_key": "waterlogging",
+      "locale": "en",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "a complaint that rainwater has collected on a road and is not draining away",
+        "a report of a flooded lane or underpass with standing stagnant water"
+      ],
+      "negative_prompts": [
+        "a report that a supply pipe has burst and clean water is gushing out"
+      ]
+    },
+    {
+      "node_key": "waterlogging",
+      "locale": "hi",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "सड़क पर बारिश का पानी जमा होकर न निकलने की शिकायत",
+        "गली या अंडरपास में पानी भरने और रुका हुआ पानी जमा होने की शिकायत"
+      ],
+      "negative_prompts": [
+        "सप्लाई पाइप फटने और साफ पानी बहने की शिकायत"
+      ]
+    },
+    {
+      "node_key": "waterlogging",
+      "locale": "mr",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "रस्त्यावर पावसाचे पाणी साचून वाहून जात नसल्याची तक्रार",
+        "गल्ली किंवा भुयारी मार्गात पाणी भरून साचल्याची तक्रार"
+      ],
+      "negative_prompts": [
+        "पुरवठा वाहिनी फुटून शुद्ध पाणी वाहत असल्याची तक्रार"
+      ]
+    },
+    {
+      "node_key": "streetlight_out",
+      "locale": "en",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "a complaint that a street light or lamp post is not switching on at night",
+        "a report that a stretch of road is dark because the pole lights are fused or broken"
+      ],
+      "negative_prompts": [
+        "a complaint about electrical wires that are exposed and dangerous to touch",
+        "a complaint about a dead animal carcass on the roadside"
+      ]
+    },
+    {
+      "node_key": "streetlight_out",
+      "locale": "hi",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "स्ट्रीट लाइट या खंभे की बत्ती रात में न जलने की शिकायत",
+        "खंभों की लाइटें फ्यूज या टूटी होने से सड़क अंधेरे में रहने की शिकायत"
+      ],
+      "negative_prompts": [
+        "खुले और खतरनाक बिजली के तारों की शिकायत",
+        "सड़क किनारे मरे हुए जानवर के शव की शिकायत"
+      ]
+    },
+    {
+      "node_key": "streetlight_out",
+      "locale": "mr",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.2.0",
+      "prompts": [
+        "पथदिवा किंवा खांबावरील दिवा रात्री लागत नसल्याची तक्रार",
+        "खांबांचे दिवे फ्यूज किंवा तुटल्याने रस्ता अंधारात असल्याची तक्रार"
+      ],
+      "negative_prompts": [
+        "उघड्या आणि धोकादायक विजेच्या तारांबद्दलची तक्रार",
+        "रस्त्याच्या कडेला मेलेल्या जनावराच्या मृतदेहाची तक्रार"
+      ]
+    },
+    {
+      "node_key": "exposed_cable",
+      "locale": "en",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "a complaint about live electrical wires hanging low or lying exposed within reach",
+        "a report of a bare cable, an open junction box or sparking wires on a pole"
+      ],
+      "negative_prompts": [
+        "a report that a street light is not working and the lane is dark"
+      ]
+    },
+    {
+      "node_key": "exposed_cable",
+      "locale": "hi",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "बिजली के जीवित तार नीचे लटकने या पहुंच में खुले पड़े होने की शिकायत",
+        "नंगी केबल, खुला जंक्शन बॉक्स या खंभे पर तारों से चिंगारी निकलने की शिकायत"
+      ],
+      "negative_prompts": [
+        "स्ट्रीट लाइट न जलने और गली में अंधेरा रहने की शिकायत"
+      ]
+    },
+    {
+      "node_key": "exposed_cable",
+      "locale": "mr",
+      "encoder": "text",
+      "prompt_set_version": "municipality-1.1.0",
+      "prompts": [
+        "विजेच्या जिवंत तारा खाली लोंबत असल्याची किंवा हाताच्या टप्प्यात उघड्या पडल्याची तक्रार",
+        "उघडी केबल, उघडा जंक्शन बॉक्स किंवा खांबावरील तारांमधून ठिणग्या उडत असल्याची तक्रार"
+      ],
+      "negative_prompts": [
+        "पथदिवा बंद असून गल्लीत अंधार असल्याची तक्रार"
+      ]
     }
   ],
-
   "translations": [
     {
       "namespace": "zone",

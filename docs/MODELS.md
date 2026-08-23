@@ -78,18 +78,47 @@ Expected result: **all four cached models pass, Ollama fails.** That failure is
 correct — Ollama is a host network service, not a cached weight. Anything else
 passing would mean a hidden network dependency.
 
-## Known limitation, carried into Phase 8
+## Measured performance (Phase 9)
+
+Two of these models now have numbers rather than reputations. Both are
+reproduced by one command and both are published whether or not they flatter the
+choice:
+
+```bash
+nem f1
+```
+
+| Model | What was measured | Result |
+|---|---|---|
+| **multilingual-e5-small** | Per-category precision/recall/F1 over a stratified held-out set of authored citizen-voice complaints in `en`/`hi`/`mr` | macro **F1 0.595**, micro 0.629, coverage 0.72; p95 44 ms per example against §27.1's 10 s budget |
+| **BlazeFace short-range** | §22.1 distant-face recall as a function of face width, on a controlled stimulus in a 640×480 frame | **recall 1.00 at 80 px, 0.00 at 72 px** — a cliff, not a curve |
+| **CLIP ViT-B-32** | *Not measured.* No licence-clean corpus of photographed civic defects exists here, and scoring against rendered scenes would measure the renderer | — |
+
+Full report, per-locale breakdown, confusion pairs and the caveats that matter:
+[`docs/reports/perception-f1.md`](reports/perception-f1.md).
+
+## Known limitation, now quantified
 
 `blaze_face_short_range` is tuned for faces within roughly 2 m of the camera.
 Street photography of infrastructure defects often contains **small, distant
 bystanders**, which is precisely the population §22.1 requires be blurred.
 MediaPipe 1.x's Tasks API no longer ships the legacy full-range detector.
 
-Recorded here rather than discovered later. Phase 8 must measure recall on
-distant faces and, if it is inadequate, either add a tiled multi-scale detection
-pass or substitute a general face detector. `face_detector_min_confidence` is
-already biased low (0.4 rather than 0.5) on the reasoning that a missed face is
-a privacy breach while a false positive only blurs some pavement.
+Recorded here rather than discovered later, and **Phase 9 measured it**: the
+detector finds the stimulus at 80 px of face width and misses it entirely at
+72 px, with no gradual falloff in between. In a 640×480 frame that is roughly
+the two metres the model documents, so the limitation is exactly as advertised
+and the consequence is now stated in pixels instead of adjectives — a bystander
+beyond a few metres is not blurred at all.
+
+The measurement does not fix it. The remedy is a tiled multi-scale detection
+pass or a general face detector, which is scheduled work rather than a
+configuration change, and it is a §22 obligation rather than a perception
+feature. `face_detector_min_confidence` remains biased low (0.4 rather than 0.5)
+on the reasoning that a missed face is a privacy breach while a false positive
+only blurs some pavement — and the curve above shows that bias buys nothing at
+all below the cliff, because the misses are not low-confidence detections, they
+are no detections.
 
 ## Changing a model
 
@@ -98,5 +127,7 @@ a privacy breach while a false positive only blurs some pavement.
    allocation. A dimension change is a schema migration, not a config tweak.
 3. Run `nem models`; the smoke tests will reject a model whose dimensions
    disagree with the database columns.
-4. From Phase 11, re-run the evaluation harness — a model swap without a
-   measured comparison is a guess.
+4. Re-run `nem f1` and compare against `docs/reports/perception-f1.md`. A
+   model swap without a measured comparison is a guess, and this is the
+   comparison — the report records the `model_ids` every number was produced
+   with, so the two runs are attributable rather than merely adjacent.

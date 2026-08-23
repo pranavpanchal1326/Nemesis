@@ -1726,26 +1726,180 @@ regression test or a fix):
 
 ---
 
-## Phase 9 — Perception layer & model registry · DATA
+## Phase 9 — Perception layer & model registry ✅ · DATA
 
-**Ships**
-- CLIP zero-shot driven by **tenant taxonomy prompt sets** from Phase 5, versioned as events
-- `faster-whisper` transcription across the tenant's configured locales, with language detection
-- `multilingual-e5-small` embeddings with correct asymmetric prefixes
-- **Model registry**: versioned model + prompt-set pairs, warm-loaded with a single-flight guard so concurrent tasks never double-load weights, and a bounded memory ceiling
-- Per-tenant, per-category confidence calibration derived from measured curves
-- Validation harness computing per-category precision/recall/F1 on a stratified held-out set, emitting a committed report artefact
-- **Distant-face recall for §22.1**, measured on the same harness. Carried
-  forward from Phase 0 and *not* discharged by Phase 8: `blaze_face_short_range`
-  is a two-metre model and street photography is full of small bystanders, who
-  are exactly the population §22.1 protects. The number ships either way, and a
-  shortfall means a second detector or a tiled pass, not a footnote
+The phase that turns a citizen's photograph, voice note and description into a
+category and an honest confidence — or into a refusal to guess. It is also the
+first phase whose deliverable is a *number*, and the number is disappointing;
+the section below is mostly about the machinery that makes it trustworthy enough
+to be disappointing on purpose.
 
-**Gate**
-- A **published per-category F1 number** in the repo, reproducible by one command
-- Any category below 65% F1 triggers the §43.2 prompt pass and a re-measure; the honest number ships either way
-- A new tenant category is classifiable by adding prompts alone
-- Inference latency within the §27.1 budget on this hardware, measured not estimated
+**Shipped**
+- **CLIP zero-shot and multilingual-e5 text scoring, driven entirely by tenant
+  prompt sets.** Nothing in `perception/` decides what a category is, what
+  describes one, how sure is sure enough, or what to do with a report that
+  cannot be classified. That line is what makes the phase's third gate clause
+  true rather than aspirational: adding a category touches tenant data and no
+  module. The template's `text` prompt family across `en`/`hi`/`mr` shipped with
+  it, along with CLIP prompts for the three `municipality` categories that had
+  none — a category with no prompt can never be scored, so those three were
+  permanently unclassifiable in every municipality tenant
+- **`faster-whisper` transcription across the tenant's declared locales**, with
+  the tenant's list used as a *tie-break* on detection rather than a filter:
+  constraining detection would mistranscribe the citizen who speaks something
+  the tenant did not list, which is exactly the population §8.4 exists for. The
+  detected language wins over the submitted locale when detection was confident,
+  and loses when it was not, with `language_uncertain` recording which happened
+- **The model registry: single-flight, bounded, and a refusal rather than a
+  thrash.** Four Celery children asking for CLIP in the same second get one load
+  and the same object; a load that cannot fit within `max_resident_bytes` after
+  evicting everything idle raises `ModelCapacityError` with the numbers in it,
+  because the tempting alternative — evict whatever is least recently used, in
+  use or not — produces a worker where CLIP evicts Whisper, the next voice
+  complaint reloads Whisper which evicts CLIP, and throughput collapses to the
+  reload time with nothing in any log naming the cause. Prompt matrices are
+  registry entries too, keyed on the prompt set's **content hash**, which is what
+  makes it a registry of *model and prompt-set pairs*: an edit is a new key by
+  construction, so a published taxonomy change cannot be served yesterday's
+  matrix
+- **Per-tenant, per-category calibration derived from measured curves**
+  (ADR-0035), fitted by the harness on the calibration split and written out in
+  the shape the policy API accepts — so the harness *proposes* and an approver
+  decides, with Phase 6 keeping the trail. Temperature and centre are fitted per
+  category; the abstain floor is fitted once for the tenant, and the
+  `provenance` on every entry says which is which, because an approver told a
+  per-category measurement was made when it was not is being shown a conclusion
+  instead of evidence
+- **The validation harness, and a committed report artefact** —
+  `docs/reports/perception-f1.md`, reproduced by `nem f1`. It runs
+  `scoring.decide`, the same function the pipeline stage calls, over a
+  stratified held-out split the corpus computes from its own contents
+  (ADR-0034). **Macro F1 0.595, micro 0.629, coverage 0.72** across nine
+  categories and three locales, per-example p95 44 ms against §27.1's 10 s
+  budget. Four categories are below the 65% floor and the §43.2 prompt pass
+  against them is recorded in the artefact
+- **The second §11.2 pass, which Phase 8 named and could not perform.** The
+  first safety pass runs before transcription on a queue served by a container
+  that has never imported torch — that separation is what makes "a saturated
+  `ml` queue cannot delay a danger signal" a fact about two operating-system
+  processes. So the deterministic pass stays where it is, and this one adds what
+  only the ml worker can know: a hazard in a *transcript* or matched by a
+  §11.2 visual prompt now halts the report before any category is claimed
+- **Distant-face recall for §22.1, measured** — Phase 0's carried-forward
+  question, explicitly not discharged by Phase 8's "a face was blurred". The
+  answer is sharp and unwelcome: against the real `blaze_face_short_range` in a
+  640×480 frame, **recall is 1.00 at 80 px of face width and 0.00 at 72 px.**
+  There is no gradual falloff. That is a cliff, not a curve, and it means a
+  bystander more than a few metres away is not blurred at all
+
+**Defects found and fixed during the phase** — the harness found the first two
+on its first real run against multilingual-e5, which is the strongest available
+argument for it calling the shipped rule rather than its own copy:
+
+1. **`ScoreResult` had no way to report the category it declined to claim.**
+   `alternatives` is everything *except* the winner, so a caller reading the top
+   of it on an abstained result gets the **runner-up** while believing it has the
+   winner. It turned a ranking that was 70% correct into a forced-choice accuracy
+   indistinguishable from chance, in a number nobody would have known to
+   disbelieve. `top_category` is now populated on every return path
+2. **A per-category temperature with no per-category centre is arithmetic, not
+   evidence** (ADR-0035). Different temperatures put categories on different
+   logit scales and the smallest temperature wins everything. Worse, the contrast
+   pool received the temperature and *not* the bias, so at a fitted temperature
+   of 0.006 an uncentred contrast logit sat ~140 above the centred positives,
+   took the entire softmax, and the layer abstained on **100%** of a corpus it
+   was ranking correctly. `logit = (cosine + bias) / temperature` now, with the
+   same affine transform on both pools, and `bias` respecified in similarity
+   units so the document's ±10 bound means something
+3. **The shipped default calibration classified nothing.** `abstain_below = 0.35`
+   reads like a sensible threshold and is compared against a confidence whose
+   ceiling falls as the taxonomy grows; on nine categories it abstained on every
+   held-out example. A new tenant would have classified nothing at all until
+   somebody approved a fitted document, and the symptom would have been an empty
+   work list rather than an error. Lowered to 0.15 on the measurement — above the
+   1/9 a nine-way coin flip reaches, below the 0.164 the fit lands on
+4. **A tenant with text prompts and no CLIP prompts had every photographed report
+   retried three times and degraded.** `PromptSetUnavailableError` propagated out
+   of the image path while the text path caught its own version — the asymmetry
+   was backwards, since the image modality is the optional one when a tenant has
+   not configured it. Reports whose description would have classified correctly
+   were being parked. Found by the live gate, not by a test, because every test
+   fixture happened to configure both
+5. **`scoring`'s docstring claimed negatives "take probability mass away from the
+   category they contradict, and from nothing else".** A softmax denominator is
+   shared: a strong negative suppresses *every* category's confidence, not only
+   its owner's. The claim was corrected rather than the design changed — a
+   per-category contrast is a real alternative, it is not what ships, and the two
+   have not been measured against each other, which is now stated instead of
+   implied
+6. **The first version of the abstain-floor fit swept for maximum F1 on the
+   calibration split** — the textbook rule, and on a few dozen examples it lands
+   on a knife edge one example wide. Per-category floors fitted that way ranged
+   from 0.095 to 0.773 on the same corpus and took two categories from a usable
+   ranking to a held-out F1 of exactly zero. Replaced with a quantile operating
+   point, pooled across categories, which is stable under small corpus changes
+   and is a decision somebody can argue with in words
+7. **The prompt-pass work list was being read off the held-out confusions**,
+   which silently converts the held-out set into a development set. The harness
+   now measures the work list on the calibration split and the report says, in
+   the section where a reader would otherwise reach for the wrong table, why the
+   held-out one is published and not used
+
+**Carried forward, not silently absorbed:**
+- **The image modality is unmeasured.** The published F1 is the text modality's.
+  There is no licence-clean corpus of photographed civic defects in this
+  repository, and rendering synthetic street scenes to score CLIP against would
+  measure the renderer. The CLIP prompt sets therefore ship unmeasured. Phase 10
+  needs image embeddings for dedup Stage 2 anyway, and is where that corpus has
+  to arrive
+- **§22.1 does not hold for distant bystanders, and now there is a number for
+  it.** 80 px of face width in a 640×480 frame is roughly a person within two
+  metres — which is exactly what `blaze_face_short_range` says on the tin, and
+  exactly what Phase 0 warned about. The measurement does not fix it: the fix is
+  a second detector or a tiled pass, and it is a §22 obligation rather than a
+  perception feature, so it belongs with the phase that can schedule the extra
+  inference. What this phase owed was the number, and the number ships
+- **Marathi is measurably worse than English and Hindi** (macro F1 0.385 against
+  0.638 and 0.630) and the corpus cannot say why — encoder coverage, prompt
+  wording and corpus size are all plausible and are not separable from four
+  examples per category per locale. The honest statement is the gap, not a cause,
+  and separating them needs a native-speaker prompt review
+- **Nine held-out examples per category is a small sample**, so one example is
+  0.125 of a category's recall and a category can move more than a tenth on a
+  single sentence. The macro figure is the number; the per-category column is an
+  indication. Growing the corpus is the highest-value next piece of work on this
+  layer and it is worth more than another prompt pass
+- **The corpus is authored, not field data.** Written in citizen voice from §8's
+  defect vocabulary and deliberately not paraphrased from the prompts it is
+  scored against — but a real intake queue carries misspellings, code-switching
+  mid-sentence, dictation artefacts and reports naming two defects at once. Treat
+  the number as an upper bound on the text modality
+- **The HNSW parameters were not re-measured against real CLIP output, and Phase
+  2 asked this phase to do it.** Phase 2's carried-forward note is explicit: the
+  recall curve was measured on synthetic clustered vectors, the low id-recall it
+  reports is an artefact of near-ties in that distribution, and the numbers stay
+  *provisional* until they are measured against real embeddings. **That did not
+  happen and the reason is the bullet three above this one** — re-measuring needs
+  a corpus of real photographs to embed, which is precisely what does not exist.
+  The obligation moves to Phase 10 rather than being quietly dropped: Phase 10
+  builds the first real index, needs the photo corpus for dedup Stage 2 anyway,
+  and is the last phase that can change these parameters cheaply
+
+**Gate** ✅ — `nem gate-phase9`, 26/26 against the running stack
+- A **published per-category F1 number** in the repo, reproducible by one
+  command — and the gate reproduces it, comparing the re-run's numbers and corpus
+  fingerprint against the committed artefact rather than trusting that it exists
+- Any category below 65% F1 triggers the §43.2 prompt pass and a re-measure; the
+  honest number ships either way. **Four categories are below the floor**, the
+  pass is recorded, and the gate checks that the work list came from the
+  calibration split rather than from the measurement
+- A new tenant category is classifiable by adding prompts alone — proven with a
+  key the gate greps the repository to confirm no module knows, created and
+  classified over HTTP with the API container's identity compared across the run
+- Inference latency within the §27.1 budget on this hardware, measured not
+  estimated: p95 44 ms per example, and 1.7 s from HTTP accept to
+  `classification_scored` through the real pipeline
+
 
 ## Phase 10 — Deduplication & clustering engine · DATA
 

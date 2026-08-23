@@ -1,0 +1,890 @@
+{
+  "corpus_id": "municipality-v1",
+  "template": "municipality",
+  "description": "Citizen-voice complaint descriptions for the nine selectable categories of the `municipality` tenant template, in the three locales that template declares. Authored by the NEMESIS team from the defect vocabulary in Blueprint §8, deliberately without reference to the prompt sets they are scored against — a corpus paraphrased from its own prompts measures the paraphrase. Text only: no field photographs exist yet, so the image modality is unmeasured and the report says so rather than substituting rendered pixels for evidence.",
+  "authored": "2026-08-23",
+  "examples": [
+    {
+      "id": "pothole-en-01",
+      "category": "pothole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "There is a huge hole in the road near the bus stop and two-wheelers keep skidding into it."
+    },
+    {
+      "id": "pothole-en-02",
+      "category": "pothole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The tar has come off on Anand Nagar road and a deep crater has formed right in the middle of the lane."
+    },
+    {
+      "id": "pothole-en-03",
+      "category": "pothole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Big pit on the road outside my shop, an auto broke its axle in it yesterday."
+    },
+    {
+      "id": "pothole-en-04",
+      "category": "pothole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The road surface has caved in near the junction and it gets worse every time it rains."
+    },
+    {
+      "id": "pothole-en-05",
+      "category": "pothole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Please fill the craters on the service road, my back hurts every time I ride over them."
+    },
+    {
+      "id": "pothole-en-06",
+      "category": "pothole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Broken patch of road with loose stones and a deep dip, very dangerous at night."
+    },
+    {
+      "id": "pothole-hi-01",
+      "category": "pothole",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "बस स्टॉप के पास सड़क पर बहुत बड़ा गड्ढा है, दोपहिया वाहन उसमें गिर रहे हैं।"
+    },
+    {
+      "id": "pothole-hi-02",
+      "category": "pothole",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "आनंद नगर रोड की तारकोल उखड़ गई है और बीच सड़क पर गहरा गड्ढा बन गया है।"
+    },
+    {
+      "id": "pothole-hi-03",
+      "category": "pothole",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "मेरी दुकान के सामने सड़क में बड़ा खड्डा है, कल एक ऑटो का पहिया टूट गया।"
+    },
+    {
+      "id": "pothole-hi-04",
+      "category": "pothole",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "चौराहे के पास सड़क धंस गई है और बारिश के बाद हालत और खराब हो जाती है।"
+    },
+    {
+      "id": "pothole-mr-01",
+      "category": "pothole",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "बस थांब्याजवळ रस्त्यावर मोठा खड्डा आहे, दुचाकी त्यात घसरत आहेत."
+    },
+    {
+      "id": "pothole-mr-02",
+      "category": "pothole",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "आनंद नगर रस्त्यावरचा डांबर निघाला असून मधोमध खोल खड्डा पडला आहे."
+    },
+    {
+      "id": "pothole-mr-03",
+      "category": "pothole",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "माझ्या दुकानासमोर रस्त्यात मोठा खड्डा आहे, काल एका रिक्षाचे चाक तुटले."
+    },
+    {
+      "id": "pothole-mr-04",
+      "category": "pothole",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "चौकाजवळ रस्ता खचला आहे आणि पाऊस पडल्यावर अजून वाईट होतो."
+    },
+    {
+      "id": "footpath_damage-en-01",
+      "category": "footpath_damage",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The pavement tiles outside the school are cracked and lifted, an old lady tripped this morning."
+    },
+    {
+      "id": "footpath_damage-en-02",
+      "category": "footpath_damage",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Footpath slabs are broken near the market and people are forced to walk on the road."
+    },
+    {
+      "id": "footpath_damage-en-03",
+      "category": "footpath_damage",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The walkway kerb has collapsed and the paver blocks are all loose."
+    },
+    {
+      "id": "footpath_damage-en-04",
+      "category": "footpath_damage",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Half the pedestrian path is sunken and full of loose bricks."
+    },
+    {
+      "id": "footpath_damage-en-05",
+      "category": "footpath_damage",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Sidewalk in front of the clinic is completely broken, a wheelchair cannot pass."
+    },
+    {
+      "id": "footpath_damage-en-06",
+      "category": "footpath_damage",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The paving stones on the footpath have come out and there are gaps everywhere."
+    },
+    {
+      "id": "footpath_damage-hi-01",
+      "category": "footpath_damage",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "स्कूल के बाहर फुटपाथ की टाइलें टूटकर उखड़ गई हैं, आज सुबह एक बुजुर्ग महिला गिर गईं।"
+    },
+    {
+      "id": "footpath_damage-hi-02",
+      "category": "footpath_damage",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "बाजार के पास फुटपाथ के स्लैब टूटे हुए हैं और लोगों को सड़क पर चलना पड़ता है।"
+    },
+    {
+      "id": "footpath_damage-hi-03",
+      "category": "footpath_damage",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "पैदल रास्ते का किनारा ढह गया है और पेवर ब्लॉक ढीले हो गए हैं।"
+    },
+    {
+      "id": "footpath_damage-hi-04",
+      "category": "footpath_damage",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "क्लिनिक के सामने का फुटपाथ पूरी तरह टूटा है, व्हीलचेयर नहीं निकल सकती।"
+    },
+    {
+      "id": "footpath_damage-mr-01",
+      "category": "footpath_damage",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "शाळेबाहेरील पदपथाच्या फरशा तुटून उखडल्या आहेत, आज सकाळी एक आजी पडल्या."
+    },
+    {
+      "id": "footpath_damage-mr-02",
+      "category": "footpath_damage",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "बाजाराजवळ पदपथाचे स्लॅब तुटले असून लोकांना रस्त्यावरून चालावे लागते."
+    },
+    {
+      "id": "footpath_damage-mr-03",
+      "category": "footpath_damage",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "पादचारी मार्गाची कड कोसळली आहे आणि पेव्हर ब्लॉक सैल झाले आहेत."
+    },
+    {
+      "id": "footpath_damage-mr-04",
+      "category": "footpath_damage",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "दवाखान्यासमोरचा पदपथ पूर्ण तुटला आहे, व्हीलचेअर जाऊ शकत नाही."
+    },
+    {
+      "id": "open_manhole-en-01",
+      "category": "open_manhole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The drain cover near the temple is missing and the hole is completely open."
+    },
+    {
+      "id": "open_manhole-en-02",
+      "category": "open_manhole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Someone stole the manhole lid on our lane, a child almost fell in last night."
+    },
+    {
+      "id": "open_manhole-en-03",
+      "category": "open_manhole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The sewer chamber cover is broken and half the opening is exposed."
+    },
+    {
+      "id": "open_manhole-en-04",
+      "category": "open_manhole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "There is an uncovered gutter opening in the middle of the road with no barricade."
+    },
+    {
+      "id": "open_manhole-en-05",
+      "category": "open_manhole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The manhole cap has shifted and there is a wide gap around it."
+    },
+    {
+      "id": "open_manhole-en-06",
+      "category": "open_manhole",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Open drainage pit on the roadside with no cover, please close it urgently."
+    },
+    {
+      "id": "open_manhole-hi-01",
+      "category": "open_manhole",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "मंदिर के पास नाली का ढक्कन गायब है और गड्ढा पूरी तरह खुला है।"
+    },
+    {
+      "id": "open_manhole-hi-02",
+      "category": "open_manhole",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "हमारी गली का मैनहोल का ढक्कन कोई उठा ले गया, कल रात एक बच्चा गिरते-गिरते बचा।"
+    },
+    {
+      "id": "open_manhole-hi-03",
+      "category": "open_manhole",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "सीवर चेंबर का ढक्कन टूट गया है और आधा मुंह खुला पड़ा है।"
+    },
+    {
+      "id": "open_manhole-hi-04",
+      "category": "open_manhole",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "सड़क के बीच बिना बैरिकेड के खुला गटर है, कृपया तुरंत बंद करवाएं।"
+    },
+    {
+      "id": "open_manhole-mr-01",
+      "category": "open_manhole",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "मंदिराजवळ गटाराचे झाकण गायब आहे आणि खड्डा पूर्ण उघडा आहे."
+    },
+    {
+      "id": "open_manhole-mr-02",
+      "category": "open_manhole",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "आमच्या गल्लीतील मॅनहोलचे झाकण कोणीतरी नेले, काल रात्री एक मूल पडता पडता वाचले."
+    },
+    {
+      "id": "open_manhole-mr-03",
+      "category": "open_manhole",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "सांडपाणी चेंबरचे झाकण तुटले असून अर्धे तोंड उघडे आहे."
+    },
+    {
+      "id": "open_manhole-mr-04",
+      "category": "open_manhole",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "रस्त्याच्या मध्यभागी बॅरिकेडशिवाय उघडे गटार आहे, कृपया तातडीने बंद करा."
+    },
+    {
+      "id": "garbage_pile-en-01",
+      "category": "garbage_pile",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Waste has not been collected for a week and there is a big heap at the corner."
+    },
+    {
+      "id": "garbage_pile-en-02",
+      "category": "garbage_pile",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The bin is overflowing and rubbish is spread all over the pavement."
+    },
+    {
+      "id": "garbage_pile-en-03",
+      "category": "garbage_pile",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "People are dumping household trash on the empty plot next to our building and it stinks."
+    },
+    {
+      "id": "garbage_pile-en-04",
+      "category": "garbage_pile",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "There is a mountain of plastic bags and food waste near the vegetable market."
+    },
+    {
+      "id": "garbage_pile-en-05",
+      "category": "garbage_pile",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Garbage is lying uncollected outside the society gate and dogs scatter it every night."
+    },
+    {
+      "id": "garbage_pile-en-06",
+      "category": "garbage_pile",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Piles of dry waste and rubble dumped at the roadside for many days."
+    },
+    {
+      "id": "garbage_pile-hi-01",
+      "category": "garbage_pile",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "एक हफ्ते से कचरा नहीं उठा है और कोने पर बड़ा ढेर लग गया है।"
+    },
+    {
+      "id": "garbage_pile-hi-02",
+      "category": "garbage_pile",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "कूड़ेदान भर गया है और कचरा पूरे फुटपाथ पर फैला हुआ है।"
+    },
+    {
+      "id": "garbage_pile-hi-03",
+      "category": "garbage_pile",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "हमारी इमारत के बगल वाले खाली प्लॉट में लोग घर का कचरा फेंक रहे हैं, बदबू आती है।"
+    },
+    {
+      "id": "garbage_pile-hi-04",
+      "category": "garbage_pile",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "सब्जी मंडी के पास प्लास्टिक और खाने के कचरे का पहाड़ बन गया है।"
+    },
+    {
+      "id": "garbage_pile-mr-01",
+      "category": "garbage_pile",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "आठवडाभर कचरा उचलला गेला नाही, कोपऱ्यावर मोठा ढीग साचला आहे."
+    },
+    {
+      "id": "garbage_pile-mr-02",
+      "category": "garbage_pile",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "कचराकुंडी भरून वाहत आहे आणि कचरा संपूर्ण पदपथावर पसरला आहे."
+    },
+    {
+      "id": "garbage_pile-mr-03",
+      "category": "garbage_pile",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "आमच्या इमारतीशेजारील मोकळ्या भूखंडावर लोक घरातील कचरा टाकतात, दुर्गंधी येते."
+    },
+    {
+      "id": "garbage_pile-mr-04",
+      "category": "garbage_pile",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "भाजी मंडईजवळ प्लास्टिक आणि अन्नाच्या कचऱ्याचा ढीग झाला आहे."
+    },
+    {
+      "id": "dead_animal-en-01",
+      "category": "dead_animal",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "A dead dog has been lying on the roadside for two days and the smell is unbearable."
+    },
+    {
+      "id": "dead_animal-en-02",
+      "category": "dead_animal",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "There is a dead cat near the compound wall, please arrange for removal."
+    },
+    {
+      "id": "dead_animal-en-03",
+      "category": "dead_animal",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "A stray animal was hit by a vehicle and the carcass is still on the road."
+    },
+    {
+      "id": "dead_animal-en-04",
+      "category": "dead_animal",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Dead rats near the drain, nobody has come to clear them."
+    },
+    {
+      "id": "dead_animal-en-05",
+      "category": "dead_animal",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The carcass of a cow is lying in the open ground behind the school."
+    },
+    {
+      "id": "dead_animal-en-06",
+      "category": "dead_animal",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "A bird died on the footpath and it is decomposing there."
+    },
+    {
+      "id": "dead_animal-hi-01",
+      "category": "dead_animal",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "दो दिन से सड़क किनारे एक मरा हुआ कुत्ता पड़ा है, बदबू सहन नहीं होती।"
+    },
+    {
+      "id": "dead_animal-hi-02",
+      "category": "dead_animal",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "कंपाउंड की दीवार के पास एक मरी हुई बिल्ली है, कृपया उठवाने की व्यवस्था करें।"
+    },
+    {
+      "id": "dead_animal-hi-03",
+      "category": "dead_animal",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "एक आवारा जानवर को गाड़ी ने टक्कर मारी और शव अब भी सड़क पर है।"
+    },
+    {
+      "id": "dead_animal-hi-04",
+      "category": "dead_animal",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "नाली के पास मरे हुए चूहे पड़े हैं, कोई साफ करने नहीं आया।"
+    },
+    {
+      "id": "dead_animal-mr-01",
+      "category": "dead_animal",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "दोन दिवसांपासून रस्त्याच्या कडेला मेलेला कुत्रा पडला आहे, दुर्गंधी सहन होत नाही."
+    },
+    {
+      "id": "dead_animal-mr-02",
+      "category": "dead_animal",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "कंपाऊंड भिंतीजवळ मेलेली मांजर आहे, कृपया उचलण्याची व्यवस्था करा."
+    },
+    {
+      "id": "dead_animal-mr-03",
+      "category": "dead_animal",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "भटक्या जनावराला गाडीने धडक दिली आणि मृतदेह अजूनही रस्त्यावर आहे."
+    },
+    {
+      "id": "dead_animal-mr-04",
+      "category": "dead_animal",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "गटाराजवळ मेलेले उंदीर पडले आहेत, कोणी साफ करायला आले नाही."
+    },
+    {
+      "id": "water_leak-en-01",
+      "category": "water_leak",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "A pipeline has burst near the pump house and drinking water is flowing away continuously."
+    },
+    {
+      "id": "water_leak-en-02",
+      "category": "water_leak",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Water is gushing out of the main line at the corner since morning."
+    },
+    {
+      "id": "water_leak-en-03",
+      "category": "water_leak",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "There is a leak in the supply pipe and the whole street is wet."
+    },
+    {
+      "id": "water_leak-en-04",
+      "category": "water_leak",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The valve near our building is leaking heavily and we are losing water all day."
+    },
+    {
+      "id": "water_leak-en-05",
+      "category": "water_leak",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Broken water main, a fountain of water is coming out of the road."
+    },
+    {
+      "id": "water_leak-en-06",
+      "category": "water_leak",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Municipal water is leaking from a joint in the pipe and running into the drain."
+    },
+    {
+      "id": "water_leak-hi-01",
+      "category": "water_leak",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "पंप हाउस के पास पाइपलाइन फट गई है और पीने का पानी लगातार बह रहा है।"
+    },
+    {
+      "id": "water_leak-hi-02",
+      "category": "water_leak",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "सुबह से कोने पर मुख्य लाइन से पानी फव्वारे की तरह निकल रहा है।"
+    },
+    {
+      "id": "water_leak-hi-03",
+      "category": "water_leak",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "सप्लाई पाइप में लीकेज है और पूरी गली गीली रहती है।"
+    },
+    {
+      "id": "water_leak-hi-04",
+      "category": "water_leak",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "हमारी बिल्डिंग के पास वाल्व से बहुत पानी रिस रहा है, दिनभर पानी बर्बाद होता है।"
+    },
+    {
+      "id": "water_leak-mr-01",
+      "category": "water_leak",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "पंप हाऊसजवळ जलवाहिनी फुटली असून पिण्याचे पाणी सतत वाहून जात आहे."
+    },
+    {
+      "id": "water_leak-mr-02",
+      "category": "water_leak",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "सकाळपासून कोपऱ्यावरील मुख्य वाहिनीतून पाणी कारंज्यासारखे उडत आहे."
+    },
+    {
+      "id": "water_leak-mr-03",
+      "category": "water_leak",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "पुरवठा पाइपला गळती आहे आणि संपूर्ण गल्ली ओली राहते."
+    },
+    {
+      "id": "water_leak-mr-04",
+      "category": "water_leak",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "आमच्या इमारतीजवळील व्हॉल्व्हमधून खूप पाणी गळत आहे, दिवसभर पाणी वाया जाते."
+    },
+    {
+      "id": "waterlogging-en-01",
+      "category": "waterlogging",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The whole lane is under knee-deep water after last night's rain and it is not draining."
+    },
+    {
+      "id": "waterlogging-en-02",
+      "category": "waterlogging",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Rainwater has collected in front of the shops and has not receded for two days."
+    },
+    {
+      "id": "waterlogging-en-03",
+      "category": "waterlogging",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The underpass is flooded and vehicles cannot pass through."
+    },
+    {
+      "id": "waterlogging-en-04",
+      "category": "waterlogging",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Stagnant water has accumulated in our colony and mosquitoes have increased."
+    },
+    {
+      "id": "waterlogging-en-05",
+      "category": "waterlogging",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Every monsoon this stretch fills up with water because the drain does not carry it away."
+    },
+    {
+      "id": "waterlogging-en-06",
+      "category": "waterlogging",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Water is standing on the road up to the footpath level near the junction."
+    },
+    {
+      "id": "waterlogging-hi-01",
+      "category": "waterlogging",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "कल रात की बारिश के बाद पूरी गली में घुटनों तक पानी भरा है और निकल नहीं रहा।"
+    },
+    {
+      "id": "waterlogging-hi-02",
+      "category": "waterlogging",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "दुकानों के सामने बारिश का पानी जमा है और दो दिन से नहीं उतरा।"
+    },
+    {
+      "id": "waterlogging-hi-03",
+      "category": "waterlogging",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "अंडरपास में पानी भर गया है, वाहन निकल नहीं पा रहे।"
+    },
+    {
+      "id": "waterlogging-hi-04",
+      "category": "waterlogging",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "हमारी कॉलोनी में रुका हुआ पानी जमा है और मच्छर बढ़ गए हैं।"
+    },
+    {
+      "id": "waterlogging-mr-01",
+      "category": "waterlogging",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "काल रात्रीच्या पावसानंतर संपूर्ण गल्लीत गुडघाभर पाणी साचले असून ओसरत नाही."
+    },
+    {
+      "id": "waterlogging-mr-02",
+      "category": "waterlogging",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "दुकानांसमोर पावसाचे पाणी साचले असून दोन दिवस झाले तरी उतरले नाही."
+    },
+    {
+      "id": "waterlogging-mr-03",
+      "category": "waterlogging",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "भुयारी मार्गात पाणी भरले आहे, वाहने जाऊ शकत नाहीत."
+    },
+    {
+      "id": "waterlogging-mr-04",
+      "category": "waterlogging",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "आमच्या वसाहतीत साचलेले पाणी आहे आणि डास वाढले आहेत."
+    },
+    {
+      "id": "streetlight_out-en-01",
+      "category": "streetlight_out",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The lamp post outside our gate has not been working for three weeks and the lane is pitch dark."
+    },
+    {
+      "id": "streetlight_out-en-02",
+      "category": "streetlight_out",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "All the lights on this stretch are off at night and women are afraid to walk here."
+    },
+    {
+      "id": "streetlight_out-en-03",
+      "category": "streetlight_out",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The street lamp flickers and then goes off completely after ten minutes."
+    },
+    {
+      "id": "streetlight_out-en-04",
+      "category": "streetlight_out",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The pole light near the park is fused, please replace the bulb."
+    },
+    {
+      "id": "streetlight_out-en-05",
+      "category": "streetlight_out",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "No lighting on the service road since the last repair work."
+    },
+    {
+      "id": "streetlight_out-en-06",
+      "category": "streetlight_out",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The light fixture on the pole is broken and hanging loose, it never switches on."
+    },
+    {
+      "id": "streetlight_out-hi-01",
+      "category": "streetlight_out",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "हमारे गेट के बाहर वाला खंभा तीन हफ्ते से बंद है और गली में घुप्प अंधेरा रहता है।"
+    },
+    {
+      "id": "streetlight_out-hi-02",
+      "category": "streetlight_out",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "इस पूरे रास्ते की लाइटें रात में बंद रहती हैं, महिलाएं चलने से डरती हैं।"
+    },
+    {
+      "id": "streetlight_out-hi-03",
+      "category": "streetlight_out",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "स्ट्रीट लाइट टिमटिमाती है और दस मिनट बाद पूरी तरह बुझ जाती है।"
+    },
+    {
+      "id": "streetlight_out-hi-04",
+      "category": "streetlight_out",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "पार्क के पास वाले खंभे की लाइट फ्यूज है, कृपया बल्ब बदलवाएं।"
+    },
+    {
+      "id": "streetlight_out-mr-01",
+      "category": "streetlight_out",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "आमच्या गेटबाहेरचा खांब तीन आठवड्यांपासून बंद आहे आणि गल्लीत मिट्ट काळोख असतो."
+    },
+    {
+      "id": "streetlight_out-mr-02",
+      "category": "streetlight_out",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "या संपूर्ण रस्त्यावरचे दिवे रात्री बंद असतात, महिलांना चालायला भीती वाटते."
+    },
+    {
+      "id": "streetlight_out-mr-03",
+      "category": "streetlight_out",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "पथदिवा लुकलुकतो आणि दहा मिनिटांनी पूर्ण बंद होतो."
+    },
+    {
+      "id": "streetlight_out-mr-04",
+      "category": "streetlight_out",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "उद्यानाजवळील खांबाचा दिवा फ्यूज आहे, कृपया बल्ब बदला."
+    },
+    {
+      "id": "exposed_cable-en-01",
+      "category": "exposed_cable",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Live wires are hanging low over the footpath and touching people's heads."
+    },
+    {
+      "id": "exposed_cable-en-02",
+      "category": "exposed_cable",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The electric cable from the pole has come loose and is lying on the ground."
+    },
+    {
+      "id": "exposed_cable-en-03",
+      "category": "exposed_cable",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "There is an open junction box with bare wires next to the bus stop."
+    },
+    {
+      "id": "exposed_cable-en-04",
+      "category": "exposed_cable",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "Wires are sparking on the pole near our house every time it rains."
+    },
+    {
+      "id": "exposed_cable-en-05",
+      "category": "exposed_cable",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "The insulation on the overhead line has peeled off and copper is visible."
+    },
+    {
+      "id": "exposed_cable-en-06",
+      "category": "exposed_cable",
+      "locale": "en",
+      "provenance": "authored",
+      "text": "An electricity cable is exposed near the transformer and children play right there."
+    },
+    {
+      "id": "exposed_cable-hi-01",
+      "category": "exposed_cable",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "फुटपाथ के ऊपर बिजली के तार बहुत नीचे लटक रहे हैं और लोगों के सिर से टकराते हैं।"
+    },
+    {
+      "id": "exposed_cable-hi-02",
+      "category": "exposed_cable",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "खंभे से बिजली की केबल ढीली होकर जमीन पर पड़ी है।"
+    },
+    {
+      "id": "exposed_cable-hi-03",
+      "category": "exposed_cable",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "बस स्टॉप के पास जंक्शन बॉक्स खुला है और नंगे तार दिख रहे हैं।"
+    },
+    {
+      "id": "exposed_cable-hi-04",
+      "category": "exposed_cable",
+      "locale": "hi",
+      "provenance": "authored",
+      "text": "बारिश में हमारे घर के पास खंभे पर तारों से चिंगारी निकलती है।"
+    },
+    {
+      "id": "exposed_cable-mr-01",
+      "category": "exposed_cable",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "पदपथावर विजेच्या तारा खूप खाली लोंबत आहेत आणि लोकांच्या डोक्याला लागतात."
+    },
+    {
+      "id": "exposed_cable-mr-02",
+      "category": "exposed_cable",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "खांबावरून विजेची केबल सैल होऊन जमिनीवर पडली आहे."
+    },
+    {
+      "id": "exposed_cable-mr-03",
+      "category": "exposed_cable",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "बस थांब्याजवळ जंक्शन बॉक्स उघडा असून उघड्या तारा दिसतात."
+    },
+    {
+      "id": "exposed_cable-mr-04",
+      "category": "exposed_cable",
+      "locale": "mr",
+      "provenance": "authored",
+      "text": "पाऊस पडल्यावर आमच्या घराजवळच्या खांबावरील तारांमधून ठिणग्या उडतात."
+    }
+  ]
+}

@@ -1,0 +1,419 @@
+{
+  "generated": "2026-08-23T17:00:47+00:00",
+  "phase": 9,
+  "f1_floor": 0.65,
+  "corpus": {
+    "id": "municipality-v1",
+    "fingerprint": "bfe038141079b4363010a2d56b5a0671739e61bb4c2fbb8211a694813b47da2f",
+    "description": "Citizen-voice complaint descriptions for the nine selectable categories of the `municipality` tenant template, in the three locales that template declares. Authored by the NEMESIS team from the defect vocabulary in Blueprint §8, deliberately without reference to the prompt sets they are scored against — a corpus paraphrased from its own prompts measures the paraphrase. Text only: no field photographs exist yet, so the image modality is unmeasured and the report says so rather than substituting rendered pixels for evidence.",
+    "template": "municipality",
+    "holdout_examples": 72,
+    "calibration_examples": 54
+  },
+  "models": [
+    "sentence_transformers:intfloat/multilingual-e5-small"
+  ],
+  "modality": "text",
+  "calibration_source": "fitted on the 54-example calibration split of municipality-v1",
+  "latency": {
+    "budget_seconds": 10.0,
+    "operation": "classify_one",
+    "count": 72,
+    "p50_seconds": 0.0379,
+    "p95_seconds": 0.044,
+    "max_seconds": 0.0565,
+    "within_budget": true
+  },
+  "totals": {
+    "macro_f1": 0.5951,
+    "micro_f1": 0.629,
+    "forced_macro_f1": 0.6892,
+    "coverage": 0.7222
+  },
+  "baseline_totals": {
+    "macro_f1": 0.1136,
+    "micro_f1": 0.1299,
+    "forced_macro_f1": 0.7103,
+    "coverage": 0.0694
+  },
+  "per_locale_macro_f1": {
+    "en": 0.6384,
+    "hi": 0.6296,
+    "mr": 0.3852
+  },
+  "per_category": [
+    {
+      "category": "dead_animal",
+      "support": 8,
+      "precision": 0.5,
+      "recall": 0.625,
+      "f1": 0.5556,
+      "coverage": 0.625,
+      "abstentions": 3,
+      "forced_f1": 0.7,
+      "meets_floor": false
+    },
+    {
+      "category": "exposed_cable",
+      "support": 8,
+      "precision": 1.0,
+      "recall": 0.875,
+      "f1": 0.9333,
+      "coverage": 1.0,
+      "abstentions": 0,
+      "forced_f1": 0.9333,
+      "meets_floor": true
+    },
+    {
+      "category": "footpath_damage",
+      "support": 8,
+      "precision": 1.0,
+      "recall": 0.375,
+      "f1": 0.5455,
+      "coverage": 0.5,
+      "abstentions": 4,
+      "forced_f1": 0.7692,
+      "meets_floor": false
+    },
+    {
+      "category": "garbage_pile",
+      "support": 8,
+      "precision": 0.7143,
+      "recall": 0.625,
+      "f1": 0.6667,
+      "coverage": 1.0,
+      "abstentions": 0,
+      "forced_f1": 0.625,
+      "meets_floor": true
+    },
+    {
+      "category": "open_manhole",
+      "support": 8,
+      "precision": 0.8,
+      "recall": 0.5,
+      "f1": 0.6154,
+      "coverage": 0.875,
+      "abstentions": 1,
+      "forced_f1": 0.5882,
+      "meets_floor": false
+    },
+    {
+      "category": "pothole",
+      "support": 8,
+      "precision": 0.7143,
+      "recall": 0.625,
+      "f1": 0.6667,
+      "coverage": 0.625,
+      "abstentions": 3,
+      "forced_f1": 0.7,
+      "meets_floor": true
+    },
+    {
+      "category": "streetlight_out",
+      "support": 8,
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1": 0.6667,
+      "coverage": 0.625,
+      "abstentions": 3,
+      "forced_f1": 0.8571,
+      "meets_floor": true
+    },
+    {
+      "category": "water_leak",
+      "support": 8,
+      "precision": 0.6667,
+      "recall": 0.75,
+      "f1": 0.7059,
+      "coverage": 0.75,
+      "abstentions": 2,
+      "forced_f1": 0.6667,
+      "meets_floor": true
+    },
+    {
+      "category": "waterlogging",
+      "support": 8,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "coverage": 0.5,
+      "abstentions": 4,
+      "forced_f1": 0.3636,
+      "meets_floor": false
+    }
+  ],
+  "confusions": [
+    {
+      "truth": "open_manhole",
+      "predicted": "dead_animal",
+      "count": 2
+    },
+    {
+      "truth": "waterlogging",
+      "predicted": "water_leak",
+      "count": 2
+    },
+    {
+      "truth": "exposed_cable",
+      "predicted": "garbage_pile",
+      "count": 1
+    },
+    {
+      "truth": "footpath_damage",
+      "predicted": "pothole",
+      "count": 1
+    },
+    {
+      "truth": "garbage_pile",
+      "predicted": "dead_animal",
+      "count": 1
+    },
+    {
+      "truth": "garbage_pile",
+      "predicted": "pothole",
+      "count": 1
+    },
+    {
+      "truth": "garbage_pile",
+      "predicted": "water_leak",
+      "count": 1
+    },
+    {
+      "truth": "open_manhole",
+      "predicted": "garbage_pile",
+      "count": 1
+    },
+    {
+      "truth": "streetlight_out",
+      "predicted": "dead_animal",
+      "count": 1
+    },
+    {
+      "truth": "waterlogging",
+      "predicted": "dead_animal",
+      "count": 1
+    },
+    {
+      "truth": "waterlogging",
+      "predicted": "open_manhole",
+      "count": 1
+    }
+  ],
+  "prompt_pass_worklist": [
+    {
+      "truth": "footpath_damage",
+      "predicted": "pothole",
+      "count": 2
+    },
+    {
+      "truth": "exposed_cable",
+      "predicted": "dead_animal",
+      "count": 1
+    },
+    {
+      "truth": "garbage_pile",
+      "predicted": "dead_animal",
+      "count": 1
+    },
+    {
+      "truth": "open_manhole",
+      "predicted": "dead_animal",
+      "count": 1
+    },
+    {
+      "truth": "open_manhole",
+      "predicted": "pothole",
+      "count": 1
+    },
+    {
+      "truth": "streetlight_out",
+      "predicted": "dead_animal",
+      "count": 1
+    }
+  ],
+  "below_floor": [
+    "dead_animal",
+    "footpath_damage",
+    "open_manhole",
+    "waterlogging"
+  ],
+  "prompt_pass": [
+    "**Pass 1 (2026-08-23, template `municipality` 1.1.0 → 1.2.0).** The calibration-split work list showed two patterns, neither of them about the categories being hard. (a) `dead_animal` absorbed everything — four other categories leaked into it — because its prompts said \"lying in a public place\" and \"on the roadside\", which describes every street complaint in the taxonomy; it was rewritten around the carcass itself with the leaking categories as explicit negatives. (b) The three road-surface categories (`pothole`, `footpath_damage`, `open_manhole`) had no contrast against each other at all, so a sentence about a hole in the ground competed on generic road vocabulary; each now names the other two as negatives. Held-out macro F1 moved 0.574 → 0.595 and `pothole` moved 0.000 → 0.667.",
+    "**Not done in pass 1, deliberately: `waterlogging`.** It is the worst held-out category (F1 0.000, confused with `water_leak`) and it does not appear in the calibration-split work list at all — it scores fine there. Editing it would be tuning against the measurement. It is carried to the next pass, which needs calibration examples that actually exercise the `waterlogging`/`water_leak` boundary rather than more prompt text."
+  ],
+  "fitted_calibration": [
+    {
+      "category": "dead_animal",
+      "temperature": 0.007183,
+      "bias": -0.807627,
+      "abstain_below": 0.0958,
+      "sample_size": 54,
+      "mean_positive_similarity": 0.836359,
+      "mean_negative_similarity": 0.807627
+    },
+    {
+      "category": "exposed_cable",
+      "temperature": 0.008015,
+      "bias": -0.815316,
+      "abstain_below": 0.0958,
+      "sample_size": 54,
+      "mean_positive_similarity": 0.847376,
+      "mean_negative_similarity": 0.815316
+    },
+    {
+      "category": "footpath_damage",
+      "temperature": 0.00868,
+      "bias": -0.819681,
+      "abstain_below": 0.0958,
+      "sample_size": 54,
+      "mean_positive_similarity": 0.8544,
+      "mean_negative_similarity": 0.819681
+    },
+    {
+      "category": "garbage_pile",
+      "temperature": 0.006,
+      "bias": -0.830491,
+      "abstain_below": 0.0958,
+      "sample_size": 54,
+      "mean_positive_similarity": 0.838569,
+      "mean_negative_similarity": 0.830491
+    },
+    {
+      "category": "open_manhole",
+      "temperature": 0.008128,
+      "bias": -0.817432,
+      "abstain_below": 0.0958,
+      "sample_size": 54,
+      "mean_positive_similarity": 0.849944,
+      "mean_negative_similarity": 0.817432
+    },
+    {
+      "category": "pothole",
+      "temperature": 0.007109,
+      "bias": -0.816289,
+      "abstain_below": 0.0958,
+      "sample_size": 54,
+      "mean_positive_similarity": 0.844725,
+      "mean_negative_similarity": 0.816289
+    },
+    {
+      "category": "streetlight_out",
+      "temperature": 0.006,
+      "bias": -0.824984,
+      "abstain_below": 0.0958,
+      "sample_size": 54,
+      "mean_positive_similarity": 0.83732,
+      "mean_negative_similarity": 0.824984
+    },
+    {
+      "category": "water_leak",
+      "temperature": 0.008821,
+      "bias": -0.814944,
+      "abstain_below": 0.0958,
+      "sample_size": 54,
+      "mean_positive_similarity": 0.850226,
+      "mean_negative_similarity": 0.814944
+    },
+    {
+      "category": "waterlogging",
+      "temperature": 0.013502,
+      "bias": -0.832628,
+      "abstain_below": 0.0958,
+      "sample_size": 54,
+      "mean_positive_similarity": 0.886634,
+      "mean_negative_similarity": 0.832628
+    }
+  ],
+  "face_recall": {
+    "detector_id": "mediapipe:blaze_face_short_range@1",
+    "iou_threshold": 0.3,
+    "smallest_reliable_px": 80,
+    "buckets": [
+      {
+        "face_pixels": 12,
+        "faces_present": 4,
+        "faces_found": 0,
+        "recall": 0.0,
+        "mean_confidence": 0.0
+      },
+      {
+        "face_pixels": 16,
+        "faces_present": 4,
+        "faces_found": 0,
+        "recall": 0.0,
+        "mean_confidence": 0.0
+      },
+      {
+        "face_pixels": 24,
+        "faces_present": 4,
+        "faces_found": 0,
+        "recall": 0.0,
+        "mean_confidence": 0.0
+      },
+      {
+        "face_pixels": 32,
+        "faces_present": 4,
+        "faces_found": 0,
+        "recall": 0.0,
+        "mean_confidence": 0.0
+      },
+      {
+        "face_pixels": 48,
+        "faces_present": 4,
+        "faces_found": 0,
+        "recall": 0.0,
+        "mean_confidence": 0.0
+      },
+      {
+        "face_pixels": 64,
+        "faces_present": 4,
+        "faces_found": 0,
+        "recall": 0.0,
+        "mean_confidence": 0.0
+      },
+      {
+        "face_pixels": 72,
+        "faces_present": 4,
+        "faces_found": 0,
+        "recall": 0.0,
+        "mean_confidence": 0.0
+      },
+      {
+        "face_pixels": 80,
+        "faces_present": 4,
+        "faces_found": 4,
+        "recall": 1.0,
+        "mean_confidence": 0.6289
+      },
+      {
+        "face_pixels": 88,
+        "faces_present": 4,
+        "faces_found": 4,
+        "recall": 1.0,
+        "mean_confidence": 0.7489
+      },
+      {
+        "face_pixels": 96,
+        "faces_present": 4,
+        "faces_found": 4,
+        "recall": 1.0,
+        "mean_confidence": 0.7917
+      },
+      {
+        "face_pixels": 128,
+        "faces_present": 4,
+        "faces_found": 4,
+        "recall": 1.0,
+        "mean_confidence": 0.8046
+      }
+    ]
+  },
+  "caveats": [
+    "The corpus is **authored**, not field data. The sentences are written in citizen voice from the defect vocabulary in Blueprint §8 and deliberately not paraphrased from the prompt sets they are scored against — but they were still written by people who know what the categories are. A real intake queue carries misspellings, code-switching mid-sentence, dictation artefacts and reports that name two defects at once, and none of that is here. Treat this number as an upper bound on the text modality, and re-measure the day there are labelled field submissions.",
+    "**The image modality is not measured at all.** There is no licence-clean corpus of photographed civic defects in this repository, and rendering synthetic street scenes to score CLIP against would measure the renderer. So the published F1 is the text modality's, the CLIP prompt sets ship unmeasured, and Phase 10 — which needs image embeddings for dedup Stage 2 anyway — is where that corpus has to arrive. This is the same shape of carried-forward gap the HNSW report records, stated in the same place rather than discovered later.",
+    "The fitted calibration is **scale normalisation, not a calibrated posterior**. It maps each category's measured in-class/out-of-class similarity gap onto a common logit gap so the softmax can compare categories at all. A confidence of 0.7 from this system does not mean seven in ten, and the document's `provenance` field says so on every entry an approver will read.",
+    "**Marathi is measurably worse than English and Hindi here, and the corpus cannot say why.** The per-locale table is the finding; the explanation is not in it. It could be the encoder (multilingual-e5's Marathi coverage is thinner than its Hindi), the prompts (written in Marathi by the same hand that wrote the corpus, so a systematic vocabulary mismatch would be invisible), or the corpus (four examples per category per locale is a small number to conclude anything from). Separating those three needs a native-speaker review of the prompts and more Marathi examples, and until that happens the honest statement is the gap and not a cause.",
+    "**Nine held-out examples per category is a small sample and the per-category numbers move accordingly.** One example is 0.125 of a category's recall, so a category's F1 can shift by more than a tenth on a single sentence. Read the per-category column as an indication and the macro figure as the number, and treat a category moving between two runs of a prompt pass as noise unless the calibration-split work list moved with it.",
+    "The distant-face recall curve uses a **controlled synthetic stimulus**, not photographs. That is the right instrument for the question — recall as a function of face size in pixels is geometric — and it is the wrong instrument for absolute recall on real bystanders, who have hats, hair, angles and motion blur. What the curve establishes is the size at which this detector stops finding a face it can otherwise find; what it does not establish is the fraction of real bystanders protected in a real photograph."
+  ]
+}

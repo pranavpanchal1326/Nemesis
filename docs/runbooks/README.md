@@ -112,6 +112,20 @@ is the one place in §11 where inaction has a cost and no alarm rings on its own
 | [media-redaction-unavailable.md](media-redaction-unavailable.md) | §22.1 face blur cannot run, so complaints with photographs halt | **critical** |
 | [review-queue-backlog.md](review-queue-backlog.md) | The §11.4 queue is filling faster than it is worked | warning |
 
+### Perception (Phase 9)
+
+The third page in this family and the one that reads differently from the other
+two, because the perception layer *degrades* where redaction *refuses*. Nothing
+halts and nothing is lost; every report reaches a human with its evidence
+intact, which is §24.2 working exactly as written. What makes it an incident
+rather than a design note is volume — a human classifying every report by hand
+is a queue that grows — and the second §11.2 safety pass, which is the one thing
+that genuinely stops working while the models are down.
+
+| Page | Covers | Severity |
+|---|---|---|
+| [perception-model-unavailable.md](perception-model-unavailable.md) | CLIP, e5 or Whisper will not load, so every report parks as `pending_classification` | high |
+
 ### Public API & integrations (Phase 4)
 
 §16.3 promises civil society and journalists a durable public interface, which

@@ -899,11 +899,23 @@ class CategoryCalibration(PolicyBody):
     up as one category that never reaches its abstain floor and another that
     never leaves it.
 
-    **``bias`` is additive on the logit, after temperature.** That is Platt
-    scaling's shape, and it is chosen over a multiplicative correction because a
-    multiplier and a temperature are the same knob wearing two names, while an
-    offset is genuinely independent: temperature controls how *sharp* the
+    **``bias`` is additive on the *similarity*, before temperature**:
+    ``logit = (cosine + bias) / temperature``. Platt scaling's shape, written in
+    the model's own units, and chosen over a multiplicative correction because a
+    multiplier and a temperature are the same knob wearing two names while an
+    offset is genuinely independent — temperature controls how *sharp* the
     distribution is, bias controls where this category sits within it.
+
+    **Before the temperature rather than after, and that ordering is the whole
+    reason a per-category temperature is safe.** A softmax ignores a shift
+    applied to every logit, so with one global temperature the offset would be
+    decoration. With a temperature *per category* the logits are on different
+    scales, and without a per-category centre the category with the smallest
+    temperature wins every comparison on arithmetic rather than on evidence.
+    Putting the offset in similarity space also puts it inside a range an
+    approver can read: a cosine lives in [-1, 1], so the ±10 bound here is
+    generous, whereas the same centring expressed as a logit offset is in the
+    hundreds and no bound on it would mean anything.
 
     **``sample_size`` is required and is not decoration.** A temperature fitted
     on nine examples is a number with the same shape and none of the authority of
@@ -957,7 +969,29 @@ class PerceptionCalibration(PolicyBody):
     """
 
     default_temperature: Annotated[float, Field(gt=0.005, le=10.0)] = 0.05
-    default_abstain_below: Probability = 0.35
+
+    default_abstain_below: Probability = 0.15
+    """Confidence floor for a category with no measured curve.
+
+    **0.15 is a measured number, not a round one, and the number it replaced was
+    round.** The floor started at 0.35, which reads like a sensible "more likely
+    than not to be roughly right" threshold and is not one: the confidence it is
+    compared against comes out of a softmax over every category *and* every
+    category's contrast pool, so its ceiling falls as the taxonomy grows. On the
+    nine-category `municipality` template that made the shipped default abstain
+    on **100%** of the held-out corpus — a new tenant would have classified
+    nothing at all until somebody approved a fitted document, and the symptom
+    would have been an empty work list rather than an error.
+
+    0.15 sits above the 1/9 ≈ 0.111 a nine-way coin flip reaches and below the
+    0.164 operating point the harness fits on that template's own data, which is
+    the interval a default should be in: better than chance, more cautious than a
+    measurement. It is still a default and it is still taxonomy-size dependent —
+    the fix for that is a fitted document per tenant, which is what
+    `nem f1` produces and what §43.2's loop is for. See
+    `docs/reports/perception-f1.md`.
+    """
+
     default_min_margin: Annotated[float, Field(ge=0.0, le=1.0)] = 0.05
 
     #: How image and text evidence combine (``scoring.combine``). Below 0.5
