@@ -186,6 +186,45 @@ review_queue_open = Gauge(
     registry=REGISTRY,
 )
 
+dedup_decisions_total = Counter(
+    "nemesis_dedup_decisions_total",
+    "§14 dedup outcomes, by band. An `investigate` rate of zero means the ambiguous "
+    "band has collapsed and dedup has silently become a binary merge/no-merge decision.",
+    labelnames=("outcome",),
+    registry=REGISTRY,
+)
+
+dedup_candidates = Histogram(
+    "nemesis_dedup_stage1_candidates",
+    "Clusters surviving Stage 1 per report. The denominator of the §14.1 elimination "
+    "ratio: if this tracks the tenant's open-incident count, Stage 1 has stopped filtering.",
+    buckets=(0, 1, 2, 5, 10, 25, 50, 100),
+    registry=REGISTRY,
+)
+
+dedup_confidence = Histogram(
+    "nemesis_dedup_confidence",
+    "Combined similarity of the best candidate, whether or not it merged. Watching the "
+    "distribution rather than the merges is how a threshold drifting away from the data "
+    "becomes visible before it becomes a complaint.",
+    buckets=(0.0, 0.25, 0.5, 0.65, 0.75, 0.85, 0.9, 0.95, 1.0),
+    registry=REGISTRY,
+)
+
+dedup_truncations_total = Counter(
+    "nemesis_dedup_truncations_total",
+    "Reports whose Stage 1 candidate cap bound. A non-zero rate means some `no match` "
+    "decisions were made over a subset of the neighbourhood rather than all of it.",
+    registry=REGISTRY,
+)
+
+dedup_merge_reversions_total = Counter(
+    "nemesis_dedup_merge_reversions_total",
+    "§14.3 compensating reversals. The measured false-positive merge rate in production, "
+    "as opposed to the one the fixture set predicts.",
+    registry=REGISTRY,
+)
+
 safety_triggers_total = Counter(
     "nemesis_safety_triggers_total",
     "§11.2 deterministic safety triggers that fired, by rule and detection source.",

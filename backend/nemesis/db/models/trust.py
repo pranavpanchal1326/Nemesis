@@ -90,6 +90,10 @@ REVIEW_REASONS = (
     "perceptual_duplicate",
     "device_velocity",
     "geographic_cluster",
+    # Phase 10. §14.1's ambiguous band, which routes a report the dedup engine
+    # will not guess about to a human. Mirrored here because this tuple becomes
+    # the CHECK constraint on `review_queue_items` and `review_decisions`.
+    "ambiguous_dedup",
     "low_trust",
 )
 REVIEW_DECISIONS = ("approve", "reject", "escalate")

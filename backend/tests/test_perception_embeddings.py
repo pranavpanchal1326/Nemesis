@@ -40,6 +40,20 @@ DECLARED_READERS = frozenset(
     {
         # The ORM model, where the columns are defined.
         "db/models/complaint.py",
+        # Phase 10. Both of these are flagged by the keyword-argument rule and
+        # neither writes anything: `engine` loads the two vectors off the
+        # complaint row and hands them to `similarity`, which passes them into a
+        # `SELECT` builder as the right-hand side of a cosine comparison. The
+        # parameters are named after the columns because that is what they hold,
+        # and renaming them to dodge the check would make the call sites worse
+        # to read in exchange for nothing.
+        #
+        # Listed rather than the rule loosened: the rule catches assignment,
+        # `update().values()`, `insert().values()` and keyword arguments, and the
+        # last of those is what caught `dedup/harness.py` genuinely writing the
+        # column direct. A narrower rule would have missed it.
+        "dedup/engine.py",
+        "dedup/similarity.py",
     }
 )
 

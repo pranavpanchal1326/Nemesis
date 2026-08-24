@@ -1,0 +1,251 @@
+{
+  "corpus": {
+    "hash": "8fdea61e9ede",
+    "id": "municipality-dedup-v1",
+    "incidents": 11,
+    "reports": 24
+  },
+  "counts": {
+    "false_negatives": 4,
+    "false_positives": 4,
+    "investigated": 4,
+    "true_negatives": 10,
+    "true_positives": 6
+  },
+  "encoder": "sentence_transformers:intfloat/multilingual-e5-small",
+  "f1": 0.6,
+  "false_merges": [
+    {
+      "merged_with": [
+        "pothole-fc-road-r1",
+        "pothole-fc-road-r2"
+      ],
+      "report": "pothole-jm-road-r1"
+    },
+    {
+      "merged_with": [
+        "pothole-jm-road-r1"
+      ],
+      "report": "pothole-fc-road-r3"
+    },
+    {
+      "merged_with": [
+        "pothole-fc-road-r1",
+        "pothole-fc-road-r2",
+        "pothole-fc-road-r3"
+      ],
+      "report": "pothole-jm-road-r2"
+    },
+    {
+      "merged_with": [
+        "pothole-jm-road-r1",
+        "pothole-jm-road-r2"
+      ],
+      "report": "pothole-fc-road-r4"
+    }
+  ],
+  "generated_at": "2026-08-24T07:16:34.131222+00:00",
+  "judgements": [
+    {
+      "candidates": 0,
+      "confidence": 0.0,
+      "correct": true,
+      "incident": "cable-camp",
+      "outcome": "distinct",
+      "report": "cable-camp-r1"
+    },
+    {
+      "candidates": 0,
+      "confidence": 0.0,
+      "correct": true,
+      "incident": "dead-animal-hadapsar",
+      "outcome": "distinct",
+      "report": "dead-animal-hadapsar-r1"
+    },
+    {
+      "candidates": 0,
+      "confidence": 0.0,
+      "correct": true,
+      "incident": "footpath-deccan",
+      "outcome": "distinct",
+      "report": "footpath-deccan-r1"
+    },
+    {
+      "candidates": 0,
+      "confidence": 0.0,
+      "correct": true,
+      "incident": "garbage-model-colony",
+      "outcome": "distinct",
+      "report": "garbage-model-colony-r1"
+    },
+    {
+      "candidates": 0,
+      "confidence": 0.0,
+      "correct": true,
+      "incident": "manhole-shivajinagar",
+      "outcome": "distinct",
+      "report": "manhole-shivajinagar-r1"
+    },
+    {
+      "candidates": 0,
+      "confidence": 0.0,
+      "correct": true,
+      "incident": "pothole-fc-road",
+      "outcome": "distinct",
+      "report": "pothole-fc-road-r1"
+    },
+    {
+      "candidates": 0,
+      "confidence": 0.0,
+      "correct": true,
+      "incident": "pothole-hadapsar-stale",
+      "outcome": "distinct",
+      "report": "pothole-hadapsar-stale-r1"
+    },
+    {
+      "candidates": 0,
+      "confidence": 0.0,
+      "correct": true,
+      "incident": "streetlight-baner",
+      "outcome": "distinct",
+      "report": "streetlight-baner-r1"
+    },
+    {
+      "candidates": 0,
+      "confidence": 0.0,
+      "correct": true,
+      "incident": "water-leak-kothrud",
+      "outcome": "distinct",
+      "report": "water-leak-kothrud-r1"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8608,
+      "correct": true,
+      "incident": "pothole-fc-road",
+      "outcome": "merge",
+      "report": "pothole-fc-road-r2"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8695,
+      "correct": true,
+      "incident": "water-leak-kothrud",
+      "outcome": "merge",
+      "report": "water-leak-kothrud-r2"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8672,
+      "correct": false,
+      "incident": "pothole-jm-road",
+      "outcome": "merge",
+      "report": "pothole-jm-road-r1"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8535,
+      "correct": true,
+      "incident": "manhole-shivajinagar",
+      "outcome": "merge",
+      "report": "manhole-shivajinagar-r2"
+    },
+    {
+      "candidates": 0,
+      "confidence": 0.0,
+      "correct": true,
+      "incident": "waterlogging-kothrud",
+      "outcome": "distinct",
+      "report": "waterlogging-kothrud-r1"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8777,
+      "correct": false,
+      "incident": "pothole-fc-road",
+      "outcome": "merge",
+      "report": "pothole-fc-road-r3"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8781,
+      "correct": true,
+      "incident": "waterlogging-kothrud",
+      "outcome": "merge",
+      "report": "waterlogging-kothrud-r2"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8415,
+      "correct": false,
+      "incident": "streetlight-baner",
+      "outcome": "investigate",
+      "report": "streetlight-baner-r2"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8765,
+      "correct": true,
+      "incident": "footpath-deccan",
+      "outcome": "merge",
+      "report": "footpath-deccan-r2"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8242,
+      "correct": false,
+      "incident": "garbage-model-colony",
+      "outcome": "investigate",
+      "report": "garbage-model-colony-r2"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8216,
+      "correct": false,
+      "incident": "cable-camp",
+      "outcome": "investigate",
+      "report": "cable-camp-r2"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8661,
+      "correct": false,
+      "incident": "pothole-jm-road",
+      "outcome": "merge",
+      "report": "pothole-jm-road-r2"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8776,
+      "correct": true,
+      "incident": "water-leak-kothrud",
+      "outcome": "merge",
+      "report": "water-leak-kothrud-r3"
+    },
+    {
+      "candidates": 1,
+      "confidence": 0.8835,
+      "correct": false,
+      "incident": "pothole-fc-road",
+      "outcome": "merge",
+      "report": "pothole-fc-road-r4"
+    },
+    {
+      "candidates": 2,
+      "confidence": 0.8595,
+      "correct": false,
+      "incident": "garbage-model-colony",
+      "outcome": "investigate",
+      "report": "garbage-model-colony-r3"
+    }
+  ],
+  "latency_ms": {
+    "budget": 10000.0,
+    "n": 24,
+    "p95": 25.938987731933594
+  },
+  "phase": 10,
+  "policy_version": "baseline",
+  "precision": 0.6,
+  "recall": 0.6
+}

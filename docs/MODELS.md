@@ -92,7 +92,26 @@ nem f1
 |---|---|---|
 | **multilingual-e5-small** | Per-category precision/recall/F1 over a stratified held-out set of authored citizen-voice complaints in `en`/`hi`/`mr` | macro **F1 0.595**, micro 0.629, coverage 0.72; p95 44 ms per example against §27.1's 10 s budget |
 | **BlazeFace short-range** | §22.1 distant-face recall as a function of face width, on a controlled stimulus in a 640×480 frame | **recall 1.00 at 80 px, 0.00 at 72 px** — a cliff, not a curve |
-| **CLIP ViT-B-32** | *Not measured.* No licence-clean corpus of photographed civic defects exists here, and scoring against rendered scenes would measure the renderer | — |
+| **CLIP ViT-B-32** | *Accuracy not measured.* No licence-clean corpus of photographed civic defects exists here, and scoring against rendered scenes would measure the renderer. The gate does prove the tower runs end to end on a real submission | — |
+
+### Inference cost, per model
+
+Measured on the reference CPU, single forward pass, model load excluded:
+
+| Pass | p50 | p95 | Note |
+|---|---:|---:|---|
+| `encode_text` (e5) | 34 ms | 34 ms | one complaint |
+| `encode_image` (CLIP) | 112 ms | 129 ms | one 64×64 RGB frame |
+| `transcribe` (Whisper) | 2222 ms | 2461 ms | a **two-second** clip |
+
+**Whisper runs at roughly 1.15× real time and is ~70× the text encoder.** §27.1
+budgets the classification stage at 10 s, so a voice note beyond about eight
+seconds breaches it while `NEMESIS_PERCEPTION__MAX_AUDIO_SECONDS` permits 300.
+Nothing breaks — the stage degrades to `pending_classification` and a human
+plays the clip — but the practical ceiling on voice intake is set by recording
+length rather than by the budget, and it is the first thing to shed when the ml
+queue backs up (`perception_audio_transcription` is a kill switch for exactly
+this reason).
 
 Full report, per-locale breakdown, confusion pairs and the caveats that matter:
 [`docs/reports/perception-f1.md`](reports/perception-f1.md).

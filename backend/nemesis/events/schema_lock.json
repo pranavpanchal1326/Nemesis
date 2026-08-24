@@ -60,6 +60,12 @@
       "has_upcaster": false,
       "model": "ClusterMergeRevertedV1"
     },
+    "complaint_clustered@1": {
+      "entity_type": "complaint",
+      "fingerprint": "47fcc866c63beba1890830a088489d08d7276820a8af357d6891aad5c51f55e9",
+      "has_upcaster": false,
+      "model": "ComplaintClusteredV1"
+    },
     "complaint_submitted@1": {
       "entity_type": "complaint",
       "fingerprint": "ed649254bd1dc7c8eb19634fdd321ec713a29a28b00efb562465cb701c6fb4d6",

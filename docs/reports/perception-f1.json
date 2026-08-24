@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-23T17:00:47+00:00",
+  "generated": "2026-08-24T04:18:10+00:00",
   "phase": 9,
   "f1_floor": 0.65,
   "corpus": {
@@ -19,10 +19,36 @@
     "budget_seconds": 10.0,
     "operation": "classify_one",
     "count": 72,
-    "p50_seconds": 0.0379,
-    "p95_seconds": 0.044,
-    "max_seconds": 0.0565,
-    "within_budget": true
+    "p50_seconds": 0.0411,
+    "p95_seconds": 0.0561,
+    "max_seconds": 0.0826,
+    "within_budget": true,
+    "per_model": [
+      {
+        "operation": "encode_image",
+        "count": 5,
+        "p50_seconds": 0.1093,
+        "p95_seconds": 0.1292,
+        "max_seconds": 0.1292,
+        "within_budget": true
+      },
+      {
+        "operation": "encode_text",
+        "count": 5,
+        "p50_seconds": 0.0308,
+        "p95_seconds": 0.034,
+        "max_seconds": 0.034,
+        "within_budget": true
+      },
+      {
+        "operation": "transcribe",
+        "count": 5,
+        "p50_seconds": 2.3179,
+        "p95_seconds": 2.4607,
+        "max_seconds": 2.4607,
+        "within_budget": true
+      }
+    ]
   },
   "totals": {
     "macro_f1": 0.5951,
@@ -414,6 +440,7 @@
     "The fitted calibration is **scale normalisation, not a calibrated posterior**. It maps each category's measured in-class/out-of-class similarity gap onto a common logit gap so the softmax can compare categories at all. A confidence of 0.7 from this system does not mean seven in ten, and the document's `provenance` field says so on every entry an approver will read.",
     "**Marathi is measurably worse than English and Hindi here, and the corpus cannot say why.** The per-locale table is the finding; the explanation is not in it. It could be the encoder (multilingual-e5's Marathi coverage is thinner than its Hindi), the prompts (written in Marathi by the same hand that wrote the corpus, so a systematic vocabulary mismatch would be invisible), or the corpus (four examples per category per locale is a small number to conclude anything from). Separating those three needs a native-speaker review of the prompts and more Marathi examples, and until that happens the honest statement is the gap and not a cause.",
     "**Nine held-out examples per category is a small sample and the per-category numbers move accordingly.** One example is 0.125 of a category's recall, so a category's F1 can shift by more than a tenth on a single sentence. Read the per-category column as an indication and the macro figure as the number, and treat a category moving between two runs of a prompt pass as noise unless the calibration-split work list moved with it.",
+    "**The per-model latency table meets the budget and the transcriber only meets it for short clips.** Whisper runs at roughly 1.15x real time on this CPU — a two-second clip costs ~2.3 s, against 116 ms for a CLIP image encode and 36 ms for a text encode. The §27.1 budget is per *stage*, so a voice note longer than about eight seconds breaches it, and `NEMESIS_PERCEPTION__MAX_AUDIO_SECONDS` currently permits 300. Nothing breaks — the stage degrades to `pending_classification` and a human plays the clip — but the practical ceiling is set by the recording length rather than by the budget, and the number to watch is `nemesis_perception_inference_seconds{operation=\"transcribe\"}` against the audio duration recorded on `media_transcribed`. This is a measurement, not a regression: it is what the model costs, and it was previously unmeasured.",
     "The distant-face recall curve uses a **controlled synthetic stimulus**, not photographs. That is the right instrument for the question — recall as a function of face size in pixels is geometric — and it is the wrong instrument for absolute recall on real bystanders, who have hats, hair, angles and motion blur. What the curve establishes is the size at which this detector stops finding a face it can otherwise find; what it does not establish is the fraction of real bystanders protected in a real photograph."
   ]
 }

@@ -74,6 +74,10 @@ DOMAIN_PACKAGES = (
     # deciding which category a photograph is — so a package that scanned clean
     # by not being scanned would be the worst possible omission here.
     "nemesis/perception",
+    # Phase 10. Listed from its first commit, for the same reason: dedup is the
+    # package that decides whether one citizen's report is another's, and a
+    # category name compiled into that decision would be the moat hardcoded.
+    "nemesis/dedup",
 )
 
 #: Files inside a domain package that may carry an otherwise-flagged literal,

@@ -1744,6 +1744,9 @@ to be disappointing on purpose.
   it, along with CLIP prompts for the three `municipality` categories that had
   none — a category with no prompt can never be scored, so those three were
   permanently unclassifiable in every municipality tenant
+- **CLIP and Whisper both execute in the gate against real bytes** — added
+  after the first version of this gate passed 26/26 without either of them ever
+  running. See defect 7
 - **`faster-whisper` transcription across the tenant's declared locales**, with
   the tenant's list used as a *tie-break* on detection rather than a filter:
   constraining detection would mistranscribe the citizen who speaks something
@@ -1775,9 +1778,20 @@ to be disappointing on purpose.
   `scoring.decide`, the same function the pipeline stage calls, over a
   stratified held-out split the corpus computes from its own contents
   (ADR-0034). **Macro F1 0.595, micro 0.629, coverage 0.72** across nine
-  categories and three locales, per-example p95 44 ms against §27.1's 10 s
-  budget. Four categories are below the 65% floor and the §43.2 prompt pass
-  against them is recorded in the artefact
+  categories and three locales. Four categories are below the 65% floor and the
+  §43.2 prompt pass against them is recorded in the artefact
+- **§27.1 measured per model, not once.** `encode_image` 129 ms, `encode_text`
+  34 ms, `transcribe` **2461 ms** for a two-second clip — Whisper runs at about
+  1.15x real time and is 70x the text encoder. All three are inside the 10 s
+  stage budget and the transcriber is inside it *only for short clips*: a voice
+  note beyond roughly eight seconds breaches the budget, while
+  `MAX_AUDIO_SECONDS` permits 300. Nothing breaks — the stage degrades and a
+  human plays the clip — but the practical ceiling is set by recording length,
+  and that was unmeasured until now
+- **The fitted calibration round-trips through the policy API into the stage**,
+  proven by a test that activates a harness-shaped document and asserts the same
+  submission then abstains. "The harness proposes and an approver decides" was an
+  architecture diagram until that test existed
 - **The second §11.2 pass, which Phase 8 named and could not perform.** The
   first safety pass runs before transcription on a queue served by a container
   that has never imported torch — that separation is what makes "a saturated
@@ -1839,7 +1853,25 @@ argument for it calling the shipped rule rather than its own copy:
    ranking to a held-out F1 of exactly zero. Replaced with a quantile operating
    point, pooled across categories, which is stable under small corpus changes
    and is a decision somebody can argue with in words
-7. **The prompt-pass work list was being read off the held-out confusions**,
+7. **This gate passed 26/26 while two of the three models had never run.** The
+   sandbox tenant ships no `clip` prompt sets, so every photographed report took
+   the image path's "no prompts for this encoder" branch and CLIP was never
+   invoked; Whisper had never been handed audio by anything except
+   `fetch_models.py`'s load check. The gate submitted a photograph on every
+   request and proved nothing about either. **The clauses were written by the
+   same person who wrote the code, and they avoided exactly the two things that
+   were hardest to prove** — which is Phase 2's critique-log defect 12 in a new
+   place: a gate clause proven against a weaker claim wearing the same words.
+   Clause 3b now attaches CLIP prompts over HTTP and asserts
+   `model_ids.image` names `open_clip`, and submits an audio-only report and
+   asserts `perception_transcriptions_total` moved. Both are existence proofs,
+   not accuracy claims, and they are labelled as such
+8. **The §27.1 latency clause measured the cheapest of the three models.** The
+   corpus is text, so the harness's per-example timing is the e5 encoder — 34 ms
+   — while the clause said "inference latency". CLIP is 4x that and Whisper is
+   70x. `measure_inference_latency` now times each model separately and the gate
+   asserts all three
+9. **The prompt-pass work list was being read off the held-out confusions**,
    which silently converts the held-out set into a development set. The harness
    now measures the work list on the calibration split and the report says, in
    the section where a reader would otherwise reach for the wrong table, why the
@@ -1859,6 +1891,12 @@ argument for it calling the shipped rule rather than its own copy:
   a second detector or a tiled pass, and it is a §22 obligation rather than a
   perception feature, so it belongs with the phase that can schedule the extra
   inference. What this phase owed was the number, and the number ships
+- **Transcription *quality* is unmeasured.** The gate proves faster-whisper
+  decodes real audio and runs its front end — the clip is a synthesised tone, and
+  the VAD filter correctly discards it as non-speech, so what executes is ffmpeg
+  plus the voice-activity stage and not the acoustic model. Proving §8.4's
+  multilingual promise needs spoken audio with a licence, which this repository
+  does not have. Recorded here rather than implied by a passing gate
 - **Marathi is measurably worse than English and Hindi** (macro F1 0.385 against
   0.638 and 0.630) and the corpus cannot say why — encoder coverage, prompt
   wording and corpus size are all plausible and are not separable from four
@@ -1885,7 +1923,7 @@ argument for it calling the shipped rule rather than its own copy:
   builds the first real index, needs the photo corpus for dedup Stage 2 anyway,
   and is the last phase that can change these parameters cheaply
 
-**Gate** ✅ — `nem gate-phase9`, 26/26 against the running stack
+**Gate** ✅ — `nem gate-phase9`, 32/32 against the running stack
 - A **published per-category F1 number** in the repo, reproducible by one
   command — and the gate reproduces it, comparing the re-run's numbers and corpus
   fingerprint against the committed artefact rather than trusting that it exists
@@ -1897,8 +1935,12 @@ argument for it calling the shipped rule rather than its own copy:
   key the gate greps the repository to confirm no module knows, created and
   classified over HTTP with the API container's identity compared across the run
 - Inference latency within the §27.1 budget on this hardware, measured not
-  estimated: p95 44 ms per example, and 1.7 s from HTTP accept to
-  `classification_scored` through the real pipeline
+  estimated, **per model**: `encode_image` 129 ms, `encode_text` 34 ms,
+  `transcribe` 2461 ms, and 16.7 s from HTTP accept to `classification_scored`
+  through the real pipeline
+- And a fifth clause the phase did not ask for, added because its absence let
+  the gate pass while two models had never executed: **the image and audio paths
+  actually run**, against real bytes, in the real container
 
 
 ## Phase 10 — Deduplication & clustering engine · DATA
@@ -1918,6 +1960,63 @@ The moat (§14). Never cut, never simplified.
 - **Zero false-positive merges** on the fixture set — a wrong merge suppresses a real citizen report (§14.3)
 - Stage 1 eliminates ≥ 90% of candidates before any embedding comparison, verified by query plan
 - Decision latency within the §27.1 budget at seeded volume
+
+**Shipped**
+- **Stage 1** — `ST_DWithin` against the GiST index on `complaint_clusters.centroid`, with the radius and window taken from the *band* rather than from platform settings, plus two predicates the plan does not name and the engine is wrong without: the time window excludes a defect that was fixed and reopened, and an `EXISTS` over cluster members excludes a different category however close it sits
+- **Stage 2** — exact cosine over the members of the surviving candidates, scored as the *best* matching member rather than a centroid or a mean. **This deviates from the plan's "0.8 iterative scans" wording and ADR-0035 records why**: iterative scan is the fix for a filtered ANN search under-returning, the candidate set after Stage 1 is a handful of clusters, and an exact scan is both cheaper at that size and reproducible — which `docs/reports/hnsw-recall.md` shows HNSW is not, since it reorders near-ties
+- **Per-category bands from Phase 6**, including the tie rule the bands imply but do not state: two candidates both above the merge threshold and within `ambiguous_margin` of each other are *not* merged, because picking the higher is a coin-flip and §14.3 forbids coin-flips in that direction
+- **Merge reversibility** as three appended events — the old cluster records losing a member, a fresh cluster records gaining one, the complaint records its new home. Nothing is deleted, so the log shows the system was wrong and corrected itself
+- **`complaint_clustered`** on the complaint chain. A gap rather than a feature: `Complaint.cluster_id` is read by the projection writer and no event on the complaint's own chain ever set it, so before this the column was structurally guaranteed to stay NULL
+- The **ambiguous band does something** — a review item under a new `ambiguous_dedup` reason, which is the Phase 16 Investigation Agent's work done by a human until the agent exists
+
+**Gate — NOT MET.** Three clauses of four pass. `nem gate-phase10`:
+- ✅ Precision **0.600**, recall **0.600** on `municipality-dedup-v1` (24 reports, 11 incidents), reproduced exactly by one command
+- ❌ **Four false-positive merges.** One root error and three cascades: `pothole-jm-road-r1` joined the FC Road cluster, and every later report of either pothole then found a cluster already containing both
+- ✅ Stage 1 eliminated 98% of 200 seeded clusters, asserted from `EXPLAIN (ANALYZE)` output naming `ix_complaint_clusters_centroid` — not merely "an index"
+- ✅ p95 **15.5 ms** against §27.1's 10 s budget
+
+**Why the gate was not met, and why no threshold was moved.** The true-duplicate
+and false-merge confidence distributions **interleave** — highest true duplicate
+0.8781, lowest false merge 0.8661 — so *no* value of `merge_threshold` separates
+them. This is a statement about the modality, not the tuning: two citizens
+describing two different potholes thirty metres apart write nearly the same
+sentence, and `multilingual-e5` compresses same-domain civic complaints into a
+0.82–0.88 band in which that difference is smaller than the noise. Two remedies
+exist — the image modality, and a tighter radius for point defects — and neither
+was applied, because the corpus has no held-out split and tuning against the only
+measurement available publishes a number about the tuning. `docs/reports/dedup-precision-recall.md`
+carries the full diagnosis.
+
+**Carried forward, and now overdue.** Phase 9's F1 report named Phase 10 as where
+the photograph corpus had to arrive, because dedup Stage 2 needs image embeddings.
+It has not arrived; there is still no licence-clean set of photographed civic
+defects in this repository. `image_weight` therefore ships unmeasured for a second
+phase running, and the false merges above are the first concrete cost of that gap
+rather than a hypothetical one. Closing Phase 10's gate most likely requires
+closing this first.
+
+**Defects the gate caught**
+1. **Adding a `ReviewReason` member passed every static check and failed at
+   runtime.** The models build their `CHECK` constraint from `REVIEW_REASONS`, so
+   the enum, `ruff`, `mypy --strict` and every test that did not insert a row all
+   agreed the new value was legal — while the database, holding the list Phase 8's
+   migration wrote out literally, rejected it. Found by an integration test
+   inserting a real review item; fixed by a migration that alters both
+   `review_queue_items` and `review_decisions`, because a reason the queue can
+   hold and the decision table cannot is an item that can be raised and never
+   resolved.
+2. **The first dedup fixtures could not tell two reports apart.** The vector
+   helper built components from `sin(seed·k + i·c)`, which looks like it scatters
+   and does not — every vector was the same wave at a different phase, and two
+   deliberately unrelated seeds came out at cosine 0.997. A test asserting "these
+   are different reports" was asserting nothing. Replaced with normalised Gaussian
+   components, which are near-orthogonal in high dimensions the way the real
+   encoders are.
+3. **The ambiguous-band test proved the wrong thing.** Its two "neighbours" were
+   close enough to merge with *each other* during setup, so only one cluster ever
+   existed and the test passed a report through an unambiguous merge while
+   claiming to exercise the ambiguous band. Fixed by geometry: both incidents 30 m
+   from the subject and 60 m from each other.
 
 ## Phase 11 — ML platform: labelling, drift & feedback loop · DATA
 

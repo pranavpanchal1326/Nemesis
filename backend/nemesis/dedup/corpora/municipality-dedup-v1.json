@@ -1,0 +1,132 @@
+{
+  "corpus_id": "municipality-dedup-v1",
+  "template": "municipality",
+  "authored": "2026-08-24",
+  "description": "Labelled duplicate and distinct report pairs for the `municipality` tenant template, expressed as incidents with multiple citizen reports. Two reports of the same incident are a true duplicate; two reports of different incidents are truly distinct, however close together they sit. Authored by the NEMESIS team in citizen voice, deliberately without reference to each other's wording: the point of a dedup corpus is that two people describe one problem differently, so a corpus whose duplicates are paraphrases of one sentence measures paraphrase detection instead.",
+  "geography": "Coordinates are real Pune street positions, chosen so several incidents fall inside one 50 m radius. The hard cases are deliberate — a corpus where every incident is a kilometre from every other measures the geospatial filter and nothing else.",
+  "incidents": [
+    {
+      "id": "pothole-fc-road",
+      "category": "pothole",
+      "latitude": 18.523400,
+      "longitude": 73.841200,
+      "note": "One large pothole outside the college gate. Four citizens, four framings.",
+      "reports": [
+        {"id": "pothole-fc-road-r1", "locale": "en", "offset_hours": 0, "offset_meters": 0, "text": "Huge pothole right outside the college gate on FC Road, two-wheelers are swerving into oncoming traffic to avoid it."},
+        {"id": "pothole-fc-road-r2", "locale": "en", "offset_hours": 3, "offset_meters": 6, "text": "There is a deep crater in the road surface near the college entrance. My scooter's front wheel went into it and I nearly fell."},
+        {"id": "pothole-fc-road-r3", "locale": "hi", "offset_hours": 9, "offset_meters": 4, "text": "कॉलेज गेट के सामने सड़क पर बहुत बड़ा गड्ढा है, दोपहिया वाहन रोज़ फिसल रहे हैं।"},
+        {"id": "pothole-fc-road-r4", "locale": "en", "offset_hours": 26, "offset_meters": 9, "text": "The road has broken open outside the college. It has been like this for a week and after last night's rain it is now full of water and impossible to judge the depth."}
+      ]
+    },
+    {
+      "id": "pothole-jm-road",
+      "category": "pothole",
+      "latitude": 18.523440,
+      "longitude": 73.841480,
+      "note": "A SEPARATE pothole about 30 m from the FC Road one. Same category, same street, same week — the hardest true-distinct case in the corpus, and the one a naive geospatial rule merges.",
+      "reports": [
+        {"id": "pothole-jm-road-r1", "locale": "en", "offset_hours": 5, "offset_meters": 0, "text": "Small but very sharp edged pothole at the junction where the side lane meets the main road, cars hit it hard when turning left."},
+        {"id": "pothole-jm-road-r2", "locale": "en", "offset_hours": 20, "offset_meters": 5, "text": "At the left turn onto the service lane there is a broken patch with an exposed edge of concrete. It has already torn one tyre that I know of."}
+      ]
+    },
+    {
+      "id": "garbage-model-colony",
+      "category": "garbage_pile",
+      "latitude": 18.531200,
+      "longitude": 73.836900,
+      "note": "Uncollected refuse at a corner. Three reports across two days.",
+      "reports": [
+        {"id": "garbage-model-colony-r1", "locale": "en", "offset_hours": 0, "offset_meters": 0, "text": "Garbage has not been collected from the corner bin for four days and it is now spilling across the footpath."},
+        {"id": "garbage-model-colony-r2", "locale": "mr", "offset_hours": 14, "offset_meters": 7, "text": "कोपऱ्यावरील कचरा कुंडी भरून वाहत आहे, कचरा रस्त्यावर पसरला आहे आणि दुर्गंधी येत आहे."},
+        {"id": "garbage-model-colony-r3", "locale": "en", "offset_hours": 30, "offset_meters": 3, "text": "The rubbish heap by the corner shop keeps growing, stray dogs are pulling it into the street every night and nobody has come to clear it."}
+      ]
+    },
+    {
+      "id": "streetlight-baner",
+      "category": "streetlight_out",
+      "latitude": 18.559800,
+      "longitude": 73.776500,
+      "note": "A dark stretch. Two reports, one of which mentions a safety concern.",
+      "reports": [
+        {"id": "streetlight-baner-r1", "locale": "en", "offset_hours": 0, "offset_meters": 0, "text": "The street lamps along this stretch have been dead for over a week, the whole lane is pitch dark after eight in the evening."},
+        {"id": "streetlight-baner-r2", "locale": "en", "offset_hours": 11, "offset_meters": 12, "text": "No lighting at all on this road at night. Women walking back from the bus stop have to use phone torches and it feels unsafe."}
+      ]
+    },
+    {
+      "id": "water-leak-kothrud",
+      "category": "water_leak",
+      "latitude": 18.507300,
+      "longitude": 73.807600,
+      "note": "A burst main. Three reports.",
+      "reports": [
+        {"id": "water-leak-kothrud-r1", "locale": "en", "offset_hours": 0, "offset_meters": 0, "text": "A water pipe has burst near the corner and clean drinking water has been running down the road since morning."},
+        {"id": "water-leak-kothrud-r2", "locale": "hi", "offset_hours": 4, "offset_meters": 8, "text": "पानी की मुख्य पाइपलाइन फट गई है और साफ़ पानी लगातार सड़क पर बह रहा है, बहुत बर्बादी हो रही है।"},
+        {"id": "water-leak-kothrud-r3", "locale": "en", "offset_hours": 22, "offset_meters": 5, "text": "Still leaking. There is a constant stream of water from under the road surface and the tar around it has started to sink."}
+      ]
+    },
+    {
+      "id": "waterlogging-kothrud",
+      "category": "waterlogging",
+      "latitude": 18.507340,
+      "longitude": 73.807880,
+      "note": "Standing rainwater roughly 30 m from the burst main. Distinct incident, adjacent category, adjacent location — this is the pair that tests whether the engine can tell a leak from a flood.",
+      "reports": [
+        {"id": "waterlogging-kothrud-r1", "locale": "en", "offset_hours": 8, "offset_meters": 0, "text": "After last night's rain the entire junction is under knee deep water and there is no drainage outlet anywhere near it."},
+        {"id": "waterlogging-kothrud-r2", "locale": "en", "offset_hours": 9, "offset_meters": 11, "text": "The low section of the road floods every single time it rains, buses push waves of dirty water onto the footpath and pedestrians cannot cross."}
+      ]
+    },
+    {
+      "id": "manhole-shivajinagar",
+      "category": "open_manhole",
+      "latitude": 18.530100,
+      "longitude": 73.851400,
+      "note": "Missing cover. Two reports, several hours apart.",
+      "reports": [
+        {"id": "manhole-shivajinagar-r1", "locale": "en", "offset_hours": 0, "offset_meters": 0, "text": "The manhole cover at the edge of the carriageway is missing entirely and the shaft is wide open with nothing around it."},
+        {"id": "manhole-shivajinagar-r2", "locale": "en", "offset_hours": 6, "offset_meters": 4, "text": "There is an uncovered drain opening in the road here. Someone has put a branch in it as a warning but at night you would not see it at all."}
+      ]
+    },
+    {
+      "id": "cable-camp",
+      "category": "exposed_cable",
+      "latitude": 18.514900,
+      "longitude": 73.878200,
+      "note": "Live wiring at head height.",
+      "reports": [
+        {"id": "cable-camp-r1", "locale": "en", "offset_hours": 0, "offset_meters": 0, "text": "Electrical cables are hanging loose from the pole at head height right above where people walk, and the insulation is split."},
+        {"id": "cable-camp-r2", "locale": "mr", "offset_hours": 16, "offset_meters": 6, "text": "खांबावरून वीजेच्या तारा लोंबकळत आहेत आणि त्या माणसाच्या डोक्याच्या उंचीवर आहेत, खूप धोकादायक आहे."}
+      ]
+    },
+    {
+      "id": "footpath-deccan",
+      "category": "footpath_damage",
+      "latitude": 18.516400,
+      "longitude": 73.844100,
+      "note": "Broken paving.",
+      "reports": [
+        {"id": "footpath-deccan-r1", "locale": "en", "offset_hours": 0, "offset_meters": 0, "text": "The paving slabs on the footpath have lifted and cracked apart, elderly people are stepping into the road to get past them."},
+        {"id": "footpath-deccan-r2", "locale": "en", "offset_hours": 13, "offset_meters": 7, "text": "Pedestrian walkway here is completely broken up, the tiles are loose and one of them tipped up and cut my foot."}
+      ]
+    },
+    {
+      "id": "dead-animal-hadapsar",
+      "category": "dead_animal",
+      "latitude": 18.500200,
+      "longitude": 73.925800,
+      "note": "Single-report incident. Present so the corpus contains incidents that should never merge with anything.",
+      "reports": [
+        {"id": "dead-animal-hadapsar-r1", "locale": "en", "offset_hours": 0, "offset_meters": 0, "text": "There is a dead stray dog on the roadside near the compound wall and it has been lying there since yesterday."}
+      ]
+    },
+    {
+      "id": "pothole-hadapsar-stale",
+      "category": "pothole",
+      "latitude": 18.500240,
+      "longitude": 73.925900,
+      "note": "A pothole at the same junction as the dead animal, reported months earlier and then again now. The two reports are the SAME incident but fall outside each other's time window, so the engine is expected to keep them apart — a fixed pothole that reopened is a new work order, not an addition to a closed one. Recorded as a distinct pair for that reason, and it is the one label in this corpus that encodes a policy decision rather than a physical fact.",
+      "reports": [
+        {"id": "pothole-hadapsar-stale-r1", "locale": "en", "offset_hours": 0, "offset_meters": 0, "text": "Broken road surface at the junction near the compound wall, the edge has crumbled away into loose gravel."}
+      ]
+    }
+  ]
+}

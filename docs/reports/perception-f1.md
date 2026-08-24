@@ -1,6 +1,6 @@
 # Perception layer — per-category precision, recall and F1
 
-**Generated:** 2026-08-23T17:00:47+00:00 · **Phase:** 9 · **Owner:** DATA  
+**Generated:** 2026-08-24T04:18:10+00:00 · **Phase:** 9 · **Owner:** DATA  
 **Reproduce:** `nem f1`  
 **Raw data:** [`perception-f1.json`](perception-f1.json) · **Proposed calibration:** [`perception-calibration-proposed.json`](perception-calibration-proposed.json)
 
@@ -91,9 +91,9 @@ The following categories are below the gate's floor. Each one triggers the §43.
 | Category | F1 | Coverage | Confused with |
 |---|---:|---:|---|
 | `dead_animal` | 0.556 | 0.62 | — |
-| `footpath_damage` | 0.545 | 0.50 | `pothole` ×1 |
-| `open_manhole` | 0.615 | 0.88 | `dead_animal` ×2, `garbage_pile` ×1 |
-| `waterlogging` | 0.000 | 0.50 | `water_leak` ×2, `dead_animal` ×1, `open_manhole` ×1 |
+| `footpath_damage` | 0.545 | 0.50 | `pothole` x1 |
+| `open_manhole` | 0.615 | 0.88 | `dead_animal` x2, `garbage_pile` x1 |
+| `waterlogging` | 0.000 | 0.50 | `water_leak` x2, `dead_animal` x1, `open_manhole` x1 |
 
 **Prompt pass:**
 
@@ -105,9 +105,19 @@ The following categories are below the gate's floor. Each one triggers the §43.
 
 | Operation | n | p50 | p95 | max | Budget |
 |---|---:|---:|---:|---:|---:|
-| `classify_one` | 72 | 37.9 ms | 44.0 ms | 56.5 ms | 10000 ms |
+| `classify_one` | 72 | 41.1 ms | 56.1 ms | 82.6 ms | 10000 ms |
 
 One example end to end — encode, score every category, fuse, decide — on this hardware, measured rather than estimated. Model *load* is excluded and reported by `nemesis_perception_model_load_seconds`: a cold start is a deployment property and no complaint after the first pays it.
+
+### Per model
+
+| Model pass | n | p50 | p95 | max | In budget |
+|---|---:|---:|---:|---:|---|
+| `encode_image` | 5 | 109 ms | 129 ms | 129 ms | yes |
+| `encode_text` | 5 | 31 ms | 34 ms | 34 ms | yes |
+| `transcribe` | 5 | 2318 ms | 2461 ms | 2461 ms | yes |
+
+**Reported separately because the table above times the text encoder and nothing else.** The corpus is text, so a budget checked against it alone is a budget checked against the cheapest of the three models, while CLIP encode and Whisper transcribe are what a photographed or spoken report actually costs. These are single forward passes over one fixed input, with the first call discarded so the model load is not counted.
 
 ## Distant-face recall (§22.1)
 
@@ -138,4 +148,5 @@ This is Phase 0's carried-forward question and it is *not* discharged by Phase 8
 - The fitted calibration is **scale normalisation, not a calibrated posterior**. It maps each category's measured in-class/out-of-class similarity gap onto a common logit gap so the softmax can compare categories at all. A confidence of 0.7 from this system does not mean seven in ten, and the document's `provenance` field says so on every entry an approver will read.
 - **Marathi is measurably worse than English and Hindi here, and the corpus cannot say why.** The per-locale table is the finding; the explanation is not in it. It could be the encoder (multilingual-e5's Marathi coverage is thinner than its Hindi), the prompts (written in Marathi by the same hand that wrote the corpus, so a systematic vocabulary mismatch would be invisible), or the corpus (four examples per category per locale is a small number to conclude anything from). Separating those three needs a native-speaker review of the prompts and more Marathi examples, and until that happens the honest statement is the gap and not a cause.
 - **Nine held-out examples per category is a small sample and the per-category numbers move accordingly.** One example is 0.125 of a category's recall, so a category's F1 can shift by more than a tenth on a single sentence. Read the per-category column as an indication and the macro figure as the number, and treat a category moving between two runs of a prompt pass as noise unless the calibration-split work list moved with it.
+- **The per-model latency table meets the budget and the transcriber only meets it for short clips.** Whisper runs at roughly 1.15x real time on this CPU — a two-second clip costs ~2.3 s, against 116 ms for a CLIP image encode and 36 ms for a text encode. The §27.1 budget is per *stage*, so a voice note longer than about eight seconds breaches it, and `NEMESIS_PERCEPTION__MAX_AUDIO_SECONDS` currently permits 300. Nothing breaks — the stage degrades to `pending_classification` and a human plays the clip — but the practical ceiling is set by the recording length rather than by the budget, and the number to watch is `nemesis_perception_inference_seconds{operation="transcribe"}` against the audio duration recorded on `media_transcribed`. This is a measurement, not a regression: it is what the model costs, and it was previously unmeasured.
 - The distant-face recall curve uses a **controlled synthetic stimulus**, not photographs. That is the right instrument for the question — recall as a function of face size in pixels is geometric — and it is the wrong instrument for absolute recall on real bystanders, who have hats, hair, angles and motion blur. What the curve establishes is the size at which this detector stops finding a face it can otherwise find; what it does not establish is the fraction of real bystanders protected in a real photograph.

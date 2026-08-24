@@ -543,6 +543,58 @@ def _f1(args: list[str]) -> int:
     return code
 
 
+@task("dedup-eval", "Phase 10: measure dedup precision/recall and publish the report")
+def _dedup_eval(args: list[str]) -> int:
+    """The one command Phase 10's gate names.
+
+    Runs inside `worker-ml` for the reason `f1` gives — it is the only image
+    carrying the text encoder, and a similarity measured against a deterministic
+    fake is a number about the fake. Unlike `f1` it also needs Postgres, because
+    Stage 1 is PostGIS and Stage 2 is pgvector: the harness deliberately calls
+    the shipped `engine.evaluate` rather than reimplementing either.
+
+    Exits non-zero when the corpus produced a false-positive merge, so the
+    command is usable as a gate clause on its own.
+    """
+    staging = ROOT / "backend" / ".dedup-report"
+    reports = ROOT / "docs" / "reports"
+    code = run(
+        [
+            *COMPOSE,
+            "exec",
+            "-T",
+            "worker-ml",
+            "sh",
+            "-c",
+            "PYTHONPATH=/app python scripts/eval_dedup.py --out /app/.dedup-report "
+            + " ".join(args),
+        ],
+        check=False,
+    )
+    try:
+        if staging.is_dir():
+            reports.mkdir(parents=True, exist_ok=True)
+            for artefact in sorted(staging.iterdir()):
+                shutil.copy2(artefact, reports / artefact.name)
+                print(f"  wrote docs/reports/{artefact.name}")
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    return code
+
+
+@task("gate-phase10", "Phase 10 gate: measured dedup precision/recall with zero false merges")
+def _gate_phase10(_: list[str]) -> int:
+    """Four clauses, and the honest number ships either way.
+
+    The published precision/recall has to be *reproducible*, which means running
+    the harness again in the container that has the encoder. The elimination
+    clause has to be read off a *query plan*, which the test suite does. And the
+    zero-false-merge clause is an absolute rather than a threshold, so it is
+    checked here as one.
+    """
+    return run([sys.executable, "scripts/gate_phase10.py"])
+
+
 @task("gate-phase9", "Phase 9 gate: reproduce the F1 report, then classify an invented category")
 def _gate_phase9(_: list[str]) -> int:
     """Four clauses, and none of them can be checked from inside the test suite.

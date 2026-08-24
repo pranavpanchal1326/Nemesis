@@ -26,10 +26,21 @@ The four gate clauses, executed in order:
    the repository for the key to prove no code knows it, and compares the API
    container's identity across the whole run to prove nothing was deployed.
 4. **Inference latency within the §27.1 budget on this hardware, measured not
-   estimated.** Two numbers, because they answer different questions: the
-   harness's per-example encode-and-score time, and the wall time from an HTTP
-   submission to ``classification_scored`` appearing on the complaint's own
-   chain with the real pipeline in between.
+   estimated.** Three numbers, because they answer different questions: the
+   harness's per-example encode-and-score time, a **per-model** pass for CLIP,
+   e5 and Whisper separately, and the wall time from an HTTP submission to
+   ``classification_scored`` appearing on the complaint's own chain with the
+   real pipeline in between. The per-model row exists because the corpus is
+   text: without it, this clause checks the cheapest of the three models while
+   saying "inference latency".
+
+Clause 3 has a second half (3b) that was added after the first version of this
+gate passed without either heavy model ever executing. The sandbox tenant ships
+no ``clip`` prompt sets, so the image path took its "no prompts for this
+encoder" branch on every request and CLIP never ran; nothing outside
+``fetch_models.py``'s load check had ever handed Whisper audio. Both now run
+against real bytes in the real container, and both are existence proofs rather
+than accuracy claims.
 
 Two further checks about the deployment rather than the logic:
 
@@ -44,6 +55,7 @@ Standard library only. Exit code 0 clean, 1 on any failure.
 from __future__ import annotations
 
 import json
+import math
 import os
 import struct
 import subprocess
@@ -168,33 +180,101 @@ def _png(seed: int) -> bytes:
     )
 
 
-def _multipart(fields: dict[str, str], photo: bytes) -> tuple[bytes, str]:
-    """A ``multipart/form-data`` body, hand-rolled — this script has no deps."""
+def _wav(seconds: float = 2.0, rate: int = 16000) -> bytes:
+    """A real 16-bit PCM WAV, built from bytes. Standard library only.
+
+    **What this proves and what it does not.** It is a genuine audio file: the
+    ingest sniffer recognises the RIFF/WAVE magic, ``faster-whisper`` hands it to
+    ffmpeg, and CTranslate2 runs a real decode over real samples. That exercises
+    the entire transcription path, which had never executed outside
+    ``fetch_models.py``'s load check.
+
+    It is **not** speech, and what actually happens is worth stating precisely
+    rather than glossing: ffmpeg decodes it, faster-whisper logs
+    ``Processing audio with duration 00:02.000``, and its VAD filter then
+    discards the whole clip as non-speech. So the path proven is *decode plus
+    front end*, and the decoder stage is exercised while the acoustic model is
+    not. That is a real step up from never running at all and it is less than a
+    speech test.
+
+    Proving speech-to-text quality needs a spoken corpus with a licence, which
+    this repository does not have — the same shape of gap as the unmeasured
+    image modality, and recorded in the same places rather than implied by a
+    passing gate.
+    """
+    frames = int(rate * seconds)
+    samples = bytearray()
+    for index in range(frames):
+        # A slow sweep from 200 Hz to about 1 kHz, in the band a voice occupies.
+        phase = 2.0 * math.pi * (200.0 + 400.0 * index / frames) * index / rate
+        value = int(12000 * math.sin(phase))
+        samples += struct.pack("<h", value)
+
+    data = bytes(samples)
+    header = (
+        b"RIFF"
+        + struct.pack("<I", 36 + len(data))
+        + b"WAVEfmt "
+        + struct.pack("<IHHIIHH", 16, 1, 1, rate, rate * 2, 2, 16)
+        + b"data"
+        + struct.pack("<I", len(data))
+    )
+    return header + data
+
+
+def _multipart(
+    fields: dict[str, str], photo: bytes | None, audio: bytes | None = None
+) -> tuple[bytes, str]:
+    """A ``multipart/form-data`` body, hand-rolled — this script has no deps.
+
+    Both media parts are optional so the gate can submit a photo-only report, an
+    audio-only one, or both. §26.1 requires at least one, and the endpoint
+    enforces it; passing neither here is a bug in the gate rather than a case to
+    handle.
+    """
     boundary = f"----nemesis{uuid.uuid4().hex}"
     parts = [
         f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode()
         for name, value in fields.items()
     ]
-    parts.append(
-        f'--{boundary}\r\nContent-Disposition: form-data; name="photo"; '
-        f'filename="report.png"\r\nContent-Type: image/png\r\n\r\n'.encode()
-    )
-    parts.append(photo)
-    parts.append(b"\r\n")
+    for name, filename, content_type, payload in (
+        ("photo", "report.png", "image/png", photo),
+        ("audio", "report.wav", "audio/wav", audio),
+    ):
+        if payload is None:
+            continue
+        parts.append(
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; '
+            f'filename="{filename}"\r\nContent-Type: {content_type}\r\n\r\n'.encode()
+        )
+        parts.append(payload)
+        parts.append(b"\r\n")
     parts.append(f"--{boundary}--\r\n".encode())
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
-def _submit(tenant_id: str, *, text: str, locale: str = "en", seed: int = 1) -> tuple[int, Any]:
+def _submit(
+    tenant_id: str,
+    *,
+    text: str | None,
+    locale: str = "en",
+    seed: int = 1,
+    photo: bool = True,
+    audio: bool = False,
+    device: str = "gate9-device",
+) -> tuple[int, Any]:
+    fields = {
+        "latitude": "18.5204",
+        "longitude": "73.8567",
+        "device_fingerprint": device,
+        "locale": locale,
+    }
+    if text is not None:
+        fields["description_text"] = text
     body, content_type = _multipart(
-        {
-            "latitude": "18.5204",
-            "longitude": "73.8567",
-            "device_fingerprint": "gate9-device",
-            "description_text": text,
-            "locale": locale,
-        },
-        _png(seed),
+        fields,
+        _png(seed) if photo else None,
+        _wav() if audio else None,
     )
     request = urllib.request.Request(f"{API}/api/v1/complaints", data=body, method="POST")
     request.add_header("Content-Type", content_type)
@@ -324,6 +404,70 @@ def _run_harness(out: str) -> tuple[bool, str]:
     )
     tail = (result.stdout or result.stderr).strip().splitlines()
     return result.returncode == 0, "\n".join(tail[-3:])
+
+
+def _transcription_counts() -> dict[str, float]:
+    """``perception_transcriptions_total`` by label set, from worker-ml's exporter.
+
+    Read from inside the container: port 9100 is deliberately not published to
+    the host, because a worker's metrics endpoint is for Prometheus on the
+    compose network and not for anything outside it. Failing softly to an empty
+    map rather than raising — a metrics endpoint that is down is a different
+    incident from the one this clause is about, and the caller's delta is empty
+    either way, which reads as "the transcriber did not run" and is the safe
+    direction to be wrong in.
+    """
+    result = subprocess.run(
+        [
+            *COMPOSE,
+            "exec",
+            "-T",
+            "worker-ml",
+            "python",
+            "-c",
+            "import urllib.request;"
+            "print(urllib.request.urlopen('http://localhost:9100', timeout=10).read().decode())",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    counts: dict[str, float] = {}
+    for line in result.stdout.splitlines():
+        if not line.startswith("nemesis_perception_transcriptions_total{"):
+            continue
+        labels, _, value = line.rpartition(" ")
+        try:
+            counts[labels] = float(value)
+        except ValueError:  # pragma: no cover - a malformed exposition line
+            continue
+    return counts
+
+
+def _await_transcription(
+    before: dict[str, float], *, timeout: float = 90.0
+) -> tuple[dict[str, float], float]:
+    """Poll until ``perception_transcriptions_total`` moves. Returns the delta.
+
+    Bounded well below ``PIPELINE_TIMEOUT_SECONDS``: transcription of a
+    two-second clip costs about 2.5 s of inference, and the rest of this budget
+    is the queue hop and the trust stage in front of it.
+    """
+    started = time.monotonic()
+    deadline = started + timeout
+    delta: dict[str, float] = {}
+    while time.monotonic() < deadline:
+        after = _transcription_counts()
+        delta = {
+            key: value - before.get(key, 0.0)
+            for key, value in after.items()
+            if value - before.get(key, 0.0) > 0
+        }
+        if delta:
+            return delta, time.monotonic() - started
+        time.sleep(2.0)
+    return delta, time.monotonic() - started
 
 
 def _read_container_json(path: str) -> dict[str, Any]:
@@ -566,6 +710,98 @@ def main() -> int:
         )
     )
 
+    # -- 3b. The two models the text path never touches --------------------
+    #
+    # **Added after the first version of this gate passed 26/26 without either
+    # of them ever executing.** Clause 3 attaches a `text` prompt set, the
+    # sandbox tenant ships no `clip` prompts at all, and the image path
+    # therefore took its "no prompts for this encoder" branch and skipped
+    # scoring entirely — so a gate that submitted a photograph on every request
+    # proved nothing about CLIP. Whisper was worse: nothing outside
+    # `fetch_models.py`'s load check had ever handed it audio.
+    #
+    # Neither of these is an accuracy claim. They are existence proofs that the
+    # code path runs in the real container against real bytes, which is the
+    # weakest useful thing to know and was not known.
+    sys.stdout.write("\n  Clause 3b - the image and audio paths actually execute\n")
+
+    status, attached_clip = _request(
+        "PUT",
+        f"{CONTROL_PLANE}/taxonomy/prompt-sets",
+        headers=admin,
+        body={
+            "node_key": INVENTED_CATEGORY,
+            "locale": "en",
+            "encoder": "clip",
+            "prompts": ["a photo of an abandoned palanquin blocking a lane"],
+            "negative_prompts": ["a photo of an empty clean street"],
+            "prompt_set_version": "gate9-clip-1",
+        },
+    )
+    results.append(
+        _report(status == 200, "CLIP prompts are attached over HTTP", f"{status} {attached_clip}")
+    )
+    time.sleep(31)  # the taxonomy read path caches; see ADR-0027
+
+    status, receipt = _submit(
+        tenant_id, text="a photograph with no description", seed=7, device="gate9-image"
+    )
+    image_id = str(receipt.get("complaint_id", "")) if isinstance(receipt, dict) else ""
+    _await_events(tenant_id, image_id, until="classification_scored")
+    image_models = _psql(
+        f"SELECT payload->'model_ids'->>'image' FROM events WHERE tenant_id = '{tenant_id}' "
+        f"AND entity_id = '{image_id}' AND event_type = 'classification_scored'"
+    )
+    results.append(
+        _report(
+            image_models.startswith("open_clip:"),
+            "the real CLIP image tower ran and is named in the event",
+            image_models or "(the image modality did not contribute)",
+        )
+    )
+
+    # Audio, with no description at all, so the transcriber is the only thing
+    # that can produce text for this report.
+    before_transcriptions = _transcription_counts()
+    status, receipt = _submit(
+        tenant_id, text=None, photo=False, audio=True, device="gate9-audio"
+    )
+    audio_id = str(receipt.get("complaint_id", "")) if isinstance(receipt, dict) else ""
+    results.append(
+        _report(status == 202 and bool(audio_id), "an audio-only report is accepted", str(status))
+    )
+    # **Asserted through the metric rather than through an event, because a
+    # transcript with no words emits no event — deliberately.** The stage
+    # declines to write an empty transcript into the log, on the reasoning that
+    # a projection claiming a transcript exists would send a reviewer looking
+    # for text that is not there. That reasoning is right about the *transcript*
+    # and leaves "the transcriber ran and heard nothing" indistinguishable from
+    # "the transcriber never ran" — which is exactly what
+    # ``perception_transcriptions_total{outcome}`` exists to separate. A before
+    # and after delta makes the claim about *this* submission rather than about
+    # anything the worker has ever done.
+    #
+    # **Polled on the metric rather than on the chain, because an abstained
+    # classification emits no event.** A report the layer declines to classify
+    # is parked and dead-lettered — §24.2 working — and its chain stays at
+    # ``complaint_submitted``. The first version of this clause waited four
+    # minutes for an event that was never going to arrive and then passed
+    # anyway on the metric, which is a slow way to be right.
+    fired, audio_waited = _await_transcription(before_transcriptions)
+    results.append(
+        _report(
+            bool(fired),
+            "the real faster-whisper decoded and processed real audio bytes",
+            f"{fired or '(the transcriber was never reached)'} after {audio_waited:.1f}s",
+        )
+    )
+    # Deliberately *not* an assertion about the words, and the outcome label in
+    # the delta above says which path ran: empty means ffmpeg decoded the
+    # clip and Whisper VAD discarded it as non-speech, which is exactly what a
+    # synthesised tone should do. Transcription *quality* stays unmeasured, and
+    # the report says so in words rather than leaving a passing gate to imply
+    # otherwise.
+
     # -- 4. Clause 4: latency within the §27.1 budget, measured ------------
     sys.stdout.write("\n  Clause 4 - inference latency, measured on this hardware\n")
     latency = published.get("latency") or {}
@@ -584,6 +820,37 @@ def main() -> int:
             f"budget {LATENCY_BUDGET_SECONDS * 1000:.0f} ms",
         )
     )
+    # **All three models, not just the one the corpus exercises.** The first
+    # version of this clause read the harness's per-example number, which times
+    # the text encoder — the cheapest of the three — while claiming to check
+    # "inference latency". CLIP encode and Whisper transcribe are what a
+    # photographed or spoken report actually costs.
+    per_model = latency.get("per_model") or []
+    results.append(
+        _report(
+            {entry["operation"] for entry in per_model}
+            >= {"encode_image", "encode_text", "transcribe"},
+            "all three models were timed, not just the one the corpus uses",
+            ", ".join(sorted(entry["operation"] for entry in per_model)) or "(none)",
+        )
+    )
+    over = [
+        f"{entry['operation']}={entry['p95_seconds']:.2f}s"
+        for entry in per_model
+        if not entry["within_budget"]
+    ]
+    results.append(
+        _report(
+            not over,
+            "every model's p95 is inside the §27.1 budget: "
+            + ", ".join(
+                f"{entry['operation']} {entry['p95_seconds'] * 1000:.0f} ms"
+                for entry in per_model
+            ),
+            ", ".join(over) or f"budget {LATENCY_BUDGET_SECONDS:.0f}s",
+        )
+    )
+
     results.append(
         _report(
             end_to_end < END_TO_END_BUDGET_SECONDS,
