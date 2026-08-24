@@ -28,7 +28,7 @@ measured a distance ratio of 1.0105, meaning HNSW returns near-ties in a
 different order than exact search. Near-tie reordering is harmless in a search
 box and unacceptable in a merge decision that §14.3 requires be reproducible
 from the event log — the same report, replayed, must reach the same cluster.
-ADR-0035 records the trade and the conditions under which it would be revisited.
+ADR-0036 records the trade and the conditions under which it would be revisited.
 
 That is also why ``hnsw.iterative_scan`` is not set here: it is the fix for a
 filtered ANN search silently under-returning, and there is no ANN search on this
