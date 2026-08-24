@@ -64,7 +64,7 @@
   --font-data: "JetBrains Mono", Consolas, ui-monospace, monospace;
   --font-document: "Courier Prime", "Courier New", monospace;
   --font-hand: Kalam, "Segoe Script", cursive;
-  --font-deva-display: Kaana, "Noto Sans Devanagari", sans-serif;
+  --font-deva-display: Sarpanch, "Noto Sans Devanagari", sans-serif;
   --font-deva-narrative: "Tiro Devanagari Marathi", "Noto Serif Devanagari", serif;
   --font-deva-interface: "Noto Sans Devanagari", sans-serif;
   --font-deva-celebration: Modak, "Noto Sans Devanagari", sans-serif;
@@ -85,7 +85,7 @@
 :root {
   --step-ms: 83.3ms;
   --measure: 68ch;
-  --numeric: tabular-lining;
+  --numeric: lining-nums tabular-nums;
   --press-angle-1: 15deg;
   --press-angle-2: 45deg;
   --press-angle-3: 75deg;
@@ -156,7 +156,7 @@
     letter-spacing: -0.04em;
     line-height: 0.86;
     text-transform: uppercase;
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .type-display-1 {
     font-family: var(--font-narrative);
@@ -164,7 +164,7 @@
     font-weight: 400;
     letter-spacing: -0.02em;
     line-height: 0.94;
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .type-display-2 {
     font-family: var(--font-narrative);
@@ -172,7 +172,7 @@
     font-weight: 400;
     letter-spacing: -0.015em;
     line-height: 1.04;
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .type-title {
     font-family: var(--font-interface);
@@ -180,7 +180,7 @@
     font-weight: 500;
     letter-spacing: 0;
     line-height: 1.2;
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .type-heading {
     font-family: var(--font-interface);
@@ -188,7 +188,7 @@
     font-weight: 560;
     letter-spacing: 0;
     line-height: 1.3;
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .type-body {
     font-family: var(--font-interface);
@@ -196,7 +196,7 @@
     font-weight: 400;
     letter-spacing: 0;
     line-height: 1.55;
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .type-caption {
     font-family: var(--font-interface);
@@ -204,7 +204,7 @@
     font-weight: 450;
     letter-spacing: 0;
     line-height: 1.42;
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .type-micro {
     font-family: var(--font-interface);
@@ -213,7 +213,7 @@
     letter-spacing: 0.08em;
     line-height: 1.3;
     text-transform: uppercase;
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .type-mono-data {
     font-family: var(--font-data);
@@ -221,7 +221,7 @@
     font-weight: 400;
     letter-spacing: 0.02em;
     line-height: 1.4;
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .type-doc {
     font-family: var(--font-document);
@@ -229,7 +229,7 @@
     font-weight: 400;
     letter-spacing: 0;
     line-height: 1.6;
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .type-hand {
     font-family: var(--font-hand);
@@ -238,21 +238,21 @@
     letter-spacing: 0;
     line-height: 1.4;
     transform: rotate(-0.7deg);
-    font-variant-numeric: tabular-lining;
+    font-variant-numeric: lining-nums tabular-nums;
   }
 
   /* Devanagari is a design partner, not a fallback (§E10.1) */
   :where(:lang(mr), :lang(hi), :lang(sa)) .type-poster {
     font-family: var(--font-deva-display);
-    line-height: 1.01;
+    line-height: 1.35;
   }
   :where(:lang(mr), :lang(hi), :lang(sa)) .type-display-1 {
     font-family: var(--font-deva-narrative);
-    line-height: 1.09;
+    line-height: 1.35;
   }
   :where(:lang(mr), :lang(hi), :lang(sa)) .type-display-2 {
     font-family: var(--font-deva-narrative);
-    line-height: 1.19;
+    line-height: 1.35;
   }
   :where(:lang(mr), :lang(hi), :lang(sa)) .type-title {
     font-family: var(--font-deva-interface);

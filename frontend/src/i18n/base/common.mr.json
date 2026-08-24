@@ -1,0 +1,75 @@
+{
+  "$comment": "Marathi seed bundle. NOT a replacement for the Phase 5 locale registry — the control plane overrides every key here, and adding a locale there still needs no code change. This exists because a deployment in Pune should not greet its citizens in English while somebody gets round to filling the registry, and because §E10.1 makes Devanagari a design partner rather than a fallback: a type scale with no Devanagari text in it is a type scale nobody has actually looked at. Coverage is deliberately partial — untranslated keys fall through to the source language, which is the normal state of a translation effort and is why mergeBundles overrides rather than replaces.",
+
+  "severity.critical": "अतिगंभीर",
+  "severity.high": "गंभीर",
+  "severity.medium": "मध्यम",
+  "severity.low": "कमी",
+  "severity.resolved": "निकाली",
+  "severity.label": "तीव्रता",
+  "severity.unscored": "अद्याप मूल्यांकन नाही",
+  "severity.why": "हा गुण का?",
+
+  "status.submitted": "नोंदवली",
+  "status.verifying": "छायाचित्र तपासले जात आहे",
+  "status.classified": "वर्गीकृत",
+  "status.pending_classification": "माणसाच्या तपासणीसाठी थांबवली",
+  "status.clustered": "जवळच्या तक्रारींसोबत जोडली",
+  "status.scored": "तीव्रता ठरवली",
+  "status.routed": "विभागाकडे पाठवली",
+  "status.in_progress": "काम सुरू आहे",
+  "status.pending_verification": "कामाच्या पुराव्याची प्रतीक्षा",
+  "status.resolved": "दुरुस्त म्हणून नोंद",
+  "status.closed": "बंद",
+  "status.disputed": "तक्रारदाराने नाकारली",
+  "status.flagged": "तपासणीसाठी चिन्हांकित",
+
+  "status.pending_classification.detail": "वर्गीकरण प्रणाली उपलब्ध नव्हती, म्हणून अंदाज न बांधता ही तक्रार माणसाच्या तपासणीसाठी थांबवली आहे.",
+  "status.flagged.detail": "विश्वास व सुरक्षा तपासणीमुळे नेहमीच्या मार्गातून बाजूला काढली. अद्याप कोणताही निर्णय झालेला नाही.",
+
+  "workOrder.created": "अद्याप नेमणूक नाही",
+  "workOrder.assigned": "नेमणूक झाली",
+  "workOrder.in_progress": "काम सुरू",
+  "workOrder.pending_verification": "पडताळणीच्या प्रतीक्षेत",
+  "workOrder.closed": "बंद",
+  "workOrder.disputed": "वाद",
+
+  "flag.unverified": "अपुष्ट",
+  "flag.systemFlagged": "प्रणालीने चिन्हांकित केले — हा निष्कर्ष नाही",
+  "flag.respond": "उत्तर वाचा",
+  "flag.appealPending": "अपिलाधीन",
+
+  "suppression.withheld.one": "{threshold} पेक्षा कमी तक्रार — तक्रारदारांच्या संरक्षणासाठी रोखली",
+  "suppression.withheld.other": "{threshold} पेक्षा कमी तक्रारी — तक्रारदारांच्या संरक्षणासाठी रोखल्या",
+  "suppression.why": "थोड्या संख्येवरून तक्रार करणारी व्यक्ती ओळखता येऊ शकते.",
+
+  "degraded.title": "मर्यादित पद्धतीने सुरू आहे",
+
+  "receipt.title": "तुमची तक्रार नोंदवली गेली आहे",
+  "receipt.id": "संदर्भ क्रमांक",
+  "receipt.chainHash": "नोंदीचा हॅश",
+  "receipt.appendOnly": "ही नोंद बदलता येत नाही. दुरुस्त्या जोडल्या जातात, पुसल्या जात नाहीत.",
+  "receipt.reportedAt": "नोंद दिनांक",
+
+  "evidence.title": "काय काय घडले",
+  "evidence.empty": "अद्याप काहीही घडलेले नाही. घडताच पहिली नोंद इथे दिसेल.",
+
+  "beforeAfter.before": "आधी",
+  "beforeAfter.after": "नंतर",
+  "beforeAfter.handle": "आधी आणि नंतर तुलना करण्यासाठी सरकवा",
+
+  "ledger.withinSla": "मुदतीत पूर्ण",
+  "ledger.costVariance": "दरपत्रकाच्या तुलनेत खर्च",
+  "ledger.confirmedDisputed": "नागरिकांनी मान्य केलेल्या विरुद्ध नाकारलेल्या",
+  "ledger.repeatDefect": "९० दिवसांत तोच दोष पुन्हा",
+  "ledger.noSingleScore": "हे चार वेगवेगळे मुद्दाम दाखवले आहेत. एकत्रित गुण नाही, कारण सरासरी काढल्यास खरा मुद्दा झाकला जातो.",
+
+  "event.complaint_submitted": "नोंदवली",
+  "event.classification_scored": "वर्गीकरण झाले",
+  "event.cluster_match_found": "जवळच्या तक्रारींशी जुळली",
+  "event.severity_scored": "तीव्रता ठरवली",
+  "event.citizen_confirmed": "दुरुस्त झाल्याचे मान्य",
+
+  "common.unknown": "माहीत नाही",
+  "common.none": "काहीही नाही"
+}

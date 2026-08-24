@@ -68,7 +68,11 @@ interface FamilyDef {
  */
 type RoleValue =
   | { readonly ref: string; readonly min?: number; readonly note?: string }
-  | { readonly overprint: readonly [string, string]; readonly min?: number; readonly note?: string };
+  | {
+      readonly overprint: readonly [string, string];
+      readonly min?: number;
+      readonly note?: string;
+    };
 
 interface RoleTheme {
   readonly $grounds: readonly string[];
@@ -111,6 +115,7 @@ interface Tokens {
       readonly latin: Record<string, TypeStep | string>;
       readonly devanagari: {
         readonly $leadingDelta: number;
+        readonly $leadingFloor: number;
         readonly $familyMap: Record<string, string>;
       };
     };
@@ -280,7 +285,9 @@ function buildCss(t: Tokens): string {
 
   lines.push("", "  /* Faces (§E10) — self-hosted, no CDN (§6 Principle #6) */");
   for (const [name, def] of entries<FamilyDef>(t.type.family)) {
-    lines.push(`  --font-${name}: ${def.stack.map((f) => (/\s/.test(f) ? `"${f}"` : f)).join(", ")};`);
+    lines.push(
+      `  --font-${name}: ${def.stack.map((f) => (/\s/.test(f) ? `"${f}"` : f)).join(", ")};`,
+    );
   }
 
   lines.push("", "  /* Motion (§E11) — every duration a multiple of the 12 fps step */");
@@ -300,7 +307,8 @@ function buildCss(t: Tokens): string {
   const angles = t.press.screenAngles.value;
   angles.forEach((a, i) => lines.push(`  --press-angle-${String(i + 1)}: ${String(a)}deg;`));
   for (const [k, v] of numbers(t.press.halftone)) lines.push(`  --press-${k}: ${String(v)};`);
-  for (const [k, v] of numbers(t.press.misregistration)) lines.push(`  --press-${k}: ${String(v)};`);
+  for (const [k, v] of numbers(t.press.misregistration))
+    lines.push(`  --press-${k}: ${String(v)};`);
   for (const [k, v] of numbers(t.press.inkDensity)) lines.push(`  --press-${k}: ${String(v)};`);
   for (const [k, v] of numbers(t.press.paperGrain)) lines.push(`  --press-${k}: ${String(v)};`);
   for (const [k, v] of numbers(t.layer)) lines.push(`  --layer-${k}: ${String(v)};`);
@@ -324,7 +332,8 @@ function buildCss(t: Tokens): string {
 
   lines.push("/* Density — three modes, persisted per user (§E19) */");
   for (const [mode, def] of Object.entries(t.density).filter(([k]) => !k.startsWith("$"))) {
-    const selector = mode === "compact" ? `:root, [data-density="compact"]` : `[data-density="${mode}"]`;
+    const selector =
+      mode === "compact" ? `:root, [data-density="compact"]` : `[data-density="${mode}"]`;
     lines.push(`${selector} {`);
     for (const [k, v] of numbers(def)) {
       lines.push(`  --density-${k}: ${k === "fontScale" ? String(v) : `${String(v)}px`};`);
@@ -355,7 +364,11 @@ function buildCss(t: Tokens): string {
     const family = deva.$familyMap[step.family] ?? step.family;
     lines.push(`  :where(:lang(mr), :lang(hi), :lang(sa)) .type-${name} {`);
     lines.push(`    font-family: var(--font-${family});`);
-    lines.push(`    line-height: ${String(round(step.leading + deva.$leadingDelta))};`);
+    // A delta AND a floor. §E10.1 wrote only the delta, and a flat delta clips
+    // the matras wherever the Latin leading is below 1.0 — measured at
+    // `display-1`, where Devanagari ink is 1.205em against a 1.09 line.
+    const leading = Math.max(step.leading + deva.$leadingDelta, deva.$leadingFloor);
+    lines.push(`    line-height: ${String(round(leading))};`);
     lines.push("  }");
   }
   lines.push("}", "");
@@ -393,7 +406,7 @@ function buildTs(t: Tokens): string {
     " * The glaze as linear-sRGB, which is what a TSL uniform wants.",
     " *",
     " * This is the single most load-bearing export in the file: it is the exact",
-    " * moment §19.3's \"defined once\" either holds or quietly stops holding.",
+    ' * moment §19.3\'s "defined once" either holds or quietly stops holding.',
     " */",
     `export const GLAZE_LINEAR = ${j(
       Object.fromEntries(severity.map(([k, v]) => [k, linear(v.glaze).map(round)])),
@@ -411,7 +424,7 @@ function buildTs(t: Tokens): string {
     " * Semantic roles, per ground (§E22).",
     " *",
     " * `derivation` is carried into the generated output on purpose: a reviewer",
-    " * asking \"why is the signal colour not the aqua ink\" gets the answer from",
+    ' * asking "why is the signal colour not the aqua ink" gets the answer from',
     " * the token, not from a commit message. `min` is the contrast floor the",
     " * pair must clear, and tests/contrast.test.ts fails the build below it.",
     " */",
@@ -420,7 +433,7 @@ function buildTs(t: Tokens): string {
       dark: resolveRoles(t, "dark"),
     })} as const;`,
     "export type Ground = keyof typeof ROLE;",
-    "export type RoleName = keyof (typeof ROLE)[\"light\"];",
+    'export type RoleName = keyof (typeof ROLE)["light"];',
     "",
     "/** Which stocks text is allowed to sit on, per ground (§E22). */",
     `export const ROLE_GROUNDS = ${j({

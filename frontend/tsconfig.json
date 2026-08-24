@@ -36,8 +36,9 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    ".storybook/**/*.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", ".next", "tests/fixtures/lint"]
+  "exclude": ["node_modules", ".next", "tests/fixtures/lint", "tests/fixtures/types"]
 }

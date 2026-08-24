@@ -53,7 +53,12 @@ describe("§E9.4 rule 3 — the badge and the shader are the same number", () =>
   it("an ink set that names `severity` prints one pass shorter without one", () => {
     // Not a fallback colour. A press with nothing on the third drum prints two
     // inks, and that is a legible state rather than an error state.
-    const withSeverity = planPress({ surface: "public", quality: "full", severity: "low", seed: 1 });
+    const withSeverity = planPress({
+      surface: "public",
+      quality: "full",
+      severity: "low",
+      seed: 1,
+    });
     const without = planPress({ surface: "public", quality: "full", seed: 1 });
     expect(withSeverity.plates).toHaveLength(3);
     expect(without.plates).toHaveLength(2);

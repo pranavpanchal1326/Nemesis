@@ -81,6 +81,23 @@
 
 /*
  * ADR-0038. Nothing above this line may touch anything below it.
+ *
+ * The z-index and the isolation are the obvious half. The rasterisation
+ * settings below are the half a first pass missed, and the byte-identity gate
+ * is what caught it:
+ *
+ * A blended or filtered sibling promotes this stacking context to a compositor
+ * layer, and Chromium answers that by switching type from subpixel (LCD) to
+ * grayscale antialiasing. The press never touched the text — and the text
+ * still rendered differently with the press on than with it off, which is a
+ * real difference in how type looks, arrived at indirectly. Removing the three
+ * declarations below fails the gate today; it is verified, not assumed.
+ *
+ * Forcing grayscale antialiasing unconditionally fixes it, and it is the right
+ * call on its own terms: subpixel antialiasing works by putting **colour
+ * fringes** on the edges of glyphs. Colour fringing is precisely what
+ * misregistration is (§E6.1 stage 3), and misregistration is reserved for
+ * imagery. Type in this product prints solid, in one ink, with no fringe.
  */
 .press__text {
   position: relative;
@@ -88,6 +105,12 @@
   isolation: isolate;
   mix-blend-mode: normal;
   filter: none;
+
+  /* One rasterisation, regardless of what the neighbours are doing. */
+  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
 }
 
 /* §E6.4 — the dial. `flat` is one ink, no screen, poster register: a bolder
@@ -102,6 +125,38 @@
   .press {
     --press-jitter: 0;
   }
+}
+
+/*
+ * Bypass — what print and §E13 Tier D see.
+ *
+ * A risograph simulation re-screened by a laser printer is a moiré mess, and
+ * §E19.7 establishes that officers print: print is a first-class target with
+ * its own stylesheet, not an afterthought. So the press lifts on paper, and
+ * what is left is the thing the press was always describing — solid ink on a
+ * sheet. `data-press="bypass"` is the same state, reachable from the
+ * application, and it is the path tests/press-text-exempt.spec.ts drives.
+ */
+@media print {
+  .press__screens,
+  .press__grain,
+  .press__deckle {
+    display: none;
+  }
+
+  .press__imagery {
+    filter: none !important;
+  }
+}
+
+.press[data-press="bypass"] .press__screens,
+.press[data-press="bypass"] .press__grain,
+.press[data-press="bypass"] .press__deckle {
+  display: none;
+}
+
+.press[data-press="bypass"] .press__imagery {
+  filter: none;
 }
 
 .press__defs {

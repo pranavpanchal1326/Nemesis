@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
   poweredByHeader: false,
+
+  // The Playwright harness drives 127.0.0.1 rather than localhost, so the dev
+  // server has to recognise it as itself. Development only — it has no effect
+  // on a production build.
+  allowedDevOrigins: ["127.0.0.1"],
 };
 
 // Note: Next 16 removed build-time linting entirely, so there is no

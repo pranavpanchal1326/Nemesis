@@ -1,0 +1,13 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "jsx": "react-jsx",
+    "types": [],
+    "paths": { "@/*": ["../../../src/*"] }
+  },
+  "include": ["./*.tsx", "./*.ts"],
+  "//": "`exclude` is inherited, and the root excludes this very directory so the main typecheck ignores it. Clearing it here is what lets these files compile at all — and forgetting it produced a green run in which nothing was compiled, which is why tests/types.test.ts now refuses an empty input set explicitly.",
+  "exclude": []
+}

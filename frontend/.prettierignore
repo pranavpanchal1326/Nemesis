@@ -3,3 +3,5 @@ node_modules
 src/generated
 public/fonts
 *.woff2
+tests/fixtures/types
+storybook-static

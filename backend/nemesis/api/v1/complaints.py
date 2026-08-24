@@ -36,7 +36,7 @@ from nemesis.api.errors import (
     ProblemDetailError,
 )
 from nemesis.api.ratelimit import get_limiter
-from nemesis.api.v1.schemas import ComplaintResponse
+from nemesis.api.v1.schemas import ComplaintResponse, ComplaintSubmissionResponse
 from nemesis.config import Settings
 from nemesis.db.models.complaint import Complaint
 from nemesis.db.models.work_order import WorkOrder
@@ -74,6 +74,18 @@ _NO_MEDIA_DETAIL: Final = (
     status_code=status.HTTP_202_ACCEPTED,
     summary="Submit a complaint",
     responses={
+        # Declared here rather than as `response_model=` because these handlers
+        # return a raw ``Response`` — they own their own ETag, 304 and status
+        # code. FastAPI cannot infer a schema from that, so without this the
+        # published contract for the two hottest reads in the product is
+        # literally `{}`: `api_contract_lock.json` records an empty response and
+        # protects nothing, and a generated TypeScript client gets `unknown`.
+        #
+        # The frontend's Law 2 (docs/FRONTEND-EXECUTION-PLAN.md) is that no
+        # screen is ever built against a shape the client invented. That law is
+        # only enforceable if the shape is published. The model already existed;
+        # only its declaration was missing.
+        202: {"model": ComplaintSubmissionResponse, "description": "Accepted"},
         413: {"description": "Upload exceeded the size cap"},
         415: {"description": "Unsupported media type"},
         429: {"description": "Rate limit exceeded"},
@@ -264,7 +276,11 @@ async def _enforce_live_capture(
 @router.get(
     "/complaints/{complaint_id}",
     summary="Retrieve a complaint",
-    responses={304: {"description": "Not modified"}, 404: {"description": "Not found"}},
+    responses={
+        200: {"model": ComplaintResponse, "description": "Current state of the complaint"},
+        304: {"description": "Not modified"},
+        404: {"description": "Not found"},
+    },
 )
 async def get_complaint(
     complaint_id: uuid.UUID,

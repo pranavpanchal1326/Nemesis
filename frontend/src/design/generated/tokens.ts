@@ -41,7 +41,6 @@ export const SEVERITY = {
     glaze: "#B03A2B",
     inkPass: "orange × red OVER",
     shape: "diamond-filled",
-    label: "Critical",
     order: 4,
   },
   high: {
@@ -50,7 +49,6 @@ export const SEVERITY = {
     glaze: "#C97A1E",
     inkPass: "orange",
     shape: "circle-filled",
-    label: "High",
     order: 3,
   },
   medium: {
@@ -59,7 +57,6 @@ export const SEVERITY = {
     glaze: "#A98C1F",
     inkPass: "sunflower",
     shape: "circle-hollow",
-    label: "Medium",
     order: 2,
   },
   low: {
@@ -68,7 +65,6 @@ export const SEVERITY = {
     glaze: "#3E6E86",
     inkPass: "federal blue",
     shape: "dot",
-    label: "Low",
     order: 1,
   },
   resolved: {
@@ -77,7 +73,6 @@ export const SEVERITY = {
     glaze: "#4E7D53",
     inkPass: "green",
     shape: "check",
-    label: "Resolved",
     order: 0,
   },
 } as const;
@@ -177,9 +172,9 @@ export const ROLE_GROUNDS = {
  */
 export const SEVERITY_ROLE = {
   $note:
-    "Which of §E9.4's four channels carries type, and which carries the field, per ground. On light, ink-on-tint. On dark, the sheet is backlit: the tint carries the type and the glaze fills the shape. Severity type never sits directly on a table stock — that is what the `tint` channel is for, and it is why kraft-200's 4.17:1 is not a defect but a misuse.",
+    "Which of §E9.4's four channels carries type, which fills the field, and which draws the mark, per ground. On paper: ink on tint — 5.31:1 at worst.\n\nOn the light table an earlier pass filled the badge with the glaze and set the tint on it. That measures 2.63-4.37:1 and axe caught it across all twelve matrix combinations. It was also the wrong *picture*: a solid coloured chip is the inverted palette §E9.3 explicitly refuses. §E9.3 says the prints are backlit and 'the page ground is mitti-950 because that is the room, not the paper' - so the ink glows and the room stays behind it. Tint on the room measures 13.48-15.04:1, and the glaze draws the mark and a printed edge at 3.09-5.72:1, clearing WCAG 1.4.11's 3:1 for a meaningful graphic. The physics and the floor agree again.\n\nSeverity type never sits directly on a table stock; that is what the tint channel is for, and it is why kraft-200's 4.17:1 is a misuse rather than a defect.",
   light: { text: "ink", field: "tint", min: 4.5 },
-  dark: { text: "tint", field: "glaze", min: 4.5 },
+  dark: { text: "tint", field: "ground", mark: "glaze", min: 4.5, markMin: 3 },
 } as const;
 
 /** Two or three inks per run — the real risograph constraint (§E9.2). */

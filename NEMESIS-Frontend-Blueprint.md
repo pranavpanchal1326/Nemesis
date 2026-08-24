@@ -125,6 +125,15 @@ quietly overwritten, because §E3.3 applies to this file too:
 | §E15 credited **Rive** to ADR-0040 | The character decision is **ADR-0041**. Corrected |
 | §E6.2 stated the text exemption without citing the ADR that decided it | **ADR-0038** now cited inline |
 | §E15 pinned **Next.js 15** | Superseded by **ADR-0042**: Next.js 16 ships, TypeScript is held at 5.9. The reasoning is §E2 defect #6's, applied to this document's own choice |
+| §E9.2 labelled `riso-aqua` **SIGNAL — links, focus rings, primary action**, and §E9.1 labelled `mitti-500` **secondary text on light** | Neither clears §E22's own 4.5:1 floor: aqua measures **2.51:1** on paper-50, mitti-500 **3.80:1**. The inks are not repainted — they are the premise of §E4 — so the text-safe values are **overprints** (§E6.3): `aqua × federal blue` at 10.60:1, `mitti-500 × mitti-300` at 6.54:1. The press produces its own accessible palette |
+| §E9.1 assigned `mitti-300` to **rules, dividers** | 1.36:1 on kraft-200 — a hairline nobody can see on the zebra stock. Rules are `mitti-500` |
+| §E9.4's severity `ink` read as usable on any ground | It is **4.17:1 on kraft-200**. Severity type sits on its own `tint` field, never directly on a table stock — which is what the four-channel model was always for, now stated and tested |
+| §E9.4 rule 2 read as belt-and-braces | `high` and `medium` are **1.4% apart in grayscale**. On the printouts §E19.7 says officers make, the shape channel is not a redundancy — it is the only channel that survives |
+| §E10.1 named **Kaana** as the Devanagari display face | Not in Fontshare's catalogue and not available under a free commercial licence, so it cannot ship. **Sarpanch** takes the role — ITF, OFL, Devanagari and Latin, squared and straight-lined and wide, which is what §E10.1 actually described |
+| §E10.2 wrote the tabular-figures rule as `font-variant-numeric: tabular-lining` | Not a CSS value. It computes to `normal`, so the first of §E10.2's *"two hard rules"* was doing nothing. The real declaration is `lining-nums tabular-nums` |
+| §E10.1 set the Devanagari leading rule as a flat **+0.15** | Measured, Devanagari ink runs to **1.289em** at `display-2`, against a Latin display leading of 1.04. The rule is a delta **and a floor**: `max(latin + 0.15, 1.35)`. Devanagari display type is genuinely looser than Latin display type — the script stacks matras above the shirorekha and below the baseline, and you cannot set it at 0.86 |
+| §E1 said the severity fields *"are already fields on the v1 complaint read schema"* | True of the Pydantic model, false of the **published contract**: the route returns a raw `Response` for its ETag path, so OpenAPI recorded `{}` and `api_contract_lock.json` protected nothing on the hottest read in the product. A generated client can only see what is published. Fixed in `complaints.py`; the lock now covers fifteen fields |
+| §E27's traceability table assumes every listed event arrives with data | **ADR-0016 makes realtime payloads default-deny, and only 8 of 33 registered event types are shaped for the wire.** Two of §E16.1's six pipeline gates — `exif_check_completed` and `media_redacted` — reach the browser with an empty payload, so *"EXIF INTACT"* and *"a face visibly blurs"* cannot be driven from the stream as specified. Adding a shaper is a privacy decision, not a formality, so it is argued in its own ADR at M5 rather than slipped in. The published `RealtimeShapedEventType` enum makes the distinction a compile error rather than an empty pin |
 
 ---
 
@@ -257,6 +266,14 @@ risograph output: type is solid ink, images are screened. Halftoned 13 px type i
 console would be a defect, not a style. Enforced by compositing all text in a separate,
 unprocessed layer, and verified by a test asserting text layers are byte-identical with the press
 on and off (§E25). Recorded in ADR-0038.
+
+**Layering alone is not sufficient, and the gate is what proved it.** A blended or filtered sibling
+promotes the stacking context to a compositor layer, and the browser answers by switching type from
+subpixel to grayscale antialiasing — so text renders differently with the press on *without the
+press ever touching it*. The text layer therefore forces grayscale antialiasing unconditionally,
+which is also correct on its own terms: subpixel antialiasing works by putting **colour fringes** on
+glyph edges, and colour fringing is precisely what misregistration is. Misregistration belongs to
+imagery. Type prints in one ink, with no fringe.
 
 ### E6.3 Overprint is a data mechanic
 

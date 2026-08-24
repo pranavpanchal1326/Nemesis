@@ -27,7 +27,9 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable, Mapping
 from datetime import datetime
-from typing import Any, Final
+from typing import Any, Final, Literal
+
+from pydantic import BaseModel, ConfigDict
 
 from nemesis.events.hashing import format_timestamp
 
@@ -166,3 +168,71 @@ def build_envelope(
 
 def _as_str(value: Any) -> str | None:
     return None if value is None else str(value)
+
+
+# --------------------------------------------------------------------------
+# The wire shape, published
+# --------------------------------------------------------------------------
+#
+# OpenAPI 3.1 cannot describe a WebSocket, so nothing in this module reaches
+# `/openapi.json` by the ordinary route. That is a problem for exactly one
+# consumer, and it is a real one: the frontend's Law 2
+# (docs/FRONTEND-EXECUTION-PLAN.md) forbids a hand-written interface describing
+# a backend contract, and §E24 makes it a review failure. Without a published
+# shape, every browser client would have to invent one — and then the day a
+# field moves, the client keeps type-checking and starts lying.
+#
+# So the shape is declared as a model here, `nemesis.api.openapi_export` merges
+# it into the exported document as a component, and
+# `tests/test_realtime_envelope.py` asserts the model accepts what
+# `build_envelope` actually produces. The model cannot drift from the builder
+# without a test failing, which is the same arrangement `schema_lock.json` has
+# with the event catalog.
+
+
+class RealtimeEnvelope(BaseModel):
+    """§26.3's envelope, exactly as ``build_envelope`` emits it."""
+
+    model_config = ConfigDict(frozen=True)
+
+    #: One of ``shaped_event_types()``. Any other registered type reaches the
+    #: browser with an empty payload — default deny, ADR-0016.
+    event_type: str
+    entity_type: str
+    entity_id: str
+    sequence: int
+    timestamp: str
+    #: The outbox position the client has now seen. Reconnect with
+    #: ``?since=<cursor>`` to be replayed from here rather than from nothing.
+    cursor: int
+    #: Shaped per event type. Coordinates are already coarsened to
+    #: ``GPS_DECIMALS``; the client never receives an exact position.
+    payload: dict[str, Any]
+
+
+class RealtimeHeartbeat(BaseModel):
+    """The liveness envelope, sent on the same queue as everything else.
+
+    It carries no cursor because it advances nothing. A client that stops
+    receiving these has a socket that is open and dead, which is the failure
+    §E14.3 requires the client to be able to detect.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    event_type: Literal["heartbeat"]
+    timestamp: str
+
+
+class RealtimeResyncRequired(BaseModel):
+    """Sent when a reconnecting client's gap exceeds the replay window.
+
+    A replay that takes longer than a page reload is worse than a page reload,
+    so past ``MAX_REPLAY`` the server says so instead of handing the client ten
+    thousand animations to play.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    event_type: Literal["resync_required"]
+    timestamp: str

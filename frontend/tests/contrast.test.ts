@@ -34,9 +34,19 @@ function ground(name: string): string {
   return hex;
 }
 
+/** What the generator writes for each role. Not a backend contract — the shape
+ *  of an artefact this repository produces, narrowed so the union of the two
+ *  themes does not collapse to `any` when iterated. */
+interface ResolvedRole {
+  readonly value: string;
+  readonly min: number;
+  readonly derivation: string;
+}
+
 describe("§E22 — semantic roles clear their floor on every ground", () => {
   for (const theme of ["light", "dark"] as const) {
-    for (const [role, def] of Object.entries(ROLE[theme])) {
+    const roles: Record<string, ResolvedRole> = ROLE[theme];
+    for (const [role, def] of Object.entries(roles)) {
       // The ground is not a foreground. Asserting it against itself would be a
       // test that always fails for a reason that means nothing.
       if (role === "ground") continue;
@@ -60,18 +70,44 @@ describe("§E9.4 — severity carries type on its own field, on both grounds", (
   it.each(levels)("light: %s ink on its own tint", (level) => {
     const row = SEVERITY[level];
     const ratio = contrastRatio(row.ink, row.tint);
-    expect(ratio, `${level}: ${row.ink} on ${row.tint} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
-      SEVERITY_ROLE.light.min,
-    );
+    expect(
+      ratio,
+      `${level}: ${row.ink} on ${row.tint} is ${ratio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(SEVERITY_ROLE.light.min);
   });
 
   it.each(levels)("dark: %s tint on the light table's ground", (level) => {
     // §E9.3 — a backlit print glows, so on the light table the *tint* carries
-    // the type. This is why inverting the palette was refused rather than
-    // implemented: the physics gives the accessible answer for free.
+    // the type and the room stays behind it. This is why inverting the palette
+    // was refused rather than implemented: the physics gives the accessible
+    // answer for free.
     const row = SEVERITY[level];
     const ratio = contrastRatio(row.tint, ground("mitti-950"));
     expect(ratio).toBeGreaterThanOrEqual(SEVERITY_ROLE.dark.min);
+  });
+
+  it.each(levels)("dark: %s glaze draws the mark at 3:1, and never a word", (level) => {
+    /**
+     * The pair this file measured and the pair the component rendered were not
+     * the same pair, and `axe` found it: an earlier badge filled itself with
+     * the glaze and set the tint on top, which measures 2.63-4.37:1 across the
+     * five levels. Twelve matrix combinations failed.
+     *
+     * The lesson is recorded in the assertion rather than only in a commit: the
+     * glaze clears WCAG 1.4.11's 3:1 for a **meaningful graphic** and does not
+     * clear 4.5:1 for text, which is exactly why it draws a shape and an edge
+     * and is never asked to carry a label.
+     */
+    const row = SEVERITY[level];
+    const asGraphic = contrastRatio(row.glaze, ground("mitti-950"));
+    expect(asGraphic).toBeGreaterThanOrEqual(SEVERITY_ROLE.dark.markMin);
+
+    const asText = contrastRatio(row.tint, row.glaze);
+    expect(
+      asText,
+      `${level}: tint on glaze is ${asText.toFixed(2)}:1 — if this ever clears 4.5 the ` +
+        `rule below can be relaxed, and until then the glaze must not carry type`,
+    ).toBeLessThan(4.5);
   });
 
   it("severity type is never asked to sit directly on a table stock", () => {
@@ -99,18 +135,21 @@ describe("§E22 — re-tested after the press, because halftone changes contrast
     const row = SEVERITY[level];
     const pressed = overprint(row.tint, ground("paper-50"));
     const ratio = contrastRatio(row.ink, pressed);
-    expect(ratio, `${level}: ${row.ink} on pressed ${pressed} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
-      4.5,
-    );
+    expect(
+      ratio,
+      `${level}: ${row.ink} on pressed ${pressed} is ${ratio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(4.5);
   });
 });
 
 describe("§E9.4 rule 2 — colour is never the only channel", () => {
-  it("every severity carries a distinct shape and a label", () => {
+  it("every severity carries a distinct shape", () => {
+    // The *label* is asserted in tests/contracts.test.ts, against the locale
+    // bundle — because a label is copy and lives where the control plane can
+    // translate it, not in a token file where it would read "Critical" on a
+    // Marathi console forever.
     const shapes = new Set(Object.values(SEVERITY).map((s) => s.shape));
-    const labels = new Set(Object.values(SEVERITY).map((s) => s.label));
     expect(shapes.size).toBe(Object.keys(SEVERITY).length);
-    expect(labels.size).toBe(Object.keys(SEVERITY).length);
   });
 
   it("where two severities are close in grayscale, their shapes differ in fill", () => {

@@ -22,7 +22,9 @@ import { jitterAt, type PressPlan } from "./press-model";
  */
 export function PressJitter({ filterId, plan }: { filterId: string; plan: PressPlan }) {
   useEffect(() => {
-    const nodes = plan.plates.map((_, i) => document.getElementById(`${filterId}-offset-${String(i)}`));
+    const nodes = plan.plates.map((_, i) =>
+      document.getElementById(`${filterId}-offset-${String(i)}`),
+    );
 
     // A reduced-motion reader gets the press, and gets it still. §E3.2: the
     // reduced-motion path is what an accessibility audit actually sees, which
