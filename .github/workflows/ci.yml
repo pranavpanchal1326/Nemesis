@@ -379,6 +379,20 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report
 
+      # §E24's design-ops half: "Every visual PR posts its Storybook diff."
+      # Built rather than only linted, because a catalogue that does not compile
+      # is a catalogue nobody opens — and it renders the same <ContractMatrix>
+      # the axe sweep drives, so the two cannot show different things.
+      - name: Component catalogue builds
+        run: npm run storybook:build
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: storybook
+          path: frontend/storybook-static
+          retention-days: 14
+
   secrets:
     name: secret scan
     runs-on: ubuntu-latest
