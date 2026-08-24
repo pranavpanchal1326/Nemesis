@@ -12,7 +12,68 @@
       "required_params": [
         "complaint_id"
       ],
-      "response": {}
+      "response": {
+        "category": {
+          "required": false,
+          "type": "null|string"
+        },
+        "classification_confidence": {
+          "required": false,
+          "type": "null|number"
+        },
+        "cluster_id": {
+          "required": false,
+          "type": "null|string"
+        },
+        "complaint_id": {
+          "required": true,
+          "type": "string"
+        },
+        "degraded_fallback": {
+          "required": false,
+          "type": "null|string"
+        },
+        "degraded_stage": {
+          "required": false,
+          "type": "null|string"
+        },
+        "latitude": {
+          "required": false,
+          "type": "null|number"
+        },
+        "longitude": {
+          "required": false,
+          "type": "null|number"
+        },
+        "reported_at": {
+          "required": false,
+          "type": "null|string"
+        },
+        "severity_breakdown": {
+          "required": false,
+          "type": "null|object:SeverityBreakdown"
+        },
+        "severity_policy_version": {
+          "required": false,
+          "type": "null|string"
+        },
+        "severity_score": {
+          "required": false,
+          "type": "null|number"
+        },
+        "status": {
+          "required": true,
+          "type": "string"
+        },
+        "version": {
+          "required": false,
+          "type": "integer"
+        },
+        "work_order_id": {
+          "required": false,
+          "type": "null|string"
+        }
+      }
     },
     "GET /api/v1/control-plane/calendars": {
       "required_params": [],

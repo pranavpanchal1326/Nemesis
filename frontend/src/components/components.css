@@ -1,0 +1,562 @@
+/*
+ * The §E26 contracts, styled.
+ *
+ * No colour, duration or type size is declared here. Every one arrives as a
+ * custom property generated from src/design/tokens.json, and
+ * scripts/check-guards.ts fails the build on a literal — §E24, and §19.3's
+ * promise that severity colour is "defined once".
+ *
+ * The two ground rules the whole file obeys:
+ *
+ *   · **Severity ink never touches a non-severity element** (§E9.4 rule 1).
+ *     There are no red delete buttons in this product; destructive actions are
+ *     riso-black on kraft-200 with hold-to-confirm.
+ *   · **Severity type sits on its own field, never on a table stock**
+ *     (§E9.4, measured: 4.17:1 on kraft-200, 5.31:1 on its own tint).
+ */
+
+/* --------------------------------------------------------------------------
+ * Severity
+ * ------------------------------------------------------------------------ */
+
+.severity-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4em;
+  padding: 0.15em 0.55em;
+  border-radius: 1px;
+  white-space: nowrap;
+  font-variant-numeric: var(--numeric);
+}
+
+.severity-badge .severity-mark {
+  align-self: center;
+  flex: none;
+}
+
+.severity-badge[data-severity="critical"] {
+  background: var(--color-sev-critical-tint);
+  color: var(--color-sev-critical-ink);
+}
+.severity-badge[data-severity="high"] {
+  background: var(--color-sev-high-tint);
+  color: var(--color-sev-high-ink);
+}
+.severity-badge[data-severity="medium"] {
+  background: var(--color-sev-medium-tint);
+  color: var(--color-sev-medium-ink);
+}
+.severity-badge[data-severity="low"] {
+  background: var(--color-sev-low-tint);
+  color: var(--color-sev-low-ink);
+}
+.severity-badge[data-severity="resolved"] {
+  background: var(--color-sev-resolved-tint);
+  color: var(--color-sev-resolved-ink);
+}
+
+/*
+ * §E9.3 — the light table. The tint carries the type against the room, and the
+ * glaze draws the mark and a printed edge. Filling the badge with the glaze was
+ * tried first and is wrong twice over: it measures 2.63-4.37:1, which axe
+ * caught across all twelve matrix combinations, and a solid coloured chip is
+ * the inverted palette §E9.3 explicitly refuses. A backlit print is ink glowing
+ * with the room behind it — 13.48-15.04:1, and the physics gave the accessible
+ * answer for free.
+ */
+[data-surface="console"] .severity-badge,
+[data-ground="light-table"] .severity-badge {
+  /* No fill. A solid coloured chip is the inverted palette §E9.3 refuses; a
+     backlit print is ink glowing with the room behind it. */
+  background: none;
+  padding-inline: 0;
+  border-block-end: 2px solid;
+  gap: 0.45em;
+}
+
+[data-surface="console"] .severity-badge[data-severity="critical"],
+[data-ground="light-table"] .severity-badge[data-severity="critical"] {
+  color: var(--color-sev-critical-tint);
+  border-block-end-color: var(--color-sev-critical-glaze);
+}
+[data-surface="console"] .severity-badge[data-severity="high"],
+[data-ground="light-table"] .severity-badge[data-severity="high"] {
+  color: var(--color-sev-high-tint);
+  border-block-end-color: var(--color-sev-high-glaze);
+}
+[data-surface="console"] .severity-badge[data-severity="medium"],
+[data-ground="light-table"] .severity-badge[data-severity="medium"] {
+  color: var(--color-sev-medium-tint);
+  border-block-end-color: var(--color-sev-medium-glaze);
+}
+[data-surface="console"] .severity-badge[data-severity="low"],
+[data-ground="light-table"] .severity-badge[data-severity="low"] {
+  color: var(--color-sev-low-tint);
+  border-block-end-color: var(--color-sev-low-glaze);
+}
+[data-surface="console"] .severity-badge[data-severity="resolved"],
+[data-ground="light-table"] .severity-badge[data-severity="resolved"] {
+  color: var(--color-sev-resolved-tint);
+  border-block-end-color: var(--color-sev-resolved-glaze);
+}
+
+/*
+ * The mark takes the glaze — the one place the 3D severity ramp's own channel
+ * appears in a 2D badge. Glaze on the room measures 3.09-5.72:1, which clears
+ * WCAG 1.4.11's 3:1 for a meaningful graphic; it would not clear 4.5:1, which
+ * is why it draws a shape and never a word.
+ */
+[data-surface="console"] .severity-badge[data-severity="critical"] .severity-mark,
+[data-ground="light-table"] .severity-badge[data-severity="critical"] .severity-mark {
+  color: var(--color-sev-critical-glaze);
+}
+[data-surface="console"] .severity-badge[data-severity="high"] .severity-mark,
+[data-ground="light-table"] .severity-badge[data-severity="high"] .severity-mark {
+  color: var(--color-sev-high-glaze);
+}
+[data-surface="console"] .severity-badge[data-severity="medium"] .severity-mark,
+[data-ground="light-table"] .severity-badge[data-severity="medium"] .severity-mark {
+  color: var(--color-sev-medium-glaze);
+}
+[data-surface="console"] .severity-badge[data-severity="low"] .severity-mark,
+[data-ground="light-table"] .severity-badge[data-severity="low"] .severity-mark {
+  color: var(--color-sev-low-glaze);
+}
+[data-surface="console"] .severity-badge[data-severity="resolved"] .severity-mark,
+[data-ground="light-table"] .severity-badge[data-severity="resolved"] .severity-mark {
+  color: var(--color-sev-resolved-glaze);
+}
+
+/* Unscored is a state, not a level. Secondary ink, no mark, no field. */
+.severity-badge--unscored {
+  color: var(--role-text-secondary);
+  background: none;
+  padding-inline: 0;
+}
+
+/*
+ * No opacity. An earlier pass dimmed the score to 0.8 and axe caught every one
+ * of the five falling under the floor — 3.59:1 at worst. §E10.2's first hard
+ * rule is that every number is tabular *because* this product's proposition is
+ * trust in columns of costs; a number nobody can read is the same failure by a
+ * quieter route.
+ */
+
+.severity-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* --------------------------------------------------------------------------
+ * Status
+ * ------------------------------------------------------------------------ */
+
+.status-chip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.status-chip__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.1em 0.5em;
+  border: 1px solid var(--role-rule);
+  border-radius: 1px;
+  color: var(--role-text-primary);
+}
+
+/* A settled state is stated, not celebrated — the celebration is the stamp. */
+.status-chip[data-register="settled"] .status-chip__label {
+  border-style: double;
+}
+
+/*
+ * `disputed` is the citizen rejecting a closure, and §E2 defect #15 is that
+ * §15.7's board cannot show it. A board that cannot display its own failures is
+ * a board that launders them — so it gets a mark of its own rather than
+ * blending into "in flight".
+ */
+.status-chip[data-register="contested"] .status-chip__label {
+  border-width: 2px;
+}
+
+/*
+ * `pending_classification` — the §24.2 degraded path, rendered as a third
+ * outcome rather than a stalled second one. Dashed, because the pipeline
+ * stopped deliberately and said so.
+ */
+.status-chip[data-register="degraded"] .status-chip__label {
+  border-style: dashed;
+  color: var(--role-text-secondary);
+}
+
+/*
+ * ADR-0039 — flagged is fluorescent pink, hatched, and never red. The hatch
+ * carries the colour; the words are black, because the pink measures 2.91:1 on
+ * the document stock and was never meant to be a typeface.
+ */
+.status-chip[data-register="flagged"] .status-chip__label,
+.flagged-notice {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--role-flag-hatch) 0 2px,
+    transparent 2px 6px
+  );
+  color: var(--role-flag-text);
+  border-color: var(--role-flag-hatch);
+}
+
+.status-chip__detail {
+  color: var(--role-text-secondary);
+  max-width: var(--measure);
+}
+
+/* --------------------------------------------------------------------------
+ * Notices
+ * ------------------------------------------------------------------------ */
+
+.flagged-notice {
+  border: 1px solid var(--role-flag-hatch);
+  padding: 0.75rem 1rem;
+  display: grid;
+  gap: 0.5rem;
+  max-width: var(--measure);
+}
+
+.flagged-notice__label {
+  color: var(--role-flag-text);
+  margin: 0;
+}
+
+.flagged-notice__disclaimer,
+.flagged-notice__response {
+  margin: 0;
+  color: var(--role-flag-text);
+}
+
+.flagged-notice__detector {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  color: var(--role-flag-text);
+}
+
+.flagged-notice__response a {
+  color: var(--role-text-signal);
+}
+
+.flagged-notice__appeal {
+  margin-inline-start: 0.75rem;
+}
+
+.suppression-notice {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.1em;
+  color: var(--role-text-secondary);
+}
+
+.suppression-notice__why {
+  color: var(--role-text-secondary);
+}
+
+/*
+ * §E26 — "Calm register, secondary ink, never an error colour." A degradation
+ * is the system working as designed; painting it red teaches an operator that a
+ * correct fallback is a fault.
+ */
+.degraded-banner {
+  border-inline-start: 2px solid var(--role-rule);
+  padding: 0.5rem 0.9rem;
+  display: grid;
+  gap: 0.2rem;
+  max-width: var(--measure);
+  color: var(--role-text-secondary);
+}
+
+.degraded-banner__title {
+  margin: 0;
+  color: var(--role-text-primary);
+}
+
+.degraded-banner__cause,
+.degraded-banner__since {
+  margin: 0;
+}
+
+.not-wired {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  margin-inline-start: 0.5em;
+  padding: 0 0.35em;
+  border: 1px dashed var(--role-rule);
+  color: var(--role-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+ * The stamp — §E11.1 motion #1, and the only overshoot in the 2D product
+ * ------------------------------------------------------------------------ */
+
+.stamp {
+  display: inline-block;
+  padding: 0.2em 0.7em;
+  border: 2px solid var(--role-text-primary);
+  color: var(--role-text-primary);
+  text-transform: uppercase;
+  transform: scale(1.18) rotate(0deg) translate(3px, 3px);
+  opacity: 0;
+  transition:
+    transform var(--duration-fast) var(--ease-stamp),
+    opacity var(--duration-snap) linear;
+}
+
+.stamp[data-landed="true"] {
+  transform: scale(1) rotate(-1.5deg) translate(0, 0);
+  opacity: 1;
+}
+
+/* §E11 — reduced motion collapses all five signature motions to opacity at one
+   step. The stamp still lands; it simply does not travel. */
+@media (prefers-reduced-motion: reduce) {
+  .stamp {
+    transform: none;
+    transition: opacity var(--duration-snap) linear;
+  }
+  .stamp[data-landed="true"] {
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Records
+ * ------------------------------------------------------------------------ */
+
+.evidence-trail {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0;
+}
+
+/* Ruled paper. The rule draws left-to-right rather than fading (§E11.1 #3),
+   which is drafting-table language and free. */
+.evidence-trail__row {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding-block: 0.35rem;
+  border-block-end: 1px solid var(--role-rule);
+  min-height: var(--density-row);
+}
+
+.evidence-trail__time {
+  color: var(--role-text-secondary);
+}
+
+.evidence-trail__evidence {
+  color: var(--role-text-signal);
+}
+
+.evidence-trail__empty {
+  color: var(--role-text-secondary);
+  max-width: var(--measure);
+}
+
+.receipt__sheet {
+  padding: 1.5rem 1.75rem;
+  max-width: 30rem;
+}
+
+.receipt__title {
+  margin: 0 0 1rem;
+}
+
+.receipt__fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0 0 1.25rem;
+}
+
+.receipt__fields dt {
+  color: var(--role-text-secondary);
+}
+
+.receipt__fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.receipt__append-only {
+  margin: 0;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--role-rule);
+  color: var(--role-text-secondary);
+  max-width: var(--measure);
+}
+
+.contractor-ledger {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.contractor-ledger__metrics {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.contractor-ledger__metric {
+  display: grid;
+  gap: 0.15rem;
+  padding-block-end: 0.5rem;
+  border-block-end: 1px solid var(--role-rule);
+}
+
+.contractor-ledger__metric dt {
+  color: var(--role-text-secondary);
+}
+
+.contractor-ledger__metric dd {
+  margin: 0;
+}
+
+/* §E9.4 rule 4 — money is not urgency. Nothing in this block reaches for a
+   severity ink, and the absent state is secondary, not alarming. */
+.contractor-ledger__absent {
+  color: var(--role-text-secondary);
+}
+
+.contractor-ledger__note {
+  margin: 0;
+  color: var(--role-text-secondary);
+  max-width: var(--measure);
+}
+
+/* --------------------------------------------------------------------------
+ * Before / after
+ * ------------------------------------------------------------------------ */
+
+.before-after {
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.before-after__frame {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  aspect-ratio: 4 / 3;
+  background: var(--role-ground);
+}
+
+.before-after__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.before-after__image--after {
+  clip-path: inset(0 0 0 var(--before-after-position));
+}
+
+/* The divider is drawn from the same position variable the clip uses, so the
+   line and the reveal can never disagree by a pixel. */
+.before-after__frame::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: var(--before-after-position);
+  width: 2px;
+  background: var(--role-text-primary);
+  pointer-events: none;
+}
+
+.before-after__handle {
+  position: absolute;
+  inset-block-end: 0.5rem;
+  inset-inline: 1rem;
+  width: calc(100% - 2rem);
+}
+
+.before-after__caption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  color: var(--role-text-secondary);
+}
+
+/* An ambiguous SSIM is stated, not styled into a verdict (§E19.4). */
+.before-after__ssim[data-ambiguous="true"] {
+  border-block-end: 1px dashed var(--role-rule);
+}
+
+/* --------------------------------------------------------------------------
+ * Print — §E19.7, officers print
+ * ------------------------------------------------------------------------ */
+
+@media print {
+  /* Colour is not guaranteed on a departmental printer, and §E9.4 rule 2 says
+     it never had to be: the mark and the label carry the meaning. */
+  .severity-badge {
+    background: none !important;
+    color: inherit !important;
+    border: 1px solid currentColor;
+  }
+
+  .not-wired,
+  .before-after__handle {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * The matrix — §E24's Storybook content, factored so the proof route, the axe
+ * sweep and the golden images all render exactly the same thing
+ * ------------------------------------------------------------------------ */
+
+.contract-matrix {
+  display: grid;
+  gap: 2rem;
+  padding: 2rem;
+  max-width: 72rem;
+}
+
+.contract-matrix__section {
+  display: grid;
+  gap: 0.75rem;
+  padding-block-end: 1.5rem;
+  border-block-end: 1px solid var(--role-rule);
+}
+
+.contract-matrix__heading {
+  margin: 0;
+  color: var(--role-text-secondary);
+}
+
+.contract-matrix__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 0.9rem;
+  align-items: flex-start;
+}
+
+.contract-matrix__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}

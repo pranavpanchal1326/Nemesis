@@ -7,3 +7,5 @@ next-env.d.ts
 test-results
 playwright-report
 storybook-static
+CLAUDE.md
+AGENTS.md

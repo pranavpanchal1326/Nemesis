@@ -353,3 +353,46 @@ async def test_the_heartbeat_reaches_connected_clients(
     assert sink.sent, "no heartbeat reached a connected client"
     assert json.loads(sink.sent[0])["event_type"] == HEARTBEAT_EVENT_TYPE
     await service.hub.close_all()
+
+
+def test_the_published_envelope_model_accepts_what_the_builder_emits() -> None:
+    """The wire shape and its published schema cannot drift apart.
+
+    OpenAPI 3.1 cannot describe a WebSocket, so ``RealtimeEnvelope`` exists to
+    give the browser client a *generated* type instead of a hand-written one —
+    §E24 makes a hand-written backend contract a review failure, and the reason
+    is that it fails silently: the client keeps type-checking and starts lying.
+
+    A model that documents a shape it is never checked against would be the same
+    failure wearing a different hat. This is the check.
+    """
+    from nemesis.realtime.envelope import RealtimeEnvelope
+
+    built = build_envelope(
+        event_type="cluster_match_found",
+        entity_type="complaint_cluster",
+        entity_id=uuid.uuid4(),
+        sequence=7,
+        occurred_at=datetime(2026, 8, 24, 10, 0, tzinfo=UTC),
+        payload={"latitude": 18.5074123, "longitude": 73.8077456, "match_confidence": 0.87},
+        cursor=412,
+    )
+
+    parsed = RealtimeEnvelope.model_validate(built)
+
+    # Round-trips exactly: no field the builder emits is dropped by the model,
+    # and no field the model declares is absent from the builder.
+    assert parsed.model_dump() == built
+
+
+def test_every_shaped_event_type_is_a_registered_event_type() -> None:
+    """A shaper for an event nobody emits is a promise to a client that will
+    never be kept — and §E27's traceability table is only an audit if both
+    halves are real."""
+    import nemesis.events.catalog  # noqa: F401  (registers the catalog)
+    from nemesis.events.registry import registered_events
+    from nemesis.realtime.envelope import shaped_event_types
+
+    registered = {event.event_type for event in registered_events()}
+    unknown = shaped_event_types() - registered
+    assert not unknown, f"shaped but never emitted: {sorted(unknown)}"

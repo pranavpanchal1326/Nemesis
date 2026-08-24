@@ -249,6 +249,11 @@ def _check(_: list[str]) -> int:
             # which needs the full dependency set. Same split the event schema
             # fingerprint check already uses.
             ("api contract", [*IN_API, "python", "-m", "nemesis.api.contract"]),
+            # Track E's Law 2: no screen is built against a shape the frontend
+            # invented. That is only enforceable if the schema the client
+            # generates from is the schema the code serves — so a drifted
+            # openapi.json fails here, next to the contract lock it sits beside.
+            ("openapi document", [*IN_API, "python", "-m", "nemesis.api.openapi_export", "--check"]),
             # Host-side and dependency-free, so they run even when the stack is
             # down — and they fail for reasons that are cheap to fix.
             ("runbooks", [sys.executable, "scripts/check_runbooks.py"]),
@@ -736,6 +741,16 @@ def _web_check(_: list[str]) -> int:
 @task("web-types", "Regenerate the TypeScript API client from the live OpenAPI document")
 def _web_types(_: list[str]) -> int:
     return _npm(["run", "api:types"])
+
+
+@task("web-fonts", "Fetch, subset and self-host the type stack (§E10) — needs a network, once")
+def _web_fonts(args: list[str]) -> int:
+    # Host-side Python, not npm: §E10 asks for subsetting with `fonttools`, and
+    # this repository already runs its host-side checks on a bare interpreter.
+    # The fetched woff2 files are COMMITTED, because Phase 29's gate is a clean
+    # checkout that boots air-gapped — a font this task has to download is a
+    # font the demo does not have.
+    return run([sys.executable, "scripts/fetch_fonts.py", *args], cwd=WEB)
 
 
 @task("web-openapi", "Export the OpenAPI document the frontend generates against")

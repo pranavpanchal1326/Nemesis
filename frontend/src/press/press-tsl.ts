@@ -121,8 +121,8 @@ export function createPressPass(
   stockLinear: readonly [number, number, number],
 ): PressPassHandles {
   const strength = uniform(1);
-  const offsets = plan.plates.map(
-    (plate) => uniform(new Vector2(plate.offsetPx[0], plate.offsetPx[1])),
+  const offsets = plan.plates.map((plate) =>
+    uniform(new Vector2(plate.offsetPx[0], plate.offsetPx[1])),
   );
 
   const coordPx = source.uv.mul(source.resolution) as V2;
@@ -136,7 +136,7 @@ export function createPressPass(
     if (!offset) return;
 
     // Stage 3 — this plate is sampled where the sheet was when it printed.
-    const sampled = source.sample(source.uv.add(offset.div(source.resolution)) as V2);
+    const sampled = source.sample(source.uv.add(offset.div(source.resolution)));
 
     // Stage 1 — the density this ink must carry at this pixel.
     const ink = vec3(plate.linear[0], plate.linear[1], plate.linear[2]);

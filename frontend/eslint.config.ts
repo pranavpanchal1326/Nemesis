@@ -26,6 +26,8 @@ export default defineConfig(
     "next-env.d.ts",
     "src/generated/**", // generated; the drift check owns it
     "tests/fixtures/lint/**", // deliberately-failing fixtures, linted in isolation
+    "tests/fixtures/types/**", // deliberately-failing compiles, asserted by tests/types.test.ts
+    "storybook-static/**", // a build output, like .next
   ]),
 
   js.configs.recommended,

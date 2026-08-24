@@ -31,6 +31,17 @@ export interface PressProps {
    */
   readonly children?: ReactNode;
   readonly className?: string;
+  /**
+   * Lift the press and leave solid ink on a sheet.
+   *
+   * A real product path, not a test flag: print does this (a risograph
+   * simulation re-screened by a laser printer is a moiré mess, and §E19.7
+   * establishes that officers print), and §E13 Tier D does this. It is also
+   * what `tests/press-text-exempt.spec.ts` drives, which is the only way the
+   * ADR-0038 byte-identity gate can be asserted against a path the product
+   * actually ships.
+   */
+  readonly bypass?: boolean;
 }
 
 /**
@@ -53,6 +64,7 @@ export function Press({
   imagery,
   children,
   className,
+  bypass = false,
 }: PressProps) {
   const plan = planPress(
     severity === undefined ? { surface, quality, seed } : { surface, quality, severity, seed },
@@ -63,6 +75,7 @@ export function Press({
     <div
       className={className === undefined ? "press" : `press ${className}`}
       data-quality={plan.quality}
+      data-press={bypass ? "bypass" : "on"}
       data-plates={plan.plates.length}
       style={rootStyle(plan)}
     >
@@ -110,7 +123,7 @@ export function Press({
         </defs>
       </svg>
 
-      <div className="press__imagery" style={{ filter: `url(#${id})` }}>
+      <div className="press__imagery" style={bypass ? undefined : { filter: `url(#${id})` }}>
         {imagery}
       </div>
 
@@ -128,7 +141,7 @@ export function Press({
         {children}
       </div>
 
-      {plan.animated ? <PressJitter filterId={id} plan={plan} /> : null}
+      {plan.animated && !bypass ? <PressJitter filterId={id} plan={plan} /> : null}
     </div>
   );
 }
