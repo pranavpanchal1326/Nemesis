@@ -1,0 +1,60 @@
+@import "tailwindcss";
+@import "../design/generated/tokens.css";
+
+/*
+ * Nothing in this file declares a colour, a duration, or a type size. Every one
+ * of those comes from src/design/tokens.json via the generator, and
+ * scripts/check-guards.ts fails the build on a literal anywhere in src/ —
+ * §E24, and §19.3's promise that severity colour is "defined once".
+ */
+
+@layer base {
+  html {
+    /* §E10.2 — every number, everywhere. A column of costs that does not align
+       is a column nobody trusts. */
+    font-variant-numeric: var(--numeric);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-paper-50);
+    color: var(--color-riso-black);
+    font-family: var(--font-interface);
+    font-size: var(--text-body, 0.9375rem);
+  }
+
+  /* §E9.3 — the console at night is a light table, not an inverted palette.
+     Riso ink is translucent and sits on paper; printing on black stock is not
+     a real thing, so the page ground is the room rather than the sheet. */
+  [data-surface="console"] {
+    background: var(--color-mitti-950);
+    color: var(--color-bone-200);
+  }
+
+  /* §E9.2 — SIGNAL. One ink means focus, and it means nothing else. */
+  :focus-visible {
+    outline: 2px solid var(--color-riso-aqua);
+    outline-offset: 2px;
+  }
+
+  /* §E10.2 — prose measure caps at 68ch, tooltips included. */
+  :where(p, li, blockquote, dd, figcaption) {
+    max-width: var(--measure);
+  }
+
+  /* §E11 — prefers-reduced-motion collapses the five signature motions to
+     opacity at one step. This is the base half; the storyboard edit (§E13
+     Tier C) is the other half, and it is a design deliverable, not a disabled
+     animation. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: var(--duration-snap) !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: var(--duration-snap) !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

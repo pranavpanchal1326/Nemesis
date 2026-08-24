@@ -241,6 +241,31 @@ becomes a reproducibility question that the current design cannot answer. Add a
 weight digest to the registry and stamp it onto `classification_scored.model_ids`
 — the field is already a map and already accepts this without a schema change.
 
+### U-14b · Move Track E onto the TypeScript 7 native compiler · **Low value now / Low effort later — a scheduled decision, not a forgotten one**
+
+ADR-0042 pins `frontend/` to TypeScript **5.9** and refuses the 7.0 native Go
+compiler, deliberately and with an exact-version pin so a transitive bump cannot
+take it silently.
+
+**Why it was refused.** Three §E25 Phase 18 gates — zero `any` in application
+source, generated-client drift fails CI, and a hand-written colour literal fails
+CI — are enforced by type-aware ESLint rules, Next's lint integration and the
+Storybook transform chain. A compiler those have not caught up with trades three
+gates for `tsc` wall time on a codebase that does not exist yet. The binding
+constraint on this project is VRAM shared with Ollama (§E23), not compile speed.
+
+**The trigger, stated so this is a decision with a date rather than an
+omission.** When the type-aware ESLint rule set, Next's lint integration and the
+Storybook transform chain all publish TypeScript 7 support, this becomes a
+one-line version change plus a green `nem web-check`. Nothing in application
+source depends on which implementation compiled it — that is precisely why the
+delay costs nothing and why it is worth taking when the tooling lands.
+
+**How you would know it worked.** `nem web-check` green with the pin moved, and
+the four seeded lint violations in M0's fixture still failing. If any of the four
+stops failing, the compiler swap silently disarmed a gate, and that is the whole
+risk this defers.
+
 ---
 
 ## Part 3 — Debt worth paying now

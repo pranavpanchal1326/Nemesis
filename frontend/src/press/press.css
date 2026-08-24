@@ -1,0 +1,112 @@
+/*
+ * The press — 2D layer (§E6, ADR-0038).
+ *
+ * No colour is declared here. Every ink, every stock and every duration
+ * arrives as a custom property generated from src/design/tokens.json, and
+ * scripts/check-guards.ts fails the build on a literal.
+ *
+ * The layer order is the whole point of this file:
+ *
+ *   imagery  → separated, misregistered, overprinted   (SVG filter)
+ *   screens  → one per plate, at its classic angle     (multiply)
+ *   grain    → ink density and paper fibre             (multiply)
+ *   deckle   → the frame edge
+ *   text     → UNPROCESSED. Above everything, isolated.
+ *
+ * That last line is ADR-0038 and §E6.2: **the press applies to imagery and
+ * fields, never to text or data.** Type is solid ink on a real risograph;
+ * images are screened. Halftoned 13 px type in an operator console would be a
+ * defect, not a style. The text layer is a sibling, not a descendant, of every
+ * processed layer — which is what makes the byte-identity test in
+ * tests/press-text-exempt.spec.ts able to pass at all.
+ */
+
+.press {
+  position: relative;
+  isolation: isolate;
+}
+
+.press__imagery {
+  position: relative;
+  z-index: var(--layer-world);
+}
+
+.press__screens,
+.press__grain,
+.press__deckle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--layer-press);
+}
+
+/* §E6.1 stage 2, approximated — one screen per plate, at its own angle.
+   Over-sized and rotated, or the corners of the frame come up bare. */
+.press__screen {
+  position: absolute;
+  inset: -25%;
+  mix-blend-mode: multiply;
+  background-image: radial-gradient(
+    circle at center,
+    var(--press-ink) 0 var(--press-dot),
+    transparent var(--press-dot-soft)
+  );
+  background-size: var(--press-cell) var(--press-cell);
+  transform: rotate(var(--press-angle));
+  opacity: calc(0.5 / var(--press-plates));
+}
+
+/* §E6.1 stages 4 and 6. Two fields, not one: ink is uneven along the pass,
+   paper is uneven everywhere. */
+.press__grain {
+  background-image: var(--press-ink-grain), var(--press-paper-grain);
+  background-size:
+    240px 240px,
+    240px 240px;
+  mix-blend-mode: multiply;
+}
+
+/* The faint deckle at the frame edge. A print is a physical object and it has
+   an edge; §E17.3's receipt is the same idea at component scale. */
+.press__deckle {
+  box-shadow: inset 0 0 var(--press-deckle) var(--press-deckle) var(--color-paper-50);
+  mask-image: radial-gradient(farthest-side at center, transparent 82%, black 100%);
+}
+
+[data-surface="console"] .press__deckle {
+  /* §E9.3 — the light table. The sheet is backlit, so its edge glows through
+     the room rather than fading into it. */
+  box-shadow: inset 0 0 var(--press-deckle) var(--press-deckle) var(--color-mitti-950);
+}
+
+/*
+ * ADR-0038. Nothing above this line may touch anything below it.
+ */
+.press__text {
+  position: relative;
+  z-index: var(--layer-text);
+  isolation: isolate;
+  mix-blend-mode: normal;
+  filter: none;
+}
+
+/* §E6.4 — the dial. `flat` is one ink, no screen, poster register: a bolder
+   print, not a worse one, which is why §E2 defect #8 has nothing to re-frame. */
+.press[data-quality="flat"] .press__screens,
+.press[data-quality="flat"] .press__grain {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* §E13 Tier C. The sheet stops moving; it does not stop being printed. */
+  .press {
+    --press-jitter: 0;
+  }
+}
+
+.press__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}

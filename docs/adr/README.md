@@ -94,3 +94,9 @@ The concrete signal that should reopen this decision.
 | [0034](0034-the-published-f1-runs-the-shipped-decision-rule.md) | The published F1 runs the shipped decision rule, on a split the corpus computes | Accepted | DATA |
 | [0035](0035-per-category-temperature-requires-a-per-category-centre.md) | A per-category temperature requires a per-category centre, in similarity space | Accepted | DATA |
 | [0036](0036-dedup-stage-2-is-exact-not-approximate.md) | Dedup Stage 2 is exact, not approximate — the HNSW indexes are deliberately unused | Accepted | DATA |
+| [0037](0037-shaders-are-authored-in-tsl-not-glsl.md) | Shaders are authored in TSL against WebGPURenderer, never as GLSL strings | Accepted | PROD |
+| [0038](0038-the-press-is-two-implementations-and-text-is-exempt.md) | The press is one token source in two implementations, and text is exempt from it | Accepted | PROD |
+| [0039](0039-an-unverified-flag-is-never-rendered-in-red.md) | An unverified flag is fluorescent pink and hatched, and is never rendered in red | Accepted | PROD · SEC |
+| [0040](0040-the-browser-talks-to-a-bff-the-websocket-does-not.md) | The browser talks to a BFF; the WebSocket connects directly | Accepted | PROD · PLT |
+| [0041](0041-characters-are-event-driven-state-machines-not-timelines.md) | Characters are event-driven state machines, not timelines | Accepted | PROD |
+| [0042](0042-next-16-ships-typescript-7-waits.md) | Next.js 16 ships, amending §E15; the TypeScript 7 native compiler waits on the tooling the gates need | Accepted | PROD |

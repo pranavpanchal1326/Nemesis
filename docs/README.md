@@ -21,12 +21,14 @@ minutes there saves a week here.
 |---|---|
 | **[PHASES.md](PHASES.md)** | The thirty-phase program plan, every exit gate, and — most usefully — the defect log recording what each gate *caught*. |
 | `../NEMESIS-Blueprint-v2.md` | The product specification. The `§` numbers scattered through the code point here. |
+| `../NEMESIS-Frontend-Blueprint.md` | The Track E specification — art direction, design system, frontend architecture, surface by surface. The `§E` numbers point here. Supersedes §8.1, §19, §20. |
+| **[FRONTEND-EXECUTION-PLAN.md](FRONTEND-EXECUTION-PLAN.md)** | The Track E build sequence: milestones M0–M12, what blocks what, and which §E25 gate each one closes. |
 
 ## Decisions and operations
 
 | Directory | Contents |
 |---|---|
-| **[adr/](adr/)** | 36 architecture decision records. Read the relevant one before changing a design. Check the highest number before claiming a new one. |
+| **[adr/](adr/)** | 42 architecture decision records. Read the relevant one before changing a design. Check the highest number before claiming a new one. |
 | **[runbooks/](runbooks/)** | 27 pages, one per failure scenario and per external dependency. What to do at 2am. |
 | **[incidents/](incidents/)** | Severity definitions, the post-mortem template, and the tracked action register. |
 | **[rfc/](rfc/)** | The RFC process, for anything that crosses tracks. |
