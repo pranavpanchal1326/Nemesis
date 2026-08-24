@@ -1,4 +1,4 @@
-# ADR-0035 — Dedup Stage 2 is exact, not approximate
+# ADR-0036 — Dedup Stage 2 is exact, not approximate
 
 **Status:** Accepted · **Date:** 2026-08-24 · **Phase:** 10 · **Owner:** DATA
 

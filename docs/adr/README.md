@@ -93,3 +93,4 @@ The concrete signal that should reopen this decision.
 | [0033](0033-abuse-detection-flags-and-cannot-block.md) | Coordinated-abuse detection flags, and the blocking path does not exist to be re-enabled | Accepted | DATA · SEC |
 | [0034](0034-the-published-f1-runs-the-shipped-decision-rule.md) | The published F1 runs the shipped decision rule, on a split the corpus computes | Accepted | DATA |
 | [0035](0035-per-category-temperature-requires-a-per-category-centre.md) | A per-category temperature requires a per-category centre, in similarity space | Accepted | DATA |
+| [0036](0036-dedup-stage-2-is-exact-not-approximate.md) | Dedup Stage 2 is exact, not approximate — the HNSW indexes are deliberately unused | Accepted | DATA |

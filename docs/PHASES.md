@@ -1766,7 +1766,7 @@ to be disappointing on purpose.
   construction, so a published taxonomy change cannot be served yesterday's
   matrix
 - **Per-tenant, per-category calibration derived from measured curves**
-  (ADR-0035), fitted by the harness on the calibration split and written out in
+  (ADR-0036), fitted by the harness on the calibration split and written out in
   the shape the policy API accepts — so the harness *proposes* and an approver
   decides, with Phase 6 keeping the trail. Temperature and centre are fitted per
   category; the abstain floor is fitted once for the tenant, and the
@@ -1817,7 +1817,7 @@ argument for it calling the shipped rule rather than its own copy:
    indistinguishable from chance, in a number nobody would have known to
    disbelieve. `top_category` is now populated on every return path
 2. **A per-category temperature with no per-category centre is arithmetic, not
-   evidence** (ADR-0035). Different temperatures put categories on different
+   evidence** (ADR-0036). Different temperatures put categories on different
    logit scales and the smallest temperature wins everything. Worse, the contrast
    pool received the temperature and *not* the bias, so at a fitted temperature
    of 0.006 an uncentred contrast logit sat ~140 above the centred positives,
@@ -1963,7 +1963,7 @@ The moat (§14). Never cut, never simplified.
 
 **Shipped**
 - **Stage 1** — `ST_DWithin` against the GiST index on `complaint_clusters.centroid`, with the radius and window taken from the *band* rather than from platform settings, plus two predicates the plan does not name and the engine is wrong without: the time window excludes a defect that was fixed and reopened, and an `EXISTS` over cluster members excludes a different category however close it sits
-- **Stage 2** — exact cosine over the members of the surviving candidates, scored as the *best* matching member rather than a centroid or a mean. **This deviates from the plan's "0.8 iterative scans" wording and ADR-0035 records why**: iterative scan is the fix for a filtered ANN search under-returning, the candidate set after Stage 1 is a handful of clusters, and an exact scan is both cheaper at that size and reproducible — which `docs/reports/hnsw-recall.md` shows HNSW is not, since it reorders near-ties
+- **Stage 2** — exact cosine over the members of the surviving candidates, scored as the *best* matching member rather than a centroid or a mean. **This deviates from the plan's "0.8 iterative scans" wording and ADR-0036 records why**: iterative scan is the fix for a filtered ANN search under-returning, the candidate set after Stage 1 is a handful of clusters, and an exact scan is both cheaper at that size and reproducible — which `docs/reports/hnsw-recall.md` shows HNSW is not, since it reorders near-ties
 - **Per-category bands from Phase 6**, including the tie rule the bands imply but do not state: two candidates both above the merge threshold and within `ambiguous_margin` of each other are *not* merged, because picking the higher is a coin-flip and §14.3 forbids coin-flips in that direction
 - **Merge reversibility** as three appended events — the old cluster records losing a member, a fresh cluster records gaining one, the complaint records its new home. Nothing is deleted, so the log shows the system was wrong and corrected itself
 - **`complaint_clustered`** on the complaint chain. A gap rather than a feature: `Complaint.cluster_id` is read by the projection writer and no event on the complaint's own chain ever set it, so before this the column was structurally guaranteed to stay NULL
