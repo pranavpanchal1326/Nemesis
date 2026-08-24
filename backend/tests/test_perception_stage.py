@@ -31,6 +31,7 @@ from nemesis.control_plane import taxonomy
 from nemesis.control_plane.schemas import PromptSetSpec, TaxonomyNodeSpec
 from nemesis.db.models.complaint import TEXT_EMBEDDING_DIM, Complaint
 from nemesis.events.store import EventStore
+from nemesis.perception import harness
 from nemesis.perception.encoders import (
     EncoderKind,
     Transcript,
@@ -609,3 +610,135 @@ async def test_an_embedding_of_the_wrong_width_is_refused_before_the_column(
                 complaint_id=complaint_id,
                 text_embedding=[0.1] * (TEXT_EMBEDDING_DIM * 2),
             )
+
+
+# ---------------------------------------------------------------------------
+# The calibration loop: harness proposes, an approver decides, the stage obeys
+# ---------------------------------------------------------------------------
+
+
+async def _activate_calibration(
+    session: AsyncSession, *, tenant_id: uuid.UUID, body: dict[str, object]
+) -> None:
+    """Draft -> review -> approve -> activate. The only path a document goes live by.
+
+    Walked in full rather than shortcut, because the claim under test is that
+    the *harness's output* reaches the *stage* through the governed path an
+    operator actually has. A test that reached into `baselines` would prove the
+    resolver works and say nothing about whether a measured calibration can ever
+    be deployed.
+    """
+    from nemesis.policy import service as policy_service
+    from nemesis.policy.documents import PolicyKind
+    from nemesis.policy.resolver import RESOLVER
+
+    kind = PolicyKind.PERCEPTION_CALIBRATION
+    version = await policy_service.draft(
+        session,
+        tenant_id=tenant_id,
+        kind=kind,
+        body=body,
+        change_reason="Fitted by the Phase 9 validation harness",
+    )
+    for step, reason in (
+        (policy_service.submit_for_review, "measured on the calibration split"),
+        (policy_service.approve, "approved by the data owner"),
+        (policy_service.activate, "go live"),
+    ):
+        await step(
+            session,
+            tenant_id=tenant_id,
+            kind=kind,
+            revision=version.revision,
+            reason=reason,
+        )
+    await session.commit()
+    RESOLVER.invalidate(tenant_id=tenant_id)
+
+
+async def test_a_harness_fitted_calibration_can_be_approved_and_changes_the_decision(
+    migrated_engine: AsyncEngine, tenant_id: uuid.UUID
+) -> None:
+    """The loop the phase actually ships, end to end in one test.
+
+    `nem f1` writes `docs/reports/perception-calibration-proposed.json` and the
+    module docstring claims it is "shaped so it can be POSTed to the policy API
+    unchanged". That claim was untested: nothing anywhere activated a
+    `perception_calibration` document, so "the harness proposes and an approver
+    decides" was an architecture diagram rather than a path.
+
+    The assertion is deliberately about a *changed outcome* rather than about a
+    stored row. A document that validates, activates, and is then ignored by the
+    stage would satisfy every weaker check — so the same submission is scored
+    twice, once under the tenant defaults and once under a fitted document whose
+    only material difference is an abstain floor above the achievable
+    confidence, and the second one must abstain.
+    """
+    description = "there is a big hole in the road"
+
+    async with scoped(migrated_engine, tenant_id) as session:
+        await _taxonomy(session, tenant_id)
+        first = await _complaint(session, tenant_id=tenant_id, description=description)
+        with encoder_scope(EncoderKind.TEXT, _encoder(**{description: axis(0)})):
+            result = await classification_stage(
+                _context(
+                    session,
+                    tenant_id=tenant_id,
+                    complaint_id=first,
+                    description_text=description,
+                )
+            )
+        (event,) = result.emitted
+        assert event.payload["category"] == "pothole"
+        baseline_stamp = event.payload["calibration_version"]
+        await session.commit()
+
+    # What the harness produces, in the shape it produces it. Built through
+    # `calibration_document` rather than hand-written, so a change to the
+    # harness's output shape fails here rather than in an operator's console.
+    proposed = harness.calibration_document(
+        (
+            harness.FittedCategory(
+                category="pothole",
+                # **Both numbers matter and the temperature is the load-bearing
+                # one.** The fake encoder's prompt vectors are orthogonal, so at
+                # the document default of 0.05 the softmax saturates to a
+                # confidence of exactly 1.000 and *no* floor below 1.0 could ever
+                # fire — a version of this test with only the floor changed
+                # passed the activation and then classified anyway, proving
+                # nothing. A temperature of 10.0 flattens the same two
+                # similarities to ~0.52, which the floor below then refuses.
+                temperature=10.0,
+                bias=0.0,
+                abstain_below=0.9,
+                min_margin=0.0,
+                sample_size=54,
+                positives=6,
+                mean_positive_similarity=0.84,
+                mean_negative_similarity=0.81,
+                provenance="fitted by the validation harness on the calibration split",
+            ),
+        )
+    )
+
+    async with scoped(migrated_engine, tenant_id) as session:
+        await _activate_calibration(session, tenant_id=tenant_id, body=proposed)
+
+    async with scoped(migrated_engine, tenant_id) as session:
+        second = await _complaint(session, tenant_id=tenant_id, description=description)
+        with (
+            encoder_scope(EncoderKind.TEXT, _encoder(**{description: axis(0)})),
+            pytest.raises(StageAbstainedError, match=r"0\.900"),
+        ):
+            await classification_stage(
+                _context(
+                    session,
+                    tenant_id=tenant_id,
+                    complaint_id=second,
+                    description_text=description,
+                )
+            )
+
+    # And the stamp moved, so a decision made before the approval is still
+    # attributable to the document that made it.
+    assert baseline_stamp != "perception_calibration@1"

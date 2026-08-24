@@ -300,6 +300,31 @@ def _review_decided(state: ProjectedState, event: ProjectionEvent) -> ProjectedS
     return state
 
 
+@projector(EntityType.COMPLAINT, "complaint_clustered")
+def _complaint_clustered(state: ProjectedState, event: ProjectionEvent) -> ProjectedState:
+    """The complaint-side half of a dedup decision.
+
+    Sets ``cluster_id``, which ``projections.writer`` materialises onto the
+    ``complaints`` row — the column every downstream join uses and which nothing
+    before Phase 10 wrote. ``status`` advances to ``clustered`` only from the
+    states where that is the next step: a report that was flagged for safety or
+    parked as unclassifiable has a status that means something, and dedup
+    running afterwards must not overwrite it with a routine one.
+    """
+    payload = event.payload
+    state["cluster_id"] = str(payload["cluster_id"])
+    state["dedup_outcome"] = payload["outcome"]
+    state["dedup_confidence"] = payload.get("combined_confidence")
+    state["dedup_policy_version"] = payload["policy_version"]
+    if state.get("status") in (
+        ComplaintStatus.CLASSIFIED.value,
+        ComplaintStatus.VERIFYING.value,
+        ComplaintStatus.SUBMITTED.value,
+    ):
+        state["status"] = ComplaintStatus.CLUSTERED.value
+    return state
+
+
 # ---------------------------------------------------------------------------
 # Cluster
 # ---------------------------------------------------------------------------

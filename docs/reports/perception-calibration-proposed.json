@@ -8,7 +8,7 @@
       "abstain_below": 0.0958,
       "min_margin": 0.05,
       "sample_size": 54,
-      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-24; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
     },
     {
       "category": "exposed_cable",
@@ -17,7 +17,7 @@
       "abstain_below": 0.0958,
       "min_margin": 0.05,
       "sample_size": 54,
-      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-24; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
     },
     {
       "category": "footpath_damage",
@@ -26,7 +26,7 @@
       "abstain_below": 0.0958,
       "min_margin": 0.05,
       "sample_size": 54,
-      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-24; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
     },
     {
       "category": "garbage_pile",
@@ -35,7 +35,7 @@
       "abstain_below": 0.0958,
       "min_margin": 0.05,
       "sample_size": 54,
-      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-24; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
     },
     {
       "category": "open_manhole",
@@ -44,7 +44,7 @@
       "abstain_below": 0.0958,
       "min_margin": 0.05,
       "sample_size": 54,
-      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-24; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
     },
     {
       "category": "pothole",
@@ -53,7 +53,7 @@
       "abstain_below": 0.0958,
       "min_margin": 0.05,
       "sample_size": 54,
-      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-24; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
     },
     {
       "category": "streetlight_out",
@@ -62,7 +62,7 @@
       "abstain_below": 0.0958,
       "min_margin": 0.05,
       "sample_size": 54,
-      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-24; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
     },
     {
       "category": "water_leak",
@@ -71,7 +71,7 @@
       "abstain_below": 0.0958,
       "min_margin": 0.05,
       "sample_size": 54,
-      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-24; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
     },
     {
       "category": "waterlogging",
@@ -80,7 +80,7 @@
       "abstain_below": 0.0958,
       "min_margin": 0.05,
       "sample_size": 54,
-      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-23; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
+      "provenance": "perception harness, corpus municipality-v1 (54 calibration examples), sentence_transformers:intfloat/multilingual-e5-small, 2026-08-24; temperature and centre fitted per category, abstain floor shared across the tenant (too few labelled examples per category for a per-category floor to be a measurement); macro F1 on the calibration split at this operating point: 0.567. Scale normalisation plus an operating point, not a calibrated posterior"
     }
   ]
 }

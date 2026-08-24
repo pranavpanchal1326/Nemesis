@@ -203,6 +203,7 @@ def _install_stage_providers(**_: Any) -> None:
     importing the trust package there would pull Pillow into two processes that
     have no use for it.
     """
+    from nemesis.dedup.providers import register_dedup_stages
     from nemesis.observability.logging import get_logger
     from nemesis.perception.providers import install_perception_workers
     from nemesis.trust.providers import install_trust_workers
@@ -214,6 +215,12 @@ def _install_stage_providers(**_: Any) -> None:
         # ml-queue work it can only half do, and the half it cannot do degrades
         # every complaint routed to it.
         install_perception_workers()
+        # Phase 10. Registered on every worker, not only the io-queue one: the
+        # queue routing in `stages.py` decides which process actually receives
+        # the work, and a registry that varied by container would make that
+        # routing table a thing you have to cross-reference with a Dockerfile to
+        # read.
+        register_dedup_stages()
     except Exception as exc:  # pragma: no cover — a broken import, not a data error
         # Logged and re-raised. A worker that comes up without its providers
         # accepts work it cannot do and degrades every complaint routed to it,

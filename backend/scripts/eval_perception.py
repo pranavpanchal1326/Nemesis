@@ -48,11 +48,17 @@ import sys
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from nemesis.config import get_settings
 from nemesis.perception import corpus as corpus_module
 from nemesis.perception import harness
-from nemesis.perception.encoders import EncoderKind, active_text_encoder
+from nemesis.perception.encoders import (
+    EncoderKind,
+    active_image_encoder,
+    active_text_encoder,
+    active_transcriber,
+)
 from nemesis.perception.scoring import Calibration
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -98,6 +104,17 @@ CAVEATS: tuple[str, ...] = (
     "per-category column as an indication and the macro figure as the number, and treat "
     "a category moving between two runs of a prompt pass as noise unless the "
     "calibration-split work list moved with it.",
+    "**The per-model latency table meets the budget and the transcriber only meets it "
+    "for short clips.** Whisper runs at roughly 1.15x real time on this CPU — a "
+    "two-second clip costs ~2.3 s, against 116 ms for a CLIP image encode and 36 ms for "
+    "a text encode. The §27.1 budget is per *stage*, so a voice note longer than about "
+    "eight seconds breaches it, and `NEMESIS_PERCEPTION__MAX_AUDIO_SECONDS` currently "
+    "permits 300. Nothing breaks — the stage degrades to `pending_classification` and a "
+    "human plays the clip — but the practical ceiling is set by the recording length "
+    "rather than by the budget, and the number to watch is "
+    '`nemesis_perception_inference_seconds{operation="transcribe"}` against the audio '
+    "duration recorded on `media_transcribed`. This is a measurement, not a regression: "
+    "it is what the model costs, and it was previously unmeasured.",
     "The distant-face recall curve uses a **controlled synthetic stimulus**, not "
     "photographs. That is the right instrument for the question — recall as a function "
     "of face size in pixels is geometric — and it is the wrong instrument for absolute "
@@ -259,6 +276,15 @@ def run(
         image_weight=image_weight,
     )
 
+    # §27.1 for all three models, not just the one the corpus happens to
+    # exercise. The corpus is text, so everything above times `e5` — the
+    # cheapest of the three — while the gate clause it satisfies says
+    # "inference latency within the §27.1 budget". CLIP encode and Whisper
+    # transcribe are the dominant production costs, and a budget checked
+    # against the model that comfortably meets it is a budget nobody is
+    # checking.
+    per_model_latency = _per_model_latency(text_encoder)
+
     face_recall = None if skip_faces else _face_recall(face_repeats)
 
     return harness.Report(
@@ -275,6 +301,7 @@ def run(
         holdout=measured,
         baseline=baseline,
         worklist=worklist,
+        per_model_latency=per_model_latency,
         calibration_split_size=len(calibration_split),
         fitted=fitted,
         face_recall=face_recall,
@@ -309,6 +336,82 @@ def _merge_specs(template: str, locales: Sequence[str]) -> tuple[harness.PromptS
         )
         for category, (positives, negatives) in sorted(pooled.items())
     )
+
+
+def _probe_image() -> bytes:
+    """A small PNG, encoded with Pillow — a base dependency in every image.
+
+    Synthetic on purpose and it does not matter here: this measures how long
+    CLIP's image tower takes on a 64 by 64 RGB input, which is a property of the
+    tower and the CPU rather than of what the picture is of. What a synthetic
+    input cannot measure is *accuracy*, which is why the F1 table above says
+    `text` in its modality column and the caveats say the image modality is
+    unmeasured.
+    """
+    import io
+
+    from PIL import Image
+
+    image = Image.new("RGB", (64, 64))
+    image.putdata(
+        [((x * 3) % 256, (y * 5) % 256, (x + y) % 256) for y in range(64) for x in range(64)]
+    )
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _probe_audio(seconds: float = 2.0, rate: int = 16000) -> bytes:
+    """Two seconds of 16-bit PCM WAV, built from bytes. Standard library only.
+
+    A swept tone rather than silence: Whisper's VAD filter discards pure silence
+    before the model sees it, so a silent clip would time the VAD and nothing
+    else. Not speech — see the caveat about transcription quality.
+    """
+    import math
+    import struct
+
+    frames = int(rate * seconds)
+    samples = bytearray()
+    for index in range(frames):
+        phase = 2.0 * math.pi * (200.0 + 400.0 * index / frames) * index / rate
+        samples += struct.pack("<h", int(12000 * math.sin(phase)))
+    data = bytes(samples)
+    return (
+        b"RIFF"
+        + struct.pack("<I", 36 + len(data))
+        + b"WAVEfmt "
+        + struct.pack("<IHHIIHH", 16, 1, 1, rate, rate * 2, 2, 16)
+        + b"data"
+        + struct.pack("<I", len(data))
+        + data
+    )
+
+
+def _per_model_latency(text_encoder: Any) -> tuple[harness.LatencySummary, ...]:
+    """Time each registered model once per pass. Absent models are skipped.
+
+    Failures are caught and dropped rather than raised: a worker with no
+    transcriber is a real and supported deployment (§8.4 is optional intake),
+    and a latency measurement that took the report down with it would be an
+    observability feature causing an outage.
+    """
+    from nemesis.perception.encoders import EncoderKind, encoder_is_registered
+
+    image_encoder = active_image_encoder() if encoder_is_registered(EncoderKind.IMAGE) else None
+    transcriber = active_transcriber() if encoder_is_registered(EncoderKind.TRANSCRIBE) else None
+
+    try:
+        return harness.measure_inference_latency(
+            image_encoder=image_encoder,
+            text_encoder=text_encoder,
+            transcriber=transcriber,
+            image=_probe_image() if image_encoder is not None else None,
+            audio=_probe_audio() if transcriber is not None else None,
+        )
+    except Exception as exc:  # pragma: no cover - a broken model, not a data error
+        print(f"per-model latency could not be measured: {exc}", file=sys.stderr)
+        return ()
 
 
 def _face_recall(repeats: int) -> harness.FaceRecallResult | None:
@@ -516,6 +619,27 @@ def _markdown(report: harness.Report) -> str:
         "property and no complaint after the first pays it."
     )
     add("")
+    if report.per_model_latency:
+        add("### Per model")
+        add("")
+        add("| Model pass | n | p50 | p95 | max | In budget |")
+        add("|---|---:|---:|---:|---:|---|")
+        for entry in report.per_model_latency:
+            mark = "yes" if entry.p95 <= report.latency_budget_seconds else "**no**"
+            add(
+                f"| `{entry.operation}` | {entry.count} | {entry.p50 * 1000:.0f} ms | "
+                f"{entry.p95 * 1000:.0f} ms | {entry.max * 1000:.0f} ms | {mark} |"
+            )
+        add("")
+        add(
+            "**Reported separately because the table above times the text encoder and "
+            "nothing else.** The corpus is text, so a budget checked against it alone is "
+            "a budget checked against the cheapest of the three models, while CLIP encode "
+            "and Whisper transcribe are what a photographed or spoken report actually "
+            "costs. These are single forward passes over one fixed input, with the first "
+            "call discarded so the model load is not counted."
+        )
+        add("")
     if report.face_recall is not None:
         add("## Distant-face recall (§22.1)")
         add("")

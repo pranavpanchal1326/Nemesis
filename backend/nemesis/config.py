@@ -37,6 +37,27 @@ class DedupSettings(BaseModel):
     merge_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
     investigate_threshold: float = Field(default=0.65, ge=0.0, le=1.0)
 
+    #: Phase 10 mechanics. These three are *platform* knobs rather than policy,
+    #: and the distinction is worth stating because everything else on this
+    #: model has a tenant-overridable twin in `DedupBand`. A radius is a claim
+    #: about a customer's geography; these are claims about the decision
+    #: procedure itself, and a tenant who wanted them different would be asking
+    #: for a different algorithm rather than a different configuration. If one
+    #: ever does need to vary per category, it moves to `DedupBand` — that is
+    #: the escalation path, recorded so it does not have to be rediscovered.
+    #:
+    #: Stage 1 survivors to score. Bounds the work Stage 2 can be handed; when
+    #: it binds, the stage reports truncation rather than absorbing it.
+    max_candidates: int = Field(default=50, gt=0, le=1000)
+    #: Members of any one cluster compared, most recent first. Stops a single
+    #: very large cluster from dominating the §27.1 budget.
+    max_members_per_cluster: int = Field(default=25, gt=0, le=500)
+    #: How close the second-best candidate may come to the best before a merge
+    #: is downgraded to the ambiguous band. Zero would disable the rule and let
+    #: an exact tie merge on sort order, which §14.3 forbids in spirit and this
+    #: floor forbids in fact.
+    ambiguous_margin: float = Field(default=0.02, gt=0.0, le=0.5)
+
     @model_validator(mode="after")
     def _bands_must_be_ordered(self) -> DedupSettings:
         if self.investigate_threshold >= self.merge_threshold:

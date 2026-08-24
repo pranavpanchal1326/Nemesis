@@ -84,6 +84,19 @@ class ReviewReason(StrEnum):
     PERCEPTUAL_DUPLICATE = "perceptual_duplicate"
     DEVICE_VELOCITY = "device_velocity"
     GEOGRAPHIC_CLUSTER = "geographic_cluster"
+    #: Phase 10. §14.1's middle band: the report scored between the investigate
+    #: and merge thresholds against a nearby incident, or scored above merge
+    #: against two of them too close to separate. Named as its own reason rather
+    #: than folded into ``GEOGRAPHIC_CLUSTER`` — that one is a §11.3 *abuse*
+    #: signal about coordinated submissions, and this is the dedup engine
+    #: declining to guess. Merging the two would make an honest ambiguity look
+    #: like a fraud flag on a citizen's report.
+    #:
+    #: §14.1 routes this band to the Phase 16 Investigation Agent. Until that
+    #: exists the queue is where it goes, which is the same substitution Phase 8
+    #: made for the visual half of the safety check: a human doing the work the
+    #: agent will do, rather than the band silently collapsing.
+    AMBIGUOUS_DEDUP = "ambiguous_dedup"
     LOW_TRUST = "low_trust"
 
 
@@ -114,6 +127,10 @@ PRIORITY: Final[dict[ReviewReason, int]] = {
     ReviewReason.EXIF_MISMATCH: 40,
     ReviewReason.PERCEPTUAL_DUPLICATE: 50,
     ReviewReason.GEOGRAPHIC_CLUSTER: 60,
+    # Above the fraud signals and below the safety and integrity ones. An
+    # unresolved ambiguity delays one citizen's report joining its incident; it
+    # does not leave a danger unnoticed or a forged photograph unchallenged.
+    ReviewReason.AMBIGUOUS_DEDUP: 65,
     ReviewReason.DEVICE_VELOCITY: 70,
     ReviewReason.LOW_TRUST: 90,
 }

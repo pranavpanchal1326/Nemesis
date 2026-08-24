@@ -539,6 +539,42 @@ class ReviewDecidedV1(EventPayload):
     evidence_hash: str = Field(min_length=64, max_length=64)
 
 
+@register_event("complaint_clustered", version=1, entity_type=EntityType.COMPLAINT)
+class ComplaintClusteredV1(EventPayload):
+    """Which incident this report belongs to, on the report's own chain.
+
+    **Why this exists alongside ``cluster_match_found``, which records the same
+    merge.** The two are on different chains and neither can be read from the
+    other. §9.1's rule is that an entity's current state derives from its own
+    event log, and a complaint whose ``cluster_id`` could only be learned by
+    replaying every cluster in the tenant would break that rule in the most
+    expensive possible direction — the projector for one complaint would have to
+    scan an unbounded number of unrelated chains. So the cluster chain records
+    *what happened to the incident* and the complaint chain records *what
+    happened to the report*, and the dedup stage appends both in one
+    transaction.
+
+    ``outcome`` is carried because a cluster of one is produced by three quite
+    different situations — nothing nearby, something nearby that scored too low,
+    and something nearby that scored high enough to be ambiguous — and a reader
+    who cannot tell them apart will read the third as the first. It is also the
+    field that makes §14.1's middle band observable: an ``investigate`` rate of
+    zero means the ambiguous band has collapsed and dedup has quietly become
+    binary, which is the failure ``DedupBand`` validates against at authoring
+    time and this makes visible at run time.
+    """
+
+    cluster_id: uuid.UUID
+    #: ``merge``, ``investigate`` or ``distinct``.
+    outcome: str
+    #: Absent when the report was the first thing in its neighbourhood, so there
+    #: was nothing to be confident about.
+    combined_confidence: Confidence | None = None
+    #: The Phase 6 policy version whose bands decided. Stamped here as well as
+    #: on the cluster event so the report's own chain is self-contained.
+    policy_version: str
+
+
 # ---------------------------------------------------------------------------
 # Cluster chain
 # ---------------------------------------------------------------------------

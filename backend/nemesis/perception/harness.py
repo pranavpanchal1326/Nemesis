@@ -905,6 +905,64 @@ class FaceRecallResult:
         return min(reliable) if reliable else None
 
 
+def measure_inference_latency(
+    *,
+    image_encoder: ImageEncoder | None = None,
+    text_encoder: TextEncoder | None = None,
+    transcriber: Any = None,
+    image: bytes | None = None,
+    audio: bytes | None = None,
+    text: str = "there is a large pothole in the road outside the school gate",
+    locales: Sequence[str] = ("en",),
+    repeats: int = 5,
+) -> tuple[LatencySummary, ...]:
+    """One pass per model, timed, so §27.1 is measured for all three not one.
+
+    **Why this exists as a separate function from ``evaluate``.** The corpus is
+    text, so ``evaluate`` times the text encoder and nothing else — and the
+    published latency number was therefore the *cheapest* of the three models
+    while the clause it satisfied said "inference latency within the §27.1
+    budget". CLIP encode and Whisper transcribe are the dominant costs in
+    production. A budget checked against the one model that comfortably meets it
+    is a budget nobody is checking.
+
+    Each measurement is a single forward pass over one fixed input, repeated,
+    with the first call outside the sample: the first call pays the model load,
+    which is a deployment property every subsequent complaint does not pay and
+    which ``perception_model_load_seconds`` reports separately.
+    """
+    summaries: list[LatencySummary] = []
+
+    if image_encoder is not None and image is not None:
+        image_encoder.encode_image(image)  # warm, discarded
+        samples = []
+        for _ in range(repeats):
+            started = time.perf_counter()
+            image_encoder.encode_image(image)
+            samples.append(time.perf_counter() - started)
+        summaries.append(_latency("encode_image", samples))
+
+    if text_encoder is not None:
+        text_encoder.encode([text], prefix=QUERY_PREFIX)
+        samples = []
+        for _ in range(repeats):
+            started = time.perf_counter()
+            text_encoder.encode([text], prefix=QUERY_PREFIX)
+            samples.append(time.perf_counter() - started)
+        summaries.append(_latency("encode_text", samples))
+
+    if transcriber is not None and audio is not None:
+        transcriber.transcribe(audio, locales=list(locales))
+        samples = []
+        for _ in range(repeats):
+            started = time.perf_counter()
+            transcriber.transcribe(audio, locales=list(locales))
+            samples.append(time.perf_counter() - started)
+        summaries.append(_latency("transcribe", samples))
+
+    return tuple(summaries)
+
+
 def measure_face_recall(
     detector: Any,
     *,
@@ -1035,6 +1093,11 @@ class Report:
     #: fitted on, which is already spent, and the held-out number stays a number
     #: about examples nothing has been tuned against.
     worklist: EvaluationResult | None = None
+    #: One entry per model, timed independently. The held-out ``latency`` above
+    #: covers the text encoder only, because the corpus is text — so a budget
+    #: checked against it alone is a budget checked against the cheapest of the
+    #: three models. See ``measure_inference_latency``.
+    per_model_latency: tuple[LatencySummary, ...] = ()
     fitted: tuple[FittedCategory, ...] = ()
     face_recall: FaceRecallResult | None = None
     #: Free text recorded by the runner: what was measured, what was not, and
@@ -1054,7 +1117,9 @@ class Report:
         §43.2 work was done. This property answers only the first half.
         """
         return (
-            not self.holdout.below_floor and self.holdout.latency.p95 <= self.latency_budget_seconds
+            not self.holdout.below_floor
+            and self.holdout.latency.p95 <= self.latency_budget_seconds
+            and all(entry.p95 <= self.latency_budget_seconds for entry in self.per_model_latency)
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -1081,6 +1146,17 @@ class Report:
                 "p95_seconds": round(self.holdout.latency.p95, 4),
                 "max_seconds": round(self.holdout.latency.max, 4),
                 "within_budget": self.holdout.latency.p95 <= self.latency_budget_seconds,
+                "per_model": [
+                    {
+                        "operation": entry.operation,
+                        "count": entry.count,
+                        "p50_seconds": round(entry.p50, 4),
+                        "p95_seconds": round(entry.p95, 4),
+                        "max_seconds": round(entry.max, 4),
+                        "within_budget": entry.p95 <= self.latency_budget_seconds,
+                    }
+                    for entry in self.per_model_latency
+                ],
             },
             "totals": {
                 "macro_f1": round(self.holdout.macro_f1, 4),
@@ -1182,5 +1258,6 @@ __all__ = [
     "evaluate",
     "fit",
     "measure_face_recall",
+    "measure_inference_latency",
     "prompt_specs_from_template",
 ]
