@@ -303,6 +303,43 @@ jobs:
           cp .env.example .env
           docker compose --profile obs config --quiet
 
+  # Track E. Runs the same set `nem web-check` runs, so the local command and CI
+  # cannot drift — which is the M0 gate in docs/FRONTEND-EXECUTION-PLAN.md.
+  # Node 24 to match the host the 3D layer is measured on (§E15, ADR-0042).
+  frontend:
+    name: frontend · guards · types · lint · tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # The four design-law bans of §E24 and ADR-0037: no hand-written colour
+      # literal, no GLSL, no CDN asset, no hand-written backend contract.
+      - name: Design-law guards
+        run: npm run guards
+
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+
+      # Includes the test that asserts each guard *fails* on a seeded
+      # violation. A guard nobody has watched fail is a guard nobody knows
+      # works, and this one governs whether the severity ink in a badge and the
+      # glaze in a shader stay the same number.
+      - run: npm run test
+
+      - run: npm run build
+
   secrets:
     name: secret scan
     runs-on: ubuntu-latest

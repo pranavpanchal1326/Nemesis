@@ -688,6 +688,65 @@ def _rollback(_: list[str]) -> int:
 
 
 # --------------------------------------------------------------------------
+# Track E — the frontend (Phases 18-22)
+# --------------------------------------------------------------------------
+
+# The frontend runs on the *host* Node 24, not in a container. That is
+# deliberate and it is the one place this repository breaks its own
+# everything-in-compose habit: the 3D layer needs the real GPU, and a browser
+# in a container cannot have one. `docs/FRONTEND-EXECUTION-PLAN.md` M0.
+
+WEB = ROOT / "frontend"
+
+
+def _npm(args: list[str]) -> int:
+    """Run npm in ./frontend, telling the reader what is missing rather than
+    handing them a Windows `FileNotFoundError` with no context."""
+    npm = shutil.which("npm")
+    if npm is None:
+        print(
+            f"[31m{FAIL} npm not found on PATH. Track E needs host Node 24 "
+            f"(ADR-0042).[0m",
+            file=sys.stderr,
+        )
+        return 1
+    if not (WEB / "node_modules").is_dir() and args[:1] != ["install"]:
+        print(f"[33m! frontend/node_modules missing - running npm install first[0m")
+        rc = run([npm, "install", "--no-audit", "--no-fund"], cwd=WEB)
+        if rc != 0:
+            return rc
+    return run([npm, *args], cwd=WEB)
+
+
+@task("web", "Run the frontend dev server on the host")
+def _web(args: list[str]) -> int:
+    return _npm(["run", "dev", *args])
+
+
+@task("web-build", "Production build of the frontend")
+def _web_build(_: list[str]) -> int:
+    return _npm(["run", "build"])
+
+
+@task("web-check", "Run every frontend quality gate - the same set CI runs")
+def _web_check(_: list[str]) -> int:
+    return _npm(["run", "check"])
+
+
+@task("web-types", "Regenerate the TypeScript API client from the live OpenAPI document")
+def _web_types(_: list[str]) -> int:
+    return _npm(["run", "api:types"])
+
+
+@task("web-openapi", "Export the OpenAPI document the frontend generates against")
+def _web_openapi(_: list[str]) -> int:
+    # In the api container for the same reason `nem api-lock` is: reading the
+    # contract the code actually serves means constructing the app, which needs
+    # the full dependency set.
+    return run([*IN_API, "python", "-m", "nemesis.api.openapi_export"])
+
+
+# --------------------------------------------------------------------------
 # Diagnostics
 # --------------------------------------------------------------------------
 

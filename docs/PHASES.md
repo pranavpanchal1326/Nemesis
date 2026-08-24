@@ -2155,6 +2155,20 @@ front of a buyer is worse than no 3D.
 > Ollama. Scene VRAM is budgeted at ≤ 512 MB and asserted in CI, so the 3D layer
 > can never starve the Investigation Agent.
 
+**This track has its own blueprint.**
+[`NEMESIS-Frontend-Blueprint.md`](../NEMESIS-Frontend-Blueprint.md) is the Track E
+peer of `NEMESIS-Blueprint-v2.md`: art direction, design system, frontend
+architecture, and the surface-by-surface specification. It supersedes the main
+blueprint's §8.1, §19 and §20 and records in its §E2 exactly where those sections
+were wrong. The gates below are restated and extended in its §E25 — where the two
+disagree on a Track E gate, the frontend blueprint governs, because it is the
+newer document and it states its reasoning.
+
+[`docs/FRONTEND-EXECUTION-PLAN.md`](FRONTEND-EXECUTION-PLAN.md) is the build
+sequence for this track: milestones M0–M12, each with its entry condition, its
+deliverables, and the gate above that it closes. The blueprint governs direction;
+the execution plan governs order.
+
 ## Phase 18 — Design system, application shell & i18n · PROD
 
 **Ships**
@@ -2179,7 +2193,11 @@ front of a buyer is worse than no 3D.
 The reusable Three.js core, built as a tested library rather than page code.
 
 **Ships**
-- `WebGLRenderer` configured properly: WebGL2, `high-performance` power preference, correct colour management (`SRGBColorSpace`), ACES Filmic tone mapping, adaptive device pixel ratio
+- ~~`WebGLRenderer` configured properly: WebGL2~~ — **superseded by §E15 and ADR-0037: `WebGPURenderer`**, which selects a WebGPU or
+  WebGL 2 backend itself, so §E13's Tiers S and A are the renderer's own
+  property rather than a branch we maintain. The rest of the row stands:
+  `high-performance` power preference, correct colour management
+  (`SRGBColorSpace`), ACES Filmic tone mapping, adaptive device pixel ratio
 - **Web Mercator → local ENU-metre projection**, so geometry is in real units and floating-point precision holds at city scale
 - OSM building-footprint extrusion via `ExtrudeGeometry`, tiled with distance-based LOD and frustum culling
 - `InstancedMesh` complaint pins with `InstancedBufferAttribute` per-instance severity, state, and animation phase — **one draw call for the entire city**
@@ -2199,8 +2217,14 @@ The reusable Three.js core, built as a tested library rather than page code.
 
 Each scene is driven by a real pipeline event and has a fallback path.
 
+> **Two rows below carry a supersession.** They were written against a
+> WebGL-only three.js and a Leaflet map, and §E15 changed both. The
+> original text is struck rather than deleted, per the same practice §E2
+> applies to itself: a document that quietly rewrites its own history
+> teaches nobody, and the next person makes the same choice again.
+
 **Ships**
-- **Cluster-merge (hero, §19.2)** — custom GLSL interpolating instance positions toward the merged centroid on a shared `uMergeProgress` uniform, height and colour tracking recomputed severity, driven by the live `cluster_match_found`. *Fallback: CSS transform on Leaflet DOM markers, same contract, one flag apart (§20.3).*
+- **Cluster-merge (hero, §19.2)** — instance positions interpolated toward the merged centroid on a shared `uMergeProgress` uniform, height and colour tracking recomputed severity, driven by the live `cluster_match_found`. ~~custom GLSL~~ — **superseded by ADR-0037: authored in TSL**, compiled once to WGSL and GLSL. ~~*Fallback: CSS transform on Leaflet DOM markers*~~ — **superseded by §E15: Leaflet is not used**; the 2D and heavy-layer path is MapLibre GL + deck.gl, and §E16 Act 6 adds the beats §19.2 omitted — the second ink overprinting, the thumbprint, and the registration rings that say deduplication is not deletion.
 - **Severity field** — GPGPU ping-pong FBO simulation advecting a density field, so severity reads as terrain rather than scattered dots. *Fallback: precomputed heatmap texture.*
 - **Safety-flag pulse** — selective bloom via render layers on `safety_trigger_fired`, making the deterministic fail-safe visible the instant it bypasses the queue. *Fallback: CSS keyframe halo.*
 - **Closure dissolve** — a resolved incident dissolving on `citizen_confirmed`, closing the loop visually the way the system closes it operationally. *Fallback: opacity transition.*

@@ -14,7 +14,7 @@ because somebody already made the mistake they prevent.
 
 | Track | Owner | Scope |
 |---|---|---|
-| **E · Experience** (Phases 18–22) | **Project owner** | Next.js app shell, design system, i18n, Three.js geospatial engine, shader scenes, temporal replay, PWA/offline. **Not covered by this handover.** |
+| **E · Experience** (Phases 18–22) | **Project owner** | Next.js app shell, design system, i18n, Three.js geospatial engine, shader scenes, temporal replay, PWA/offline. **Not covered by this handover** — see [`NEMESIS-Frontend-Blueprint.md`](../NEMESIS-Frontend-Blueprint.md) for direction and [`FRONTEND-EXECUTION-PLAN.md`](FRONTEND-EXECUTION-PLAN.md) for sequence. |
 | **Everything else** | **Adi** | Platform, control plane, intelligence, accountability, analytics, security, commercial, release. This document and [BACKLOG.md](BACKLOG.md) are yours. |
 
 Where a backend phase has a UI counterpart, the backend contract (API, events,
