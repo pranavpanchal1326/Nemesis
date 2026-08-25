@@ -1849,6 +1849,37 @@
         "$scalar": "object"
       }
     },
+    "PUT /api/v1/control-plane/tenants/{slug}/publication": {
+      "required_params": [
+        "slug"
+      ],
+      "response": {
+        "cache_seconds": {
+          "required": true,
+          "type": "integer"
+        },
+        "changed": {
+          "required": true,
+          "type": "boolean"
+        },
+        "enabled": {
+          "required": true,
+          "type": "boolean"
+        },
+        "min_aggregate": {
+          "required": true,
+          "type": "integer"
+        },
+        "slug": {
+          "required": true,
+          "type": "string"
+        },
+        "tenant_id": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
     "PUT /api/v1/control-plane/translations": {
       "required_params": [],
       "response": {

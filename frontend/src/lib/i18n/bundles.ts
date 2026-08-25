@@ -1,5 +1,7 @@
 import commonBase from "@/i18n/base/common.json";
 import commonMarathi from "@/i18n/base/common.mr.json";
+import publicBase from "@/i18n/base/public.json";
+import publicMarathi from "@/i18n/base/public.mr.json";
 import { makeStrings, mergeBundles, type Namespace, type Strings } from "./strings";
 
 /**
@@ -30,7 +32,7 @@ export const BASE: Record<Namespace, Readonly<Record<string, string>>> = {
   common: strip(commonBase),
   citizen: {},
   console: {},
-  public: {},
+  public: strip(publicBase),
 };
 
 /**
@@ -52,7 +54,7 @@ export const BASE: Record<Namespace, Readonly<Record<string, string>>> = {
  * why `mergeBundles` overrides rather than replaces.
  */
 const SEED: Record<string, Partial<Record<Namespace, Readonly<Record<string, string>>>>> = {
-  mr: { common: strip(commonMarathi) },
+  mr: { common: strip(commonMarathi), public: strip(publicMarathi) },
 };
 
 /** Locales the application can render before the control plane says anything. */
@@ -66,7 +68,23 @@ export function shippedBundle(
   return mergeBundles(BASE[namespace], SEED[locale]?.[namespace] ?? {});
 }
 
-/** A resolved `Strings` with no server. Storybook, tests, and Tier D. */
-export function shippedStrings(namespace: Namespace, locale: string): Strings {
-  return makeStrings(namespace, locale, shippedBundle(namespace, locale));
+/** A resolved `Strings` with no server. Storybook, tests, and Tier D.
+ *
+ *  Takes a list for the same reason `loadStrings` does — a surface usually
+ *  needs its own namespace *and* `common` — and merges in the same order, later
+ *  winning, so the catalogue and the product resolve a key identically. */
+export function shippedStrings(
+  namespace: Namespace | readonly Namespace[],
+  locale: string,
+): Strings {
+  if (!Array.isArray(namespace)) {
+    const one = namespace as Namespace;
+    return makeStrings(one, locale, shippedBundle(one, locale));
+  }
+  const list = namespace as readonly Namespace[];
+  const merged = list.reduce<Readonly<Record<string, string>>>(
+    (all, one) => mergeBundles(all, shippedBundle(one, locale)),
+    {},
+  );
+  return makeStrings(list.at(-1) ?? "common", locale, merged);
 }

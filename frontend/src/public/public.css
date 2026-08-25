@@ -1,0 +1,418 @@
+/*
+ * §E18 — the public transparency surface.
+ *
+ * No colour, duration or type size is declared here. Every one arrives as a
+ * custom property generated from src/design/tokens.json, and
+ * scripts/check-guards.ts fails the build on a literal.
+ *
+ * Two rules this file exists to hold:
+ *
+ *   · **Severity ink never appears** (§E9.4 rule 1). Nothing on this surface is
+ *     an incident — these are aggregates about places and money. A ward with
+ *     many open reports is not "critical", and painting it that way would be
+ *     the second meaning §E3.4's audit is written to find.
+ *   · **A withheld figure and a zero must not look alike** (ADR-0021). They do
+ *     not share a rendering, and they do not share a weight: the number is set
+ *     in the data face and the notice in the caption face, so the difference
+ *     survives a grayscale print and a screenshot.
+ *
+ * The ink set is §E9.2's `public` run — paper-50, riso-black, riso-aqua — with
+ * no third ink, because severity is the third ink on every other surface and it
+ * is not used here.
+ */
+
+.public {
+  background: var(--color-role-ground);
+  color: var(--color-role-text-primary);
+  min-block-size: 100dvh;
+  padding-inline: clamp(1rem, 5vw, 4rem);
+  padding-block: clamp(1.5rem, 4vw, 3rem);
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.public__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-block-end: 1px solid var(--color-role-rule);
+  padding-block-end: 1rem;
+}
+
+.public__city a,
+.public__footer a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.public__what {
+  color: var(--color-role-text-secondary);
+}
+
+/*
+ * §E18: `SYSTEM_FLAGGED_NOTICE` and `rating_disclaimer` render as first-class
+ * UI, "never as tooltips or footnotes". So the notice gets a rule, a ground and
+ * reading-size type — the treatment a paragraph gets, not the treatment fine
+ * print gets. It is deliberately not shrunk to fit.
+ */
+.public__notice {
+  border-inline-start: 3px solid var(--color-riso-aqua);
+  padding-inline-start: 0.75rem;
+  padding-block: 0.35rem;
+  background: var(--color-kraft-100);
+}
+
+.public__notice p {
+  margin: 0;
+  max-inline-size: var(--measure);
+}
+
+.public__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.public__place {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+}
+
+.public__place-kind {
+  color: var(--color-role-text-secondary);
+}
+
+.public__footer {
+  margin-block-start: auto;
+  border-block-start: 1px solid var(--color-role-rule);
+  padding-block-start: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: baseline;
+}
+
+.public__locales {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.public__locales a[aria-current="true"] {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+ * Places
+ * ------------------------------------------------------------------------ */
+
+.place-index {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.place-index__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.75rem;
+}
+
+.place-index__item a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-role-rule);
+  color: inherit;
+  text-decoration: none;
+  background: var(--color-chalk);
+}
+
+.place-index__item a:hover,
+.place-index__item a:focus-visible {
+  border-color: var(--color-riso-aqua);
+}
+
+.place-index__kind {
+  color: var(--color-role-text-secondary);
+}
+
+.zone-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.zone-panel__suppressed {
+  margin: 0;
+}
+
+.zone-panel__figures {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem 1.5rem;
+}
+
+.published-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border-block-start: 1px solid var(--color-role-rule);
+  padding-block-start: 0.4rem;
+}
+
+.published-figure__label {
+  color: var(--color-role-text-secondary);
+}
+
+.published-figure__value {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.published-figure__note {
+  color: var(--color-role-text-secondary);
+  max-inline-size: var(--measure);
+}
+
+/*
+ * The three renderings of a figure, kept visually distinct on purpose.
+ *
+ * `.figure` is the data face at reading weight. `--none` and `--unknown` are the
+ * caption face — a different *shape*, not a different colour, so a grayscale
+ * print of a ward page still distinguishes "none filed" from "41".
+ */
+.figure {
+  font-variant-numeric: var(--numeric);
+}
+
+.figure--none,
+.figure--unknown {
+  color: var(--color-role-text-secondary);
+  font-style: italic;
+}
+
+.zone-panel__scroll,
+.honesty__scroll {
+  /* A table is the one element on this surface that may be wider than the
+     viewport. It scrolls inside its own box rather than making the document
+     scroll sideways, which on a phone is the difference between a usable page
+     and one that has to be pinched. */
+  overflow-x: auto;
+}
+
+.zone-panel__categories,
+.honesty__table {
+  border-collapse: collapse;
+  inline-size: 100%;
+  min-inline-size: 24rem;
+  text-align: start;
+}
+
+.zone-panel__categories caption,
+.honesty__table caption {
+  /* Present for a screen reader, absent for a sighted reader who already has
+     the heading directly above. Not `display: none`, which removes it from the
+     accessibility tree as well. */
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.zone-panel__categories th,
+.zone-panel__categories td,
+.honesty__table th,
+.honesty__table td {
+  text-align: start;
+  padding: 0.35rem 0.75rem 0.35rem 0;
+  border-block-end: 1px solid var(--color-role-rule);
+  vertical-align: baseline;
+}
+
+.zone-panel__categories thead th,
+.honesty__table thead th {
+  border-block-end: 1px solid var(--color-role-text-primary);
+  font-weight: 600;
+}
+
+.zone-panel__hidden {
+  color: var(--color-role-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+ * Contractors and money
+ * ------------------------------------------------------------------------ */
+
+.contractor {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.contractor__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.contractor__certified {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.contractor__certified li {
+  border: 1px solid var(--color-role-rule);
+  padding: 0.1rem 0.4rem;
+  background: var(--color-kraft-100);
+}
+
+.budget__lines {
+  border-collapse: collapse;
+  inline-size: 100%;
+  min-inline-size: 28rem;
+}
+
+.budget__lines th,
+.budget__lines td {
+  text-align: start;
+  padding: 0.4rem 0.75rem 0.4rem 0;
+  border-block-end: 1px solid var(--color-role-rule);
+}
+
+.budget__lines thead th {
+  border-block-end: 1px solid var(--color-role-text-primary);
+}
+
+/* Money is right-aligned and tabular. §E9.4 rule 4: money is not urgency, so
+   nothing here reaches for a severity colour to say "overspent". */
+.budget__amount {
+  text-align: end;
+  font-variant-numeric: var(--numeric);
+}
+
+.budget__note {
+  color: var(--color-role-text-secondary);
+  max-inline-size: var(--measure);
+}
+
+/* --------------------------------------------------------------------------
+ * The honesty table
+ * ------------------------------------------------------------------------ */
+
+.honesty {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.honesty__legend {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem 1.5rem;
+}
+
+.honesty__legend div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  border-block-start: 1px solid var(--color-role-rule);
+  padding-block-start: 0.35rem;
+}
+
+.honesty__legend dd {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+.honesty__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.honesty__status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.honesty__note {
+  color: var(--color-role-text-secondary);
+  max-inline-size: var(--measure);
+}
+
+/*
+ * Status is the word, and the word is the whole signal.
+ *
+ * §E9.4 rule 2 — never colour alone — applied to a table somebody will print in
+ * grayscale to argue with us. REAL is set solid; everything else is lighter.
+ * That is a *weight* distinction, which survives a photocopier; a green/amber
+ * pair would not, and would also be the severity vocabulary borrowed for
+ * something that is not severity.
+ */
+.honesty__label {
+  font-weight: 400;
+  color: var(--color-role-text-secondary);
+}
+
+.honesty__status[data-status="REAL"] .honesty__label {
+  font-weight: 700;
+  color: var(--color-role-text-primary);
+}
+
+.honesty__status[data-status="REFRAMED"] .honesty__label,
+.honesty__status[data-status="CUT"] .honesty__label {
+  text-decoration: line-through;
+}
+
+/* A finished row — both columns REAL — is marked once, on the row, rather than
+   twice on its cells. The reader is scanning for these. */
+.honesty__table tr[data-finished="true"] th[scope="row"] {
+  border-inline-start: 3px solid var(--color-riso-aqua);
+  padding-inline-start: 0.5rem;
+}
+
+/* --------------------------------------------------------------------------
+ * Print — §E19.7's discipline applied to the surface a journalist prints
+ * ------------------------------------------------------------------------ */
+
+@media print {
+  .public {
+    padding: 0;
+    min-block-size: auto;
+  }
+
+  .public__locales {
+    /* A language switcher on paper is an affordance that is not one. */
+    display: none;
+  }
+
+  .honesty__scroll,
+  .zone-panel__scroll {
+    overflow-x: visible;
+  }
+
+  .place-index__item a {
+    border: none;
+    padding-inline: 0;
+  }
+}

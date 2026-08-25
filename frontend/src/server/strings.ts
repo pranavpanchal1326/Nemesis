@@ -77,7 +77,36 @@ function parseAcceptLanguage(header: string | null | undefined): string[] {
  * §E13's ladder says a degradation should be designed rather than apologised
  * for, and the designed degradation for text is *the words are still there*.
  */
-export async function loadStrings(namespace: Namespace, locale: string): Promise<Strings> {
+export async function loadStrings(
+  namespace: Namespace | readonly Namespace[],
+  locale: string,
+): Promise<Strings> {
+  // A surface usually needs more than one namespace: §E18's public pages render
+  // `<SuppressionNotice>` and `<ContractorLedger>`, whose sentences live in
+  // `common` because they are the same sentences the citizen and officer
+  // surfaces show. Merging here rather than making every page hold two
+  // `Strings` keeps `t(strings, key)` a single lookup, which is what makes a
+  // missing key a single reportable fact.
+  //
+  // **Later wins on a collision**, and the surface's own namespace is passed
+  // last, so a public page that wants a different word for `figure.total` than
+  // `common` uses gets it by adding the key to `public` — not by reordering
+  // arguments at eleven call sites.
+  if (Array.isArray(namespace)) {
+    const parts = await Promise.all(
+      (namespace as readonly Namespace[]).map((one) => loadOne(one, locale)),
+    );
+    const merged = parts.reduce<Readonly<Record<string, string>>>(
+      (all, part) => mergeBundles(all, part.bundle),
+      {},
+    );
+    const primary = (namespace as readonly Namespace[]).at(-1) ?? "common";
+    return makeStrings(primary, locale, merged);
+  }
+  return loadOne(namespace as Namespace, locale);
+}
+
+async function loadOne(namespace: Namespace, locale: string): Promise<Strings> {
   // Three tiers, merged in order of authority: source language, shipped seed,
   // control plane. Each one overrides the last key by key, so a registry that
   // has translated forty of sixty keys renders forty translated and twenty in

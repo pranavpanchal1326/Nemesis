@@ -675,6 +675,46 @@ def _attach_prompt_sets(slug: str, admin: dict[str, str], supplied_id: str | Non
     return 0
 
 
+def _publish(slug: str, admin: dict[str, str], *, enabled: bool) -> int:
+    """Opt the demo city into §26.4's public surface — ADR-0046.
+
+    **Running this command is the deliberate act.** ADR-0046 argues that
+    publishing is a decision taken after somebody has looked at what is in the
+    tenant, and it is not a field on ``TenantSpec`` for exactly that reason. A
+    tenant named ``pune-demo``, seeded with synthetic reports by a developer
+    command, is the one case where the person provisioning and the person
+    deciding are the same person — and the justification says so, on the chain,
+    rather than leaving a reader to infer it.
+
+    ``--no-publish`` leaves it unpublished, which is the state every real tenant
+    starts in and the state §E18's *"this city does not publish"* branch needs
+    somebody to have actually seen.
+    """
+    status, body = _request(
+        "PUT",
+        f"{CONTROL_PLANE}/tenants/{slug}/publication",
+        headers=admin,
+        body={
+            "enabled": enabled,
+            "justification": (
+                "Demo tenant seeded by `nem seed-demo`. Synthetic reports, "
+                "approximate ward boundaries, no real citizen data."
+            ),
+        },
+    )
+    if status != 200 or not isinstance(body, dict):
+        sys.stderr.write(f"{FAIL} publication could not be set - status {status}: {body}\n")
+        return 1
+
+    verb = "publishes" if body.get("enabled") else "does not publish"
+    note = "" if body.get("changed") else " (already so)"
+    sys.stdout.write(
+        f"{OK} '{slug}' {verb} transparency data{note}; "
+        f"aggregates suppressed below {body.get('min_aggregate')}.\n"
+    )
+    return 0
+
+
 def _tenant_id(slug: str, supplied: str | None = None) -> str | None:
     """A tenant's id, over HTTP — or supplied, when HTTP cannot answer.
 
@@ -686,10 +726,11 @@ def _tenant_id(slug: str, supplied: str | None = None) -> str | None:
 
     The public zone index *does* publish `tenant`, and it is tried first — but
     only for a tenant that has opted into the public API, which ADR-0021 makes
-    a deliberate per-customer decision defaulting to off. A freshly provisioned
-    demo tenant has not opted in and cannot, because `TenantSpec` has no field
-    for it and no endpoint sets it. So the fallback is `--tenant-id`, and the
-    message below says exactly where to find it.
+    a deliberate per-customer decision defaulting to off. Since ADR-0046 that
+    opt-in is reachable over HTTP and `_publish` takes it, so for a demo city
+    seeded by this script the index answers. It does not answer under
+    `--no-publish`, or for a tenant seeded before ADR-0046 landed, and the
+    fallback is `--tenant-id` with the message below saying where to find it.
     """
     if supplied is not None and supplied != "":
         return supplied
@@ -720,6 +761,14 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=7,
         help="seed for the report plan and its imagery, so a demo reproduces.",
+    )
+    parser.add_argument(
+        "--no-publish",
+        action="store_true",
+        help=(
+            "leave the tenant unpublished (ADR-0046). Every real tenant starts "
+            "here, and §E18's 'this city does not publish' branch needs it."
+        ),
     )
     parser.add_argument(
         "--tenant-id",
@@ -768,6 +817,12 @@ def main(argv: list[str] | None = None) -> int:
         # through the same endpoint the control plane exposes for it. Idempotent
         # by (node_key, locale, encoder), so a second run costs nothing.
         rc = _attach_prompt_sets(args.slug, admin, args.tenant_id)
+        if rc != 0:
+            return rc
+        # Before `_tenant_id`, deliberately: publication is what makes the
+        # public zone index answer, which is the HTTP route by which this script
+        # learns a tenant's id at all.
+        rc = _publish(args.slug, admin, enabled=not args.no_publish)
         if rc != 0 or args.reports <= 0:
             return rc
         existing = _tenant_id(args.slug, args.tenant_id)
@@ -788,6 +843,10 @@ def main(argv: list[str] | None = None) -> int:
         f"     Point the frontend at it - frontend/.env.local:\n"
         f"       NEMESIS_TENANT_ID={tenant_id}\n"
     )
+
+    rc = _publish(args.slug, admin, enabled=not args.no_publish)
+    if rc != 0:
+        return rc
 
     if args.reports > 0 and isinstance(tenant_id, str):
         return _seed_reports(tenant_id, args.reports, args.report_seed)

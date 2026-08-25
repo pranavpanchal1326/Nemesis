@@ -796,6 +796,37 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/control-plane/tenants/{slug}/publication": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Publish, or stop publishing, this tenant's transparency data
+     * @description ADR-0046 — the one route that decides whether §26.4 answers for a tenant.
+     *
+     *     ``api/public_deps.py`` calls this *"a disclosure decision no engineer is
+     *     entitled to make on their behalf"*, and until this route existed the only
+     *     mechanism was an ``UPDATE`` in ``psql`` — the one route that leaves no record
+     *     of who decided, when, or on what basis. The justification is required and the
+     *     change lands on the tenant's chain as an ``admin_action``.
+     *
+     *     A PUT rather than a POST because the request states the desired state rather
+     *     than an increment, and re-sending it is safe. ``enabled: false`` retracts
+     *     through the same door: a one-way door on a disclosure is not a control, it
+     *     is a control that has been used once.
+     */
+    put: operations["set_publication_api_v1_control_plane_tenants__slug__publication_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/control-plane/translations": {
     parameters: {
       query?: never;
@@ -2530,6 +2561,45 @@ export interface components {
        * Format: uuid
        */
       tenant_id: string;
+    };
+    /**
+     * PublicationResponse
+     * @description What the tenant publishes now, and whether this call is what changed it.
+     */
+    PublicationResponse: {
+      /** Cache Seconds */
+      cache_seconds: number;
+      /** Changed */
+      changed: boolean;
+      /** Enabled */
+      enabled: boolean;
+      /** Min Aggregate */
+      min_aggregate: number;
+      /** Slug */
+      slug: string;
+      /**
+       * Tenant Id
+       * Format: uuid
+       */
+      tenant_id: string;
+    };
+    /**
+     * PublicationSpec
+     * @description Turning §26.4's open surface on or off for one tenant — ADR-0046.
+     *
+     *     Deliberately *not* a field on :class:`TenantSpec`. Provisioning applies a
+     *     template; publishing a municipality's figures to the open internet is a
+     *     decision that municipality takes, usually in writing. A schema that accepted
+     *     both in one body would invite the second to be filled in by whoever happened
+     *     to be performing the first.
+     */
+    PublicationSpec: {
+      /** Enabled */
+      enabled: boolean;
+      /** Justification */
+      justification: string;
+      /** Min Aggregate */
+      min_aggregate?: number | null;
     };
     /**
      * RealtimeEnvelope
@@ -4974,6 +5044,55 @@ export interface operations {
         content?: never;
       };
       /** @description The plan is internally inconsistent */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  set_publication_api_v1_control_plane_tenants__slug__publication_put: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Control-Plane-Token"?: string | null;
+      };
+      path: {
+        slug: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PublicationSpec"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicationResponse"];
+        };
+      };
+      /** @description Control-plane token missing or wrong */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No tenant by that name */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The requested aggregate floor is below the deployment's */
       422: {
         headers: {
           [name: string]: unknown;
