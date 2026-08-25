@@ -3048,6 +3048,80 @@
         "title": "ProvisioningResult",
         "type": "object"
       },
+      "PublicationResponse": {
+        "description": "What the tenant publishes now, and whether this call is what changed it.",
+        "properties": {
+          "cache_seconds": {
+            "title": "Cache Seconds",
+            "type": "integer"
+          },
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "min_aggregate": {
+            "title": "Min Aggregate",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "slug",
+          "enabled",
+          "min_aggregate",
+          "changed",
+          "cache_seconds"
+        ],
+        "title": "PublicationResponse",
+        "type": "object"
+      },
+      "PublicationSpec": {
+        "additionalProperties": false,
+        "description": "Turning §26.4's open surface on or off for one tenant — ADR-0046.\n\nDeliberately *not* a field on :class:`TenantSpec`. Provisioning applies a\ntemplate; publishing a municipality's figures to the open internet is a\ndecision that municipality takes, usually in writing. A schema that accepted\nboth in one body would invite the second to be filled in by whoever happened\nto be performing the first.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "justification": {
+            "maxLength": 1000,
+            "minLength": 8,
+            "title": "Justification",
+            "type": "string"
+          },
+          "min_aggregate": {
+            "anyOf": [
+              {
+                "minimum": 2.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Aggregate"
+          }
+        },
+        "required": [
+          "enabled",
+          "justification"
+        ],
+        "title": "PublicationSpec",
+        "type": "object"
+      },
       "RealtimeEnvelope": {
         "description": "§26.3's envelope, exactly as ``build_envelope`` emits it.",
         "properties": {
@@ -8128,6 +8202,74 @@
           }
         },
         "summary": "Provision a tenant",
+        "tags": [
+          "control-plane"
+        ]
+      }
+    },
+    "/api/v1/control-plane/tenants/{slug}/publication": {
+      "put": {
+        "description": "ADR-0046 — the one route that decides whether §26.4 answers for a tenant.\n\n``api/public_deps.py`` calls this *\"a disclosure decision no engineer is\nentitled to make on their behalf\"*, and until this route existed the only\nmechanism was an ``UPDATE`` in ``psql`` — the one route that leaves no record\nof who decided, when, or on what basis. The justification is required and the\nchange lands on the tenant's chain as an ``admin_action``.\n\nA PUT rather than a POST because the request states the desired state rather\nthan an increment, and re-sending it is safe. ``enabled: false`` retracts\nthrough the same door: a one-way door on a disclosure is not a control, it\nis a control that has been used once.",
+        "operationId": "set_publication_api_v1_control_plane_tenants__slug__publication_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Control-Plane-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Control-Plane-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicationSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Control-plane token missing or wrong"
+          },
+          "404": {
+            "description": "No tenant by that name"
+          },
+          "422": {
+            "description": "The requested aggregate floor is below the deployment's"
+          }
+        },
+        "summary": "Publish, or stop publishing, this tenant's transparency data",
         "tags": [
           "control-plane"
         ]

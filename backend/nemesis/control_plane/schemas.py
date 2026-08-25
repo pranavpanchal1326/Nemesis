@@ -447,6 +447,30 @@ class TenantSpec(ControlPlaneModel):
         return self
 
 
+class PublicationSpec(ControlPlaneModel):
+    """Turning §26.4's open surface on or off for one tenant — ADR-0046.
+
+    Deliberately *not* a field on :class:`TenantSpec`. Provisioning applies a
+    template; publishing a municipality's figures to the open internet is a
+    decision that municipality takes, usually in writing. A schema that accepted
+    both in one body would invite the second to be filled in by whoever happened
+    to be performing the first.
+    """
+
+    enabled: bool
+    #: Required, and required for the reason ``AdminActionV1.justification`` is:
+    #: an audited action with no stated reason is an audit trail that answers
+    #: "what" and refuses to answer "why". A disclosure decision is the case
+    #: that reasoning was written for.
+    justification: str = Field(min_length=8, max_length=1000)
+    #: The tenant's k-anonymity floor. ``None`` leaves it as it is — this
+    #: endpoint's job is publication, and silently resetting a threshold
+    #: somebody chose because a caller omitted a field is not an adjustment, it
+    #: is a regression the caller cannot see. Values below the deployment floor
+    #: are refused rather than clamped (ADR-0046).
+    min_aggregate: int | None = Field(default=None, ge=2)
+
+
 class ProvisioningRequest(ControlPlaneModel):
     """Everything needed to bring a tenant into existence, in one transaction."""
 

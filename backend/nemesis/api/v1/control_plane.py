@@ -44,7 +44,14 @@ from nemesis.api.errors import (
     ProblemDetailError,
 )
 from nemesis.config import Settings
-from nemesis.control_plane import calendars, organisation, provisioning, taxonomy, templates
+from nemesis.control_plane import (
+    calendars,
+    organisation,
+    provisioning,
+    publication,
+    taxonomy,
+    templates,
+)
 from nemesis.control_plane import translations as i18n
 from nemesis.control_plane.errors import (
     ConflictError,
@@ -59,6 +66,7 @@ from nemesis.control_plane.schemas import (
     PromptSetSpec,
     ProvisioningRequest,
     ProvisioningResult,
+    PublicationSpec,
     TaxonomyNodeSpec,
     TaxonomyNodeUpdate,
     TranslationBundle,
@@ -302,6 +310,79 @@ async def provision_tenant(
         )
     except ControlPlaneError as exc:
         raise _translate(exc) from exc
+
+
+class PublicationResponse(ApiModel):
+    """What the tenant publishes now, and whether this call is what changed it."""
+
+    tenant_id: uuid.UUID
+    slug: str
+    enabled: bool
+    min_aggregate: int
+    #: False when the request asked for the state the tenant was already in. The
+    #: PUT is idempotent by design, and a deployment script re-running should be
+    #: able to tell "I turned this on" from "this was already on" without
+    #: diffing anything. No ``admin_action`` is appended in that case
+    #: (ADR-0046).
+    changed: bool
+    #: How long an already-served response may still be sitting in an
+    #: intermediary. Stated because retraction is not erasure, and a caller
+    #: switching publication off should learn the window rather than assume
+    #: there isn't one.
+    cache_seconds: int
+
+
+@router.put(
+    "/tenants/{slug}/publication",
+    summary="Publish, or stop publishing, this tenant's transparency data",
+    responses={
+        403: {"description": "Control-plane token missing or wrong"},
+        404: {"description": "No tenant by that name"},
+        422: {"description": "The requested aggregate floor is below the deployment's"},
+    },
+)
+async def set_publication(
+    slug: str,
+    body: PublicationSpec,
+    session: SessionDep,
+    settings: ConfigDep,
+    token: TokenDep = None,
+) -> PublicationResponse:
+    """ADR-0046 — the one route that decides whether §26.4 answers for a tenant.
+
+    ``api/public_deps.py`` calls this *"a disclosure decision no engineer is
+    entitled to make on their behalf"*, and until this route existed the only
+    mechanism was an ``UPDATE`` in ``psql`` — the one route that leaves no record
+    of who decided, when, or on what basis. The justification is required and the
+    change lands on the tenant's chain as an ``admin_action``.
+
+    A PUT rather than a POST because the request states the desired state rather
+    than an increment, and re-sending it is safe. ``enabled: false`` retracts
+    through the same door: a one-way door on a disclosure is not a control, it
+    is a control that has been used once.
+    """
+    _require_token(settings, token)
+    try:
+        state = await publication.set_publication(
+            session,
+            slug=slug,
+            enabled=body.enabled,
+            justification=body.justification,
+            min_aggregate=body.min_aggregate,
+            floor=settings.public_api.min_aggregate_floor,
+            correlation_id=get_correlation_id(),
+        )
+    except ControlPlaneError as exc:
+        raise _translate(exc) from exc
+
+    return PublicationResponse(
+        tenant_id=state.tenant_id,
+        slug=state.slug,
+        enabled=state.enabled,
+        min_aggregate=state.min_aggregate,
+        changed=state.changed,
+        cache_seconds=settings.public_api.cache_seconds,
+    )
 
 
 # ---------------------------------------------------------------------------

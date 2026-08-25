@@ -206,6 +206,119 @@ FACES: tuple[Face, ...] = (
 )
 
 
+# --------------------------------------------------------------------------
+# The share card's faces — §E18, and why they are a second format
+# --------------------------------------------------------------------------
+
+#: Where the OG faces are written. Under ``public/`` because ``ImageResponse``
+#: reads them off the filesystem at request time and ``public/`` is the one
+#: directory guaranteed to be present in a deployment.
+OG_DIR = OUT_DIR / "og"
+
+
+@dataclass(frozen=True)
+class OgFace:
+    """One face the §E18 share card needs, in a format satori can read.
+
+    **Why this duplication exists, stated rather than discovered later.**
+    `satori` — which `next/og` bundles, and which §E18 names — parses TTF, OTF
+    and WOFF. It does **not** parse WOFF2, and the 51 files this script ships
+    are all WOFF2 because that is the right format for a browser. Decompressing
+    at request time is not available either: WOFF2 is not plain brotli, it is a
+    container with a transformed ``glyf`` table, and no pure-Node decompressor
+    ships in this dependency set.
+
+    So the card's faces are built once, offline, from the WOFF2 already on disk
+    — no network, so a clean checkout can rebuild them — and committed. The cost
+    is ~360 kB in the repository, which is stated here because a cost nobody
+    wrote down is a cost the next person assumes was unavoidable.
+
+    The set is **four faces, not ten**. A share card is a heading, four figures
+    and one sentence, in two scripts. Every face beyond that is weight paid on
+    every clone for a composition that does not use it.
+    """
+
+    #: The WOFF2 in ``public/fonts`` this is built from.
+    source: str
+    #: Output basename, without extension.
+    name: str
+    #: Pin a variable font to this weight. ``None`` keeps the file as it is.
+    instance: int | None
+    why: str
+
+
+OG_FACES: tuple[OgFace, ...] = (
+    OgFace(
+        source="panchang-variable.woff2",
+        name="panchang-600",
+        instance=600,
+        why="the municipal signage voice — the city and the place name (§E10)",
+    ),
+    OgFace(
+        source="switzer-variable.woff2",
+        name="switzer-400",
+        instance=400,
+        why="the sentence; §22.2's disclaimer is prose and reads as prose",
+    ),
+    OgFace(
+        source="jetbrains-mono-500-latin.woff2",
+        name="jetbrains-mono-500",
+        instance=500,
+        why="every figure on the card, tabular by construction (§E10.2)",
+    ),
+    OgFace(
+        source="noto-sans-devanagari-400-devanagari.woff2",
+        name="noto-sans-devanagari-400",
+        # Pinned even though the source file is already the 400 cut: Google
+        # serves it as a variable font with the axis intact, and instancing
+        # drops `fvar`/`gvar` — 336 kB to 187 kB for glyphs the card renders
+        # identically either way.
+        instance=400,
+        why=(
+            "Devanagari, both roles. Sarpanch would be the display pair, and at "
+            "228 kB for one weight on a card it is not worth the clone"
+        ),
+    ),
+)
+
+
+def build_og_fonts() -> int:
+    """Decompress and pin the card's faces. Offline, from what is already here.
+
+    Runs at the end of a fetch *and* on its own via ``--og``, because the input
+    is ``public/fonts`` rather than the network: somebody changing the card's
+    type should not need a working connection to rebuild it.
+    """
+    from fontTools.ttLib import TTFont
+    from fontTools.varLib import instancer
+
+    OG_DIR.mkdir(parents=True, exist_ok=True)
+    total = 0
+    for face in OG_FACES:
+        source = OUT_DIR / face.source
+        if not source.exists():
+            print(f"fonts: {face.source} is not on disk — run `nem web-fonts`", file=sys.stderr)
+            return 1
+
+        font = TTFont(source)
+        if face.instance is not None and "fvar" in font:
+            # `updateFontNames=False`: these faces carry no STAT axis values, so
+            # the name-table rewrite raises. The name is irrelevant here — the
+            # card names the family itself when it registers the buffer.
+            font = instancer.instantiateVariableFont(
+                font, {"wght": face.instance}, inplace=False, updateFontNames=False
+            )
+        # Clearing the flavor is what turns a WOFF2 back into a bare TTF.
+        font.flavor = None
+        target = OG_DIR / f"{face.name}.ttf"
+        font.save(target)
+        total += target.stat().st_size
+        print(f"  og/{target.name}  {target.stat().st_size // 1024} kB — {face.why}")
+
+    print(f"  {len(OG_FACES)} share-card faces, {total // 1024} kB")
+    return 0
+
+
 def _get(url: str, *, ua: str | None = None) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": ua} if ua else {})
     with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
@@ -433,17 +546,37 @@ def verify() -> int:
             print(f"fonts: face never fetched: {family}", file=sys.stderr)
         return 1
     files = set(re.findall(r'url\("/fonts/([^"]+)"\)', css))
-    print(f"fonts: {len(declared)} families, {len(files)} files, all present")
+
+    # The share card's faces are not in the CSS — nothing loads them in a
+    # browser — so they need their own assertion, or the one surface that reads
+    # them fails at request time with an ENOENT nobody saw coming (§E18).
+    absent_og = [face.name for face in OG_FACES if not (OG_DIR / f"{face.name}.ttf").exists()]
+    if absent_og:
+        for name in absent_og:
+            print(f"fonts: share-card face missing: og/{name}.ttf — run `nem web-fonts --og`", file=sys.stderr)
+        return 1
+
+    print(
+        f"fonts: {len(declared)} families, {len(files)} files, "
+        f"{len(OG_FACES)} share-card faces, all present"
+    )
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--verify", action="store_true", help="assert the fetch already happened")
+    parser.add_argument(
+        "--og",
+        action="store_true",
+        help="rebuild only the §E18 share-card faces, from the WOFF2 already on disk. No network.",
+    )
     args = parser.parse_args()
 
     if args.verify:
         return verify()
+    if args.og:
+        return build_og_fonts()
 
     if shutil.which(sys.executable) is None:  # pragma: no cover
         return 1
@@ -464,7 +597,7 @@ def main() -> int:
 
     write_css(blocks)
     write_licences()
-    return 0
+    return build_og_fonts()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,45 @@
+{
+  "$comment": "Marathi seed for the public surface. Partial on purpose — untranslated keys fall through to the source language, which is what mergeBundles overriding rather than replacing is for. The headings, the figure labels and the honesty legend are here because those are the words a resident reads first, and because §E10.1 makes Devanagari a design partner: a per-script type scale nobody has rendered a real ward page through is a scale nobody has looked at. The API's own sentences — `notice`, `rating_disclaimer` — are not here and cannot be: they are the server's legal text, and translating them here would mean this application asserting a §22.2 disclaimer the platform never wrote.",
+
+  "city.published": "{city} कडून प्रसिद्ध",
+  "city.what": "या पानांवरील प्रत्येक आकडा रहिवाशांनी नोंदवलेल्या तक्रारींवरून काढलेला आहे. इथे काहीही हाताने बदललेले नाही.",
+  "city.places": "ठिकाणे",
+  "city.wards": "प्रभाग",
+  "city.otherPlaces": "क्षेत्रे आणि संपूर्ण शहर",
+  "city.notPublishing": "हे शहर पारदर्शकता माहिती प्रसिद्ध करत नाही.",
+  "city.generatedAt": "{time} पर्यंतचे आकडे",
+
+  "place.kind.ward": "प्रभाग",
+  "place.kind.zone": "क्षेत्र",
+  "place.kind.city": "शहर",
+  "place.back": "सर्व ठिकाणे",
+  "place.budget": "या ठिकाणाचा अर्थसंकल्प",
+
+  "figure.total": "नोंदवलेल्या तक्रारी",
+  "figure.open": "अद्याप प्रलंबित",
+  "figure.resolved": "दुरुस्त म्हणून नोंद",
+  "figure.autoConfirmed": "तक्रारदाराच्या दुजोऱ्याशिवाय बंद",
+  "figure.resolutionRate": "दुरुस्त झालेल्यांचे प्रमाण",
+  "figure.medianHours": "दुरुस्तीसाठी नेहमीचा वेळ",
+  "figure.hours": "{value} तास",
+  "figure.none": "एकही नोंद नाही",
+  "figure.unknown": "मोजमाप नाही",
+
+  "breakdown.title": "काय नोंदवले गेले",
+  "breakdown.category": "प्रकार",
+  "breakdown.count": "तक्रारी",
+
+  "contractor.certified": "यासाठी प्रमाणित",
+  "contractor.workload": "कामाचे आदेश",
+
+  "budget.source": "निधी अथवा योजना",
+  "budget.allocated": "मंजूर",
+  "budget.spent": "खर्च",
+  "budget.utilisation": "खर्चाचे प्रमाण",
+
+  "honesty.title": "काय खरे आहे, काय नाही",
+  "honesty.capability": "क्षमता",
+  "honesty.component": "बांधलेले",
+  "honesty.data": "आधार",
+  "honesty.closes": "कधी पूर्ण"
+}
