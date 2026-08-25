@@ -86,3 +86,31 @@ export function realtimeUrl(): string {
   if (configured !== undefined) return configured;
   return baseUrl().replace(/^http/, "ws") + "/ws/pipeline-events";
 }
+
+/**
+ * A raw request to the upstream, on a path the generated document knows.
+ *
+ * **Why this exists beside a fully typed client.** §26.1's submission is
+ * `multipart/form-data` carrying two file parts, and OpenAPI describes a binary
+ * part as `string`. So the generated body type for that operation says
+ * `photo?: string | null`, and a `File` — which is what a camera produces and
+ * what the browser sends — cannot be assigned to it. That is a limitation of
+ * the document rather than of this code, and the honest response is to say so
+ * here rather than to widen a type until it compiles.
+ *
+ * What is still enforced: the `path` parameter is `keyof paths`, so a route the
+ * backend does not serve fails to compile, and a route the backend *renames*
+ * fails to compile on the next `nem web-types`. Callers narrow the response
+ * against the generated response type themselves. Execution-plan Law 2 holds
+ * where the document can express the shape, and the one place it cannot is
+ * marked.
+ */
+export async function upstreamFetch(
+  path: Extract<keyof paths, string>,
+  init: RequestInit & { readonly headers?: Headers },
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const tenant = resolveTenant();
+  if (tenant !== undefined) headers.set("X-Tenant-ID", tenant);
+  return fetch(new URL(path, baseUrl()), { ...init, headers });
+}

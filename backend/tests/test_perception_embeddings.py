@@ -96,7 +96,7 @@ class _AssignmentFinder(ast.NodeVisitor):
     def __init__(self) -> None:
         self.hits: list[tuple[str, int]] = []
 
-    def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
+    def visit_Assign(self, node: ast.Assign) -> None:
         for target in node.targets:
             if isinstance(target, ast.Attribute) and target.attr in VECTOR_COLUMNS:
                 self.hits.append((target.attr, node.lineno))
@@ -106,14 +106,14 @@ class _AssignmentFinder(ast.NodeVisitor):
                     self.hits.append((str(key.value), node.lineno))
         self.generic_visit(node)
 
-    def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
+    def visit_Call(self, node: ast.Call) -> None:
         if self._callee(node) != SANCTIONED_CALL:
             for keyword in node.keywords:
                 if keyword.arg in VECTOR_COLUMNS:
                     self.hits.append((keyword.arg, node.lineno))
         self.generic_visit(node)
 
-    def visit_Dict(self, node: ast.Dict) -> None:  # noqa: N802
+    def visit_Dict(self, node: ast.Dict) -> None:
         for key in node.keys:
             if isinstance(key, ast.Constant) and key.value in VECTOR_COLUMNS:
                 self.hits.append((str(key.value), node.lineno))

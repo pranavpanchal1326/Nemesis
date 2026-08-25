@@ -455,6 +455,25 @@ async def put_prompt_set(
     with tenant_scope(tenant.id):
         try:
             prompt_set = await taxonomy.upsert_prompt_set(session, tenant_id=tenant.id, spec=spec)
+            # **Read the row's values here, before `publish` commits.**
+            #
+            # A commit expires every attribute on the instance, so touching one
+            # afterwards triggers a lazy refresh — which is blocking IO inside an
+            # async handler, and asyncpg answers with `MissingGreenlet` rather
+            # than with a row. The response below used to be built after the
+            # commit and 500'd on every call, which nothing noticed because the
+            # endpoint had no caller until a seeding script grew one.
+            #
+            # Captured from the ORM object rather than from `spec` on purpose:
+            # `upsert_prompt_set` normalises what it stores, and echoing the
+            # request back would report what was asked for instead of what was
+            # written.
+            written = {
+                "node_key": spec.node_key,
+                "locale": prompt_set.locale,
+                "encoder": prompt_set.encoder,
+                "prompt_set_version": prompt_set.prompt_set_version,
+            }
             await taxonomy.publish(
                 session,
                 tenant_id=tenant.id,
@@ -464,12 +483,7 @@ async def put_prompt_set(
             )
         except ControlPlaneError as exc:
             raise _translate(exc) from exc
-        return {
-            "node_key": spec.node_key,
-            "locale": prompt_set.locale,
-            "encoder": prompt_set.encoder,
-            "prompt_set_version": prompt_set.prompt_set_version,
-        }
+        return written
 
 
 # ---------------------------------------------------------------------------

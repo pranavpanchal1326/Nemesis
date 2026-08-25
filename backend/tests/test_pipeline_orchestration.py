@@ -22,7 +22,11 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from nemesis.db.models.complaint import Complaint, ComplaintCluster
-from nemesis.db.models.outbox import OutboxMessage, PipelineDeadLetter
+from nemesis.db.models.outbox import (
+    FAILURE_MODE_MAX_LENGTH,
+    OutboxMessage,
+    PipelineDeadLetter,
+)
 from nemesis.db.models.work_order import WorkOrder
 from nemesis.domain.lifecycle import ComplaintStatus, DegradationFallback, EntityType
 from nemesis.events.store import EventStore
@@ -535,6 +539,108 @@ async def test_classification_degradation_parks_the_complaint_and_records_why(
                 entity_id=complaint_id,
             )
             assert verification.is_intact
+
+
+async def test_a_long_reason_is_recorded_rather_than_lost(
+    bound_session: None, tenant_id: uuid.UUID
+) -> None:
+    """The regression this pair of columns exists to prevent.
+
+    **What went wrong.** `tasks.py` built `failure_mode=f"abstained:{exc}"[:200]`
+    against a `varchar(128)`, so a real abstain reason — which names the missing
+    prompt sets and tells a tenant how to add them, and runs to two hundred
+    characters — raised `StringDataRightTruncationError` on insert. The dead
+    letter was not truncated; it was **not written at all**, and the only trace
+    was a SQLAlchemy traceback in a worker log nobody was reading.
+
+    §24.2's claim is that the pipeline *degrades rather than loses*, and that
+    claim rests entirely on the parked complaint being findable. A dead letter
+    that cannot be inserted is a loss wearing a degradation's name.
+
+    So the invariant, asserted rather than commented: the label is clamped to
+    the column's own exported width, and the reason survives in full beside it.
+    """
+    complaint_id = await _submit(tenant_id)
+
+    reason = (
+        "this tenant has authored no prompts for clip/en, text/en, so there is nothing "
+        "to score this submission against. The evidence is intact and the embeddings "
+        "are stored; add the prompt sets through the control plane and re-run the stage."
+    )
+    assert len(reason) > FAILURE_MODE_MAX_LENGTH, "the fixture stopped exercising the bug"
+
+    recorded = await record_degradation(
+        tenant_id=tenant_id,
+        complaint_id=complaint_id,
+        stage=PipelineStage.CLASSIFICATION.value,
+        failure_mode="abstained",
+        attempts=1,
+        detail=reason,
+    )
+    assert recorded is True
+
+    from nemesis.db.session import session_scope
+
+    with tenant_scope(tenant_id):
+        async with session_scope() as session:
+            row = (
+                await session.execute(
+                    select(
+                        PipelineDeadLetter.failure_mode,
+                        PipelineDeadLetter.last_error,
+                    ).where(
+                        PipelineDeadLetter.tenant_id == tenant_id,
+                        PipelineDeadLetter.entity_id == complaint_id,
+                    )
+                )
+            ).one()
+
+    # Short and greppable — the thing a dashboard groups by.
+    assert row.failure_mode == "abstained"
+    assert len(row.failure_mode) <= FAILURE_MODE_MAX_LENGTH
+    # And the sentence, whole, in the column that has room for one.
+    assert row.last_error == reason
+
+
+async def test_an_over_long_label_is_clamped_at_the_only_write_site(
+    bound_session: None, tenant_id: uuid.UUID
+) -> None:
+    """A caller that ignores the convention still writes a row.
+
+    The clamp lives in `_upsert_dead_letter` rather than in each caller for
+    exactly this reason: there are five call sites and there will be more, and
+    a rule enforced at one write is a rule that cannot be forgotten at a sixth.
+    """
+    complaint_id = await _submit(tenant_id)
+
+    recorded = await record_degradation(
+        tenant_id=tenant_id,
+        complaint_id=complaint_id,
+        stage=PipelineStage.CLASSIFICATION.value,
+        failure_mode="x" * (FAILURE_MODE_MAX_LENGTH * 3),
+        attempts=1,
+    )
+    assert recorded is True
+
+    from nemesis.db.session import session_scope
+
+    with tenant_scope(tenant_id):
+        async with session_scope() as session:
+            row = (
+                await session.execute(
+                    select(
+                        PipelineDeadLetter.failure_mode,
+                        PipelineDeadLetter.last_error,
+                    ).where(
+                        PipelineDeadLetter.tenant_id == tenant_id,
+                        PipelineDeadLetter.entity_id == complaint_id,
+                    )
+                )
+            ).one()
+
+    assert len(row.failure_mode) == FAILURE_MODE_MAX_LENGTH
+    # Nothing was lost: the full value is still readable next to the label.
+    assert row.last_error == "x" * (FAILURE_MODE_MAX_LENGTH * 3)
 
 
 async def test_repeated_degradation_updates_one_dead_letter_rather_than_piling_up(

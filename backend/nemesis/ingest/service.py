@@ -72,6 +72,21 @@ class SubmissionReceipt:
     #: that means 202 or 200, and a notification path needs to know not to fire
     #: twice.
     duplicate: bool
+    #: The complaint's chain head after this append — ADR-0044, §E17.3.
+    #:
+    #: At this instant it is also ``complaint_submitted``'s own ``event_hash``,
+    #: because the chain is exactly one event long. That coincidence is why the
+    #: receipt can carry the *head* without a second query: the head lock was
+    #: already taken, the value was already computed, and re-reading
+    #: ``event_chain_heads`` a microsecond later would be a round trip to
+    #: recover a value this function had in hand.
+    #:
+    #: On a redelivery it is the head as it stood when the *original* submission
+    #: landed, not as it stands now. That is the correct value and not a
+    #: limitation: the receipt attests the record that was created, and a client
+    #: retrying after a timeout must be handed the same receipt it would have
+    #: received the first time or the retry has produced a different document.
+    chain_hash: str
 
 
 async def submit(
@@ -114,7 +129,10 @@ async def submit(
                 # complaint that does not exist.
                 metrics.ingest_submissions_total.labels(outcome="duplicate").inc()
                 return SubmissionReceipt(
-                    complaint_id=event.entity_id, status="submitted", duplicate=True
+                    complaint_id=event.entity_id,
+                    status="submitted",
+                    duplicate=True,
+                    chain_hash=event.event_hash,
                 )
 
             await _materialise(session, tenant_id=tenant_id, complaint_id=complaint_id)
@@ -129,7 +147,12 @@ async def submit(
         has_audio=submission.audio_uri is not None,
         submitted_via=submission.submitted_via,
     )
-    return SubmissionReceipt(complaint_id=complaint_id, status="submitted", duplicate=False)
+    return SubmissionReceipt(
+        complaint_id=complaint_id,
+        status="submitted",
+        duplicate=False,
+        chain_hash=event.event_hash,
+    )
 
 
 async def _materialise(

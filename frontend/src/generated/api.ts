@@ -84,6 +84,52 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/complaints/{complaint_id}/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * This complaint's own history, from the log
+     * @description §E17.4's ledger, read from the append-only log — ADR-0043, ADR-0044.
+     *
+     *     **Why this exists and the projection does not answer it.**
+     *     ``GET /complaints/{id}`` returns *what is true now*. §E17.4's argument is
+     *     that a status is not an answer — *"'In Progress' is the enemy"* — and that a
+     *     citizen is owed the sequence of things that happened, in order, with times.
+     *     That sequence is in ``events`` and nowhere else; a ledger reconstructed from
+     *     the projection would be a status badge with extra steps.
+     *
+     *     **What may be read, and by whom.** The complaint id is a UUIDv4 the system
+     *     hands to the submitter and to the officers who work the report, which makes
+     *     this a capability-scoped read rather than a broadcast — a different question
+     *     from the one ADR-0016 answers, and answered separately in
+     *     ``nemesis/events/disclosure.py``. Every row on the chain is returned;
+     *     ``payload`` carries only what a shaper there declares, and
+     *     ``payload_disclosed`` says which of the two kinds of empty a reader is
+     *     looking at.
+     *
+     *     **Why the chain head is returned separately from the last row's hash.** They
+     *     are equal when the whole history fits in one page and they are not equal
+     *     when it does not, and the value §E17.3's receipt is checked against is the
+     *     head. Inferring it from the tail of a page would be right until the day a
+     *     complaint had more than ``limit`` events, which is the worst kind of wrong.
+     *
+     *     **Uncached, deliberately.** ``Cache-Control: no-store`` rather than the
+     *     read path's five seconds: this is the one representation whose correctness
+     *     is its currency.
+     */
+    get: operations["get_complaint_history_api_v1_complaints__complaint_id__events_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/control-plane/calendars": {
     parameters: {
       query?: never;
@@ -1006,6 +1052,52 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/places/resolve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Which units of place contain this coordinate
+     * @description The zone chain containing a point, innermost first.
+     *
+     *     **Two queries, and the second one is why §E17.1's card reads as a sentence.**
+     *
+     *     The first finds the smallest zone whose boundary covers the point.
+     *     `ix_zones_boundary` is GiST over the geography column, so `ST_Covers` is an
+     *     index scan rather than a sweep of every ward in the tenant.
+     *
+     *     The second walks *up*. Only the leaves of a place tree carry geometry in
+     *     practice — a tenant draws its wards and lets the zone and the city be their
+     *     union — so a purely spatial answer is one row, and §E17.1 asks for
+     *     *"Kothrud · Ward 14"*, which is a chain. `Zone.path` is the materialised
+     *     `/`-joined code chain, so every ancestor is recoverable by splitting one
+     *     string and selecting the codes in it. Cheaper than a recursive CTE and
+     *     exactly as correct, because `path` is maintained by the same writer that
+     *     maintains `parent_id`.
+     *
+     *     **Ordering, where boxes overlap.** Deepest first, then smallest area, then
+     *     code. Overlap is not hypothetical: a locality inside a ward is a deliberate
+     *     nesting, and two hand-drawn ward boxes that share an edge is a data-entry
+     *     reality. Depth resolves the deliberate case; area resolves the accidental
+     *     one in favour of the more specific claim; code makes the remaining tie
+     *     deterministic, because a card that names a different ward on each refresh is
+     *     worse than one that is consistently arguable.
+     *
+     *     `ST_Covers` rather than `ST_Contains`: a coordinate that lands exactly on a
+     *     boundary is *in* the ward, not in neither.
+     */
+    get: operations["resolve_place_api_v1_places_resolve_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/public/{tenant_slug}/budget/{zone_code}": {
     parameters: {
       query?: never;
@@ -1565,6 +1657,67 @@ export interface components {
       valid_until?: string | null;
     };
     /**
+     * ComplaintHistory
+     * @description §E17.4's ledger and §E17.3's live chain head — ADR-0043, ADR-0044.
+     *
+     *     Returned uncached, deliberately. This is the one representation whose
+     *     correctness depends on being current: ``chain_head`` is what a reader checks
+     *     their receipt against, and a head served from a cache is a head that may
+     *     already have moved.
+     */
+    ComplaintHistory: {
+      /** Chain Head */
+      chain_head: string;
+      /** Chain Head Sequence */
+      chain_head_sequence: number;
+      /**
+       * Complaint Id
+       * Format: uuid
+       */
+      complaint_id: string;
+      /** Events */
+      events: components["schemas"]["ComplaintHistoryEvent"][];
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Total */
+      total: number;
+    };
+    /**
+     * ComplaintHistoryEvent
+     * @description One row of §E17.4's ledger — ADR-0043.
+     *
+     *     **Every event on the chain appears here**, in sequence, whatever its type.
+     *     ``payload`` is shaped by ``nemesis.events.disclosure`` and is very often
+     *     ``{}``; the row is still a row. A history that hid the entries it could not
+     *     fully disclose would leave holes that are either invisible — in which case a
+     *     removed event and a suppressed one look identical, and §E17.3's *"this record
+     *     cannot be edited"* is unverifiable — or visible, in which case they announce
+     *     themselves anyway.
+     */
+    ComplaintHistoryEvent: {
+      /** Event Hash */
+      event_hash: string;
+      /** Event Type */
+      event_type: string;
+      /** Occurred At */
+      occurred_at: string;
+      /** Payload */
+      payload?: {
+        [key: string]: unknown;
+      };
+      /**
+       * Payload Disclosed
+       * @default true
+       */
+      payload_disclosed?: boolean;
+      /** Previous Hash */
+      previous_hash: string;
+      /** Sequence */
+      sequence: number;
+    };
+    /**
      * ComplaintResponse
      * @description §26.2's 200 body, plus the fields the blueprint's sketch omits.
      */
@@ -1573,8 +1726,12 @@ export interface components {
       category?: string | null;
       /** Classification Confidence */
       classification_confidence?: number | null;
+      /** Cluster First Reported */
+      cluster_first_reported?: string | null;
       /** Cluster Id */
       cluster_id?: string | null;
+      /** Cluster Report Count */
+      cluster_report_count?: number | null;
       /**
        * Complaint Id
        * Format: uuid
@@ -1626,9 +1783,11 @@ export interface components {
       | "flagged";
     /**
      * ComplaintSubmissionResponse
-     * @description §26.1's 202 body.
+     * @description §26.1's 202 body, and §E17.3's receipt.
      */
     ComplaintSubmissionResponse: {
+      /** Chain Hash */
+      chain_hash: string;
       /**
        * Complaint Id
        * Format: uuid
@@ -2117,6 +2276,43 @@ export interface components {
       path: string;
     };
     /**
+     * PlaceResolution
+     * @description Where a coordinate falls, from the smallest containing unit outward.
+     *
+     *     ``units`` is ordered **innermost first**, so a card renders
+     *     ``units[0].name`` as the headline and joins the rest as context — which is
+     *     the order §E17.1's example is written in (*"Kothrud · Ward 14"*).
+     *
+     *     An empty list is a legitimate answer and is not an error. A tenant that
+     *     onboarded with ward *names* and no shapefile — which
+     *     `nemesis/db/models/organisation.py` calls the common case at onboarding —
+     *     has no geometry to test the point against, and saying so is more useful than
+     *     guessing the nearest centroid.
+     */
+    PlaceResolution: {
+      /**
+       * Boundaries Configured
+       * @default true
+       */
+      boundaries_configured?: boolean;
+      /** Units */
+      units?: components["schemas"]["PlaceUnit"][];
+    };
+    /**
+     * PlaceUnit
+     * @description One unit of place, on the way up the tree.
+     */
+    PlaceUnit: {
+      /** Code */
+      code: string;
+      /** Depth */
+      depth: number;
+      /** Kind */
+      kind: string;
+      /** Name */
+      name: string;
+    };
+    /**
      * PolicyKind
      * @description The governed structures, one per document type.
      *
@@ -2401,6 +2597,8 @@ export interface components {
       | "classification_scored"
       | "cluster_created"
       | "cluster_match_found"
+      | "exif_check_completed"
+      | "media_redacted"
       | "pipeline_stage_degraded"
       | "safety_trigger_fired"
       | "severity_scored"
@@ -3336,6 +3534,49 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_complaint_history_api_v1_complaints__complaint_id__events_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        "X-Tenant-ID"?: string | null;
+      };
+      path: {
+        complaint_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ComplaintHistory"];
+        };
       };
       /** @description Not found */
       404: {
@@ -5303,6 +5544,40 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["CreatedWebhookResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  resolve_place_api_v1_places_resolve_get: {
+    parameters: {
+      query: {
+        latitude: number;
+        longitude: number;
+      };
+      header?: {
+        "X-Tenant-ID"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PlaceResolution"];
         };
       };
       /** @description Validation Error */

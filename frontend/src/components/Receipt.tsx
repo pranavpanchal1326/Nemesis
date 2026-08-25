@@ -1,4 +1,5 @@
 import { Press } from "@/press/Press";
+import { formatReceiptTime } from "@/lib/i18n/datetime";
 import { notTranslatable, t, type Strings } from "@/lib/i18n/strings";
 import "./components.css";
 
@@ -45,7 +46,9 @@ export function Receipt({ complaintId, reportedAt, chainHash, strings }: Receipt
           <dd className="type-mono-data">{notTranslatable(complaintId)}</dd>
 
           <dt className="type-micro">{t(strings, "receipt.reportedAt")}</dt>
-          <dd className="type-mono-data">{notTranslatable(reportedAt)}</dd>
+          {/* Long form, with its year. A receipt may be printed and read a year
+              later, and a document cannot abbreviate its own date. */}
+          <dd className="type-doc">{formatReceiptTime(reportedAt, strings.locale)}</dd>
 
           {chainHash === undefined ? null : (
             <>

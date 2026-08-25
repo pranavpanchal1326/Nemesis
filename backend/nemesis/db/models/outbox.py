@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Final
 
 from sqlalchemy import (
     BigInteger,
@@ -108,6 +109,11 @@ class OutboxMessage(TenantScopedMixin, Base):
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+#: The width of ``PipelineDeadLetter.failure_mode``. Imported by every writer,
+#: so "how long may a failure mode be" has exactly one answer.
+FAILURE_MODE_MAX_LENGTH: Final = 128
+
+
 class PipelineDeadLetter(UUIDPrimaryKeyMixin, TenantScopedMixin, Base):
     """A pipeline stage that exhausted its retry budget, parked for a human."""
 
@@ -138,7 +144,18 @@ class PipelineDeadLetter(UUIDPrimaryKeyMixin, TenantScopedMixin, Base):
     task_name: Mapped[str] = mapped_column(String(128), nullable=False)
 
     attempts: Mapped[int] = mapped_column(Integer, nullable=False)
-    failure_mode: Mapped[str] = mapped_column(String(128), nullable=False)
+    #: A **short, greppable label** — `provider_unavailable`, `abstained`,
+    #: `permanent:TimeoutError`. Not a sentence: the sentence goes in
+    #: ``last_error``, which is `Text` and has room for one.
+    #:
+    #: The width is a named constant because a caller that clamps to a
+    #: *different* number is a caller whose dead letter fails to insert — and a
+    #: dead letter that cannot be written is a failure that disappears, on the
+    #: one table §24.2's "degrades rather than loses" depends on. That is not
+    #: hypothetical: this constant exists because the abstain path clamped to
+    #: 200 against a column of 128, and every abstained classification was lost
+    #: to a `StringDataRightTruncationError` in a worker log.
+    failure_mode: Mapped[str] = mapped_column(String(FAILURE_MODE_MAX_LENGTH), nullable=False)
     #: The exception's *type and message*, never its traceback. A traceback in a
     #: queryable table is an information-disclosure surface (§25) and the trace
     #: is already in the logs, keyed by the correlation id below.

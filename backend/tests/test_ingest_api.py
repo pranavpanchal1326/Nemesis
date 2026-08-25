@@ -11,6 +11,7 @@ The pipeline's own behaviour is tested against a real database in
 
 from __future__ import annotations
 
+import itertools
 import uuid
 from typing import Any
 
@@ -453,3 +454,239 @@ async def test_the_work_order_id_promised_by_section_26_2_is_resolved(
     ).json()
     assert body["cluster_id"] == str(cluster_id)
     assert body["work_order_id"] == str(work_order_id)
+
+
+# ---------------------------------------------------------------------------
+# The history — ADR-0043, ADR-0044, §E17.3, §E17.4
+# ---------------------------------------------------------------------------
+
+
+async def test_the_receipt_carries_the_chain_head_it_was_created_at(
+    api_client: AsyncClient, tenant_id: uuid.UUID, dispatched: list[dict[str, Any]]
+) -> None:
+    """§E17.3: the receipt *"carries the complaint id and chain hash"*.
+
+    Asserted against the log rather than against itself: the value on the 202
+    must be the hash of the ``complaint_submitted`` event that was actually
+    written, or the receipt attests a record that does not exist.
+    """
+    created = await _submit(api_client, tenant_id, description_text="lift stuck")
+    body = created.json()
+    complaint_id = body["complaint_id"]
+
+    history = (
+        await api_client.get(
+            f"/api/v1/complaints/{complaint_id}/events",
+            headers={TENANT_HEADER: str(tenant_id)},
+        )
+    ).json()
+
+    first = history["events"][0]
+    assert first["event_type"] == "complaint_submitted"
+    assert body["chain_hash"] == first["event_hash"]
+
+
+async def test_a_retried_submission_is_handed_the_same_receipt(
+    api_client: AsyncClient, tenant_id: uuid.UUID, dispatched: list[dict[str, Any]]
+) -> None:
+    """A retry after a timeout must produce the same document, not a new one.
+
+    ``Idempotent-Replay`` already tells the client the key matched. If the hash
+    beside it differed, the citizen would hold two receipts for one report, each
+    claiming to attest it — which is exactly the doubt the hash exists to remove.
+    """
+    key = uuid.uuid4().hex
+    form = _form(description_text="lift stuck")
+    headers = {TENANT_HEADER: str(tenant_id), "Idempotency-Key": key}
+
+    async def _post() -> Any:
+        return await api_client.post(
+            "/api/v1/complaints",
+            data=form,
+            files={"photo": ("p.jpg", JPEG, "image/jpeg")},
+            headers=headers,
+        )
+
+    first, second = (await _post()).json(), (await _post()).json()
+    assert first["complaint_id"] == second["complaint_id"]
+    assert first["chain_hash"] == second["chain_hash"]
+
+
+async def test_the_history_is_a_chain_and_not_merely_a_list(
+    api_client: AsyncClient, tenant_id: uuid.UUID, dispatched: list[dict[str, Any]]
+) -> None:
+    """The property §E17.3's sentence rests on.
+
+    Every row's ``previous_hash`` is the row before it, sequences are contiguous
+    from one, and the last row's hash is the head. That is what a reader can
+    check without holding a single preimage — and it is why the rows a shaper
+    discloses nothing about are still returned as rows.
+    """
+    from nemesis.db.session import session_scope
+    from nemesis.events.hashing import GENESIS_HASH
+    from nemesis.events.store import EventStore
+    from nemesis.tenancy.context import tenant_scope
+
+    created = await _submit(api_client, tenant_id)
+    complaint_id = uuid.UUID(created.json()["complaint_id"])
+
+    with tenant_scope(tenant_id):
+        async with session_scope() as session:
+            store = EventStore(session)
+            await store.append(
+                entity_id=complaint_id,
+                event_type="exif_check_completed",
+                payload={
+                    "exif_present": True,
+                    "distance_meters": 4.2,
+                    "trust_delta": 0.15,
+                    "reason": "within the 100 m the tenant allows",
+                },
+                tenant_id=tenant_id,
+            )
+            await store.append(
+                entity_id=complaint_id,
+                event_type="abuse_pattern_flagged",
+                payload={
+                    "pattern": "device_velocity",
+                    "observation_count": 11,
+                    "window_hours": 1.0,
+                    "trust_delta": -0.4,
+                    "policy_version": "abuse@5",
+                    "evidence": {"device_fingerprint": "5f3a9c2e1b"},
+                },
+                tenant_id=tenant_id,
+            )
+
+    body = (
+        await api_client.get(
+            f"/api/v1/complaints/{complaint_id}/events",
+            headers={TENANT_HEADER: str(tenant_id)},
+        )
+    ).json()
+
+    events = body["events"]
+    assert [event["sequence"] for event in events] == [1, 2, 3]
+    assert events[0]["previous_hash"] == GENESIS_HASH
+    for earlier, later in itertools.pairwise(events):
+        assert later["previous_hash"] == earlier["event_hash"]
+    assert body["chain_head"] == events[-1]["event_hash"]
+    assert body["chain_head_sequence"] == body["total"] == 3
+
+
+async def test_the_history_discloses_the_flag_and_withholds_the_detector(
+    api_client: AsyncClient, tenant_id: uuid.UUID, dispatched: list[dict[str, Any]]
+) -> None:
+    """ADR-0043 over HTTP, on the row the ADR argues hardest about.
+
+    ``events/disclosure.py`` proves the shaper. This proves the shaper is the
+    thing the endpoint actually uses — the two are different claims, and the
+    second one is the one a citizen's browser depends on.
+    """
+    from nemesis.db.session import session_scope
+    from nemesis.events.store import EventStore
+    from nemesis.tenancy.context import tenant_scope
+
+    created = await _submit(api_client, tenant_id, description_text="open drain")
+    complaint_id = uuid.UUID(created.json()["complaint_id"])
+
+    with tenant_scope(tenant_id):
+        async with session_scope() as session:
+            await EventStore(session).append(
+                entity_id=complaint_id,
+                event_type="abuse_pattern_flagged",
+                payload={
+                    "pattern": "device_velocity",
+                    "observation_count": 11,
+                    "window_hours": 1.0,
+                    "trust_delta": -0.4,
+                    "policy_version": "abuse@5",
+                    "evidence": {"device_fingerprint": "5f3a9c2e1b"},
+                },
+                tenant_id=tenant_id,
+            )
+
+    response = await api_client.get(
+        f"/api/v1/complaints/{complaint_id}/events",
+        headers={TENANT_HEADER: str(tenant_id)},
+    )
+    body = response.json()
+    flagged = next(e for e in body["events"] if e["event_type"] == "abuse_pattern_flagged")
+
+    # The row is disclosed; the detector is not, and the marker says which of
+    # the two empties this is.
+    assert flagged["payload"] == {}
+    assert flagged["payload_disclosed"] is False
+    assert "device_velocity" not in response.text
+    assert "5f3a9c2e1b" not in response.text
+    # The submission's own text and fingerprint never appear either.
+    assert "open drain" not in response.text
+
+    # §E17.3's head must be current, so it cannot be served from a cache.
+    assert response.headers["cache-control"] == "no-store"
+
+
+async def test_a_history_for_another_tenants_complaint_is_a_404(
+    api_client: AsyncClient,
+    tenant_id: uuid.UUID,
+    other_tenant_id: uuid.UUID,
+    dispatched: list[dict[str, Any]],
+) -> None:
+    """An empty ledger for a complaint that does not exist is a lie in the shape
+    of a valid response — and the difference between 404 and ``events: []`` is
+    the difference between "no such report" and "a report with no history"."""
+    created = await _submit(api_client, tenant_id)
+    complaint_id = created.json()["complaint_id"]
+
+    response = await api_client.get(
+        f"/api/v1/complaints/{complaint_id}/events",
+        headers={TENANT_HEADER: str(other_tenant_id)},
+    )
+    assert response.status_code == 404
+    assert response.headers["content-type"].startswith("application/problem+json")
+
+
+async def test_the_head_is_returned_even_when_the_page_stops_short_of_it(
+    api_client: AsyncClient, tenant_id: uuid.UUID, dispatched: list[dict[str, Any]]
+) -> None:
+    """Why the head is a field rather than the tail of the page.
+
+    Inferring it from the last returned row is correct until a complaint has
+    more events than ``limit``, and the receipt is checked against the head.
+    """
+    from nemesis.db.session import session_scope
+    from nemesis.events.store import EventStore
+    from nemesis.tenancy.context import tenant_scope
+
+    created = await _submit(api_client, tenant_id)
+    complaint_id = uuid.UUID(created.json()["complaint_id"])
+
+    with tenant_scope(tenant_id):
+        async with session_scope() as session:
+            store = EventStore(session)
+            for _ in range(3):
+                await store.append(
+                    entity_id=complaint_id,
+                    event_type="review_queued",
+                    payload={
+                        "review_item_id": str(uuid.uuid4()),
+                        "reason": "low_trust",
+                        "priority": 10,
+                        "occurrences": 1,
+                        "trust_score": 0.4,
+                        "evidence_hash": "d" * 64,
+                    },
+                    tenant_id=tenant_id,
+                )
+
+    body = (
+        await api_client.get(
+            f"/api/v1/complaints/{complaint_id}/events?limit=2",
+            headers={TENANT_HEADER: str(tenant_id)},
+        )
+    ).json()
+
+    assert len(body["events"]) == 2
+    assert body["total"] == 4
+    assert body["chain_head"] != body["events"][-1]["event_hash"]
+    assert body["chain_head_sequence"] == 4

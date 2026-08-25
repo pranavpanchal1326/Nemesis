@@ -242,9 +242,78 @@ def test_a_safety_envelope_does_not_republish_the_citizens_words() -> None:
     assert payload == {"detection_source": "keyword"}
 
 
+def test_an_exif_envelope_publishes_one_boolean_and_no_arithmetic() -> None:
+    """ADR-0045. §E16.1 gate 2's caption is *EXIF INTACT*, which is one bit.
+
+    ``distance_meters`` is the one to argue about. Every coordinate on this
+    stream is coarsened to ~110 m; a metre-precise distance from the citizen's
+    stated location is a second constraint on the same point, and two
+    constraints is how a coarsening gets undone. It is published to the holder
+    of the complaint id instead, where it describes the reader's own report.
+    """
+    payload = public_payload(
+        "exif_check_completed",
+        {
+            "exif_present": True,
+            "distance_meters": 4.2,
+            "trust_delta": 0.15,
+            "reason": "the photograph's own GPS is 4 m from the reported location",
+        },
+    )
+    assert payload == {"exif_present": True}
+
+
+def test_a_redaction_envelope_publishes_counts_and_no_content_address() -> None:
+    """ADR-0045. §22.1 promises *every* face, and one boolean cannot fail that.
+
+    Both SHA-256s stay off the wire and they are withheld for different reasons:
+    ``redacted_sha256`` resolves to an image on ``/api/v1/review/media/{sha}``,
+    and ``source_sha256`` addresses the **unblurred** original (ADR-0031). A
+    hash in a JSON body that resolves to an image is a URL with extra steps.
+    """
+    payload = public_payload(
+        "media_redacted",
+        {
+            "source_sha256": "a" * 64,
+            "redacted_sha256": "b" * 64,
+            "media_kind": "image",
+            "content_type": "image/jpeg",
+            "faces_detected": 3,
+            "faces_blurred": 3,
+            "detector_id": "retinaface@1.2.0",
+            "exif_stripped": True,
+        },
+    )
+    assert payload == {"media_kind": "image", "faces_detected": 3, "faces_blurred": 3}
+    assert "a" * 64 not in json.dumps(payload)
+    assert "b" * 64 not in json.dumps(payload)
+    assert "detector_id" not in payload
+
+
+def test_a_partial_redaction_is_visible_on_the_wire() -> None:
+    """The reason the two counts are separate fields rather than a boolean.
+
+    A detector that found four faces and blurred three has broken §22.1. If the
+    envelope said ``redacted: true`` the failure would be invisible on the one
+    surface where the person whose photograph it is happens to be watching.
+    """
+    payload = public_payload(
+        "media_redacted",
+        {"media_kind": "image", "faces_detected": 4, "faces_blurred": 3},
+    )
+    assert payload["faces_detected"] != payload["faces_blurred"]
+
+
 @pytest.mark.parametrize(
     "event_type",
-    ["classification_scored", "severity_scored", "citizen_confirmed", "work_order_created"],
+    [
+        "classification_scored",
+        "severity_scored",
+        "citizen_confirmed",
+        "work_order_created",
+        "exif_check_completed",
+        "media_redacted",
+    ],
 )
 def test_every_declared_shape_returns_a_dict(event_type: str) -> None:
     assert isinstance(public_payload(event_type, {}), dict)

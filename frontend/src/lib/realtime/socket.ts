@@ -49,6 +49,15 @@ const CLOSE_POLICY_VIOLATION = 1008;
 
 const BACKOFF_MS = [500, 1_000, 2_000, 4_000, 8_000, 15_000] as const;
 
+/**
+ * What the citizen is told when the hub is switched off.
+ *
+ * A key rather than the words, because the words belong to the locale registry
+ * (§E10.1) — and this is the sentence that appears on the surface where a
+ * reader is least able to work out what is happening for themselves.
+ */
+export const REFUSED_CAUSE_KEY = "degraded.realtimeRefused";
+
 export interface SocketOptions {
   readonly url: string;
   readonly tenantId: string;
@@ -155,9 +164,7 @@ export function connectRealtime(options: SocketOptions): SocketHandle {
         // Deliberate refusal — the kill switch, or an unknown tenant. Retrying
         // is the one thing the server explicitly asked clients not to do.
         store().setTransport("refused", {
-          cause:
-            "Live updates are switched off on this deployment. " +
-            "Showing the latest saved state instead, refreshed every few seconds.",
+          cause: REFUSED_CAUSE_KEY,
           since: now(),
         });
         return;

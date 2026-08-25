@@ -715,6 +715,98 @@
         "title": "CertificationSpec",
         "type": "object"
       },
+      "ComplaintHistory": {
+        "description": "§E17.4's ledger and §E17.3's live chain head — ADR-0043, ADR-0044.\n\nReturned uncached, deliberately. This is the one representation whose\ncorrectness depends on being current: ``chain_head`` is what a reader checks\ntheir receipt against, and a head served from a cache is a head that may\nalready have moved.",
+        "properties": {
+          "chain_head": {
+            "title": "Chain Head",
+            "type": "string"
+          },
+          "chain_head_sequence": {
+            "title": "Chain Head Sequence",
+            "type": "integer"
+          },
+          "complaint_id": {
+            "format": "uuid",
+            "title": "Complaint Id",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ComplaintHistoryEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "complaint_id",
+          "chain_head",
+          "chain_head_sequence",
+          "events",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "ComplaintHistory",
+        "type": "object"
+      },
+      "ComplaintHistoryEvent": {
+        "description": "One row of §E17.4's ledger — ADR-0043.\n\n**Every event on the chain appears here**, in sequence, whatever its type.\n``payload`` is shaped by ``nemesis.events.disclosure`` and is very often\n``{}``; the row is still a row. A history that hid the entries it could not\nfully disclose would leave holes that are either invisible — in which case a\nremoved event and a suppressed one look identical, and §E17.3's *\"this record\ncannot be edited\"* is unverifiable — or visible, in which case they announce\nthemselves anyway.",
+        "properties": {
+          "event_hash": {
+            "title": "Event Hash",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "occurred_at": {
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "payload_disclosed": {
+            "default": true,
+            "title": "Payload Disclosed",
+            "type": "boolean"
+          },
+          "previous_hash": {
+            "title": "Previous Hash",
+            "type": "string"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sequence",
+          "event_type",
+          "occurred_at",
+          "previous_hash",
+          "event_hash"
+        ],
+        "title": "ComplaintHistoryEvent",
+        "type": "object"
+      },
       "ComplaintResponse": {
         "description": "§26.2's 200 body, plus the fields the blueprint's sketch omits.",
         "properties": {
@@ -740,6 +832,17 @@
             ],
             "title": "Classification Confidence"
           },
+          "cluster_first_reported": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster First Reported"
+          },
           "cluster_id": {
             "anyOf": [
               {
@@ -751,6 +854,17 @@
               }
             ],
             "title": "Cluster Id"
+          },
+          "cluster_report_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Report Count"
           },
           "complaint_id": {
             "format": "uuid",
@@ -898,8 +1012,12 @@
         "type": "string"
       },
       "ComplaintSubmissionResponse": {
-        "description": "§26.1's 202 body.",
+        "description": "§26.1's 202 body, and §E17.3's receipt.",
         "properties": {
+          "chain_hash": {
+            "title": "Chain Hash",
+            "type": "string"
+          },
           "complaint_id": {
             "format": "uuid",
             "title": "Complaint Id",
@@ -917,7 +1035,8 @@
         "required": [
           "complaint_id",
           "status",
-          "estimated_processing_time_seconds"
+          "estimated_processing_time_seconds",
+          "chain_hash"
         ],
         "title": "ComplaintSubmissionResponse",
         "type": "object"
@@ -2259,6 +2378,54 @@
         "title": "OrgUnitResponse",
         "type": "object"
       },
+      "PlaceResolution": {
+        "description": "Where a coordinate falls, from the smallest containing unit outward.\n\n``units`` is ordered **innermost first**, so a card renders\n``units[0].name`` as the headline and joins the rest as context — which is\nthe order §E17.1's example is written in (*\"Kothrud · Ward 14\"*).\n\nAn empty list is a legitimate answer and is not an error. A tenant that\nonboarded with ward *names* and no shapefile — which\n`nemesis/db/models/organisation.py` calls the common case at onboarding —\nhas no geometry to test the point against, and saying so is more useful than\nguessing the nearest centroid.",
+        "properties": {
+          "boundaries_configured": {
+            "default": true,
+            "title": "Boundaries Configured",
+            "type": "boolean"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceUnit"
+            },
+            "title": "Units",
+            "type": "array"
+          }
+        },
+        "title": "PlaceResolution",
+        "type": "object"
+      },
+      "PlaceUnit": {
+        "description": "One unit of place, on the way up the tree.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "kind",
+          "depth"
+        ],
+        "title": "PlaceUnit",
+        "type": "object"
+      },
       "PolicyKind": {
         "description": "The governed structures, one per document type.\n\nA closed set, unlike most enums in this codebase, and for a reason that does\nnot apply to tenant vocabulary: a kind is a *platform* capability — it needs\na body model, a resolver, and something that consumes it. A tenant cannot\ninvent one, so leaving the set open would only mean accepting a typo as a\ndocument nothing will ever read.",
         "enum": [
@@ -2973,6 +3140,8 @@
           "classification_scored",
           "cluster_created",
           "cluster_match_found",
+          "exif_check_completed",
+          "media_redacted",
           "pipeline_stage_degraded",
           "safety_trigger_fired",
           "severity_scored",
@@ -5188,6 +5357,92 @@
           }
         },
         "summary": "Retrieve a complaint",
+        "tags": [
+          "complaints"
+        ]
+      }
+    },
+    "/api/v1/complaints/{complaint_id}/events": {
+      "get": {
+        "description": "§E17.4's ledger, read from the append-only log — ADR-0043, ADR-0044.\n\n**Why this exists and the projection does not answer it.**\n``GET /complaints/{id}`` returns *what is true now*. §E17.4's argument is\nthat a status is not an answer — *\"'In Progress' is the enemy\"* — and that a\ncitizen is owed the sequence of things that happened, in order, with times.\nThat sequence is in ``events`` and nowhere else; a ledger reconstructed from\nthe projection would be a status badge with extra steps.\n\n**What may be read, and by whom.** The complaint id is a UUIDv4 the system\nhands to the submitter and to the officers who work the report, which makes\nthis a capability-scoped read rather than a broadcast — a different question\nfrom the one ADR-0016 answers, and answered separately in\n``nemesis/events/disclosure.py``. Every row on the chain is returned;\n``payload`` carries only what a shaper there declares, and\n``payload_disclosed`` says which of the two kinds of empty a reader is\nlooking at.\n\n**Why the chain head is returned separately from the last row's hash.** They\nare equal when the whole history fits in one page and they are not equal\nwhen it does not, and the value §E17.3's receipt is checked against is the\nhead. Inferring it from the tail of a page would be right until the day a\ncomplaint had more than ``limit`` events, which is the worst kind of wrong.\n\n**Uncached, deliberately.** ``Cache-Control: no-store`` rather than the\nread path's five seconds: this is the one representation whose correctness\nis its currency.",
+        "operationId": "get_complaint_history_api_v1_complaints__complaint_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "complaint_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Complaint Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplaintHistory"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "This complaint's own history, from the log",
         "tags": [
           "complaints"
         ]
@@ -9044,6 +9299,78 @@
         "summary": "Rotate a signing secret",
         "tags": [
           "integrations"
+        ]
+      }
+    },
+    "/api/v1/places/resolve": {
+      "get": {
+        "description": "The zone chain containing a point, innermost first.\n\n**Two queries, and the second one is why §E17.1's card reads as a sentence.**\n\nThe first finds the smallest zone whose boundary covers the point.\n`ix_zones_boundary` is GiST over the geography column, so `ST_Covers` is an\nindex scan rather than a sweep of every ward in the tenant.\n\nThe second walks *up*. Only the leaves of a place tree carry geometry in\npractice — a tenant draws its wards and lets the zone and the city be their\nunion — so a purely spatial answer is one row, and §E17.1 asks for\n*\"Kothrud · Ward 14\"*, which is a chain. `Zone.path` is the materialised\n`/`-joined code chain, so every ancestor is recoverable by splitting one\nstring and selecting the codes in it. Cheaper than a recursive CTE and\nexactly as correct, because `path` is maintained by the same writer that\nmaintains `parent_id`.\n\n**Ordering, where boxes overlap.** Deepest first, then smallest area, then\ncode. Overlap is not hypothetical: a locality inside a ward is a deliberate\nnesting, and two hand-drawn ward boxes that share an edge is a data-entry\nreality. Depth resolves the deliberate case; area resolves the accidental\none in favour of the more specific claim; code makes the remaining tie\ndeterministic, because a card that names a different ward on each refresh is\nworse than one that is consistently arguable.\n\n`ST_Covers` rather than `ST_Contains`: a coordinate that lands exactly on a\nboundary is *in* the ward, not in neither.",
+        "operationId": "resolve_place_api_v1_places_resolve_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "latitude",
+            "required": true,
+            "schema": {
+              "maximum": 90.0,
+              "minimum": -90.0,
+              "title": "Latitude",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "longitude",
+            "required": true,
+            "schema": {
+              "maximum": 180.0,
+              "minimum": -180.0,
+              "title": "Longitude",
+              "type": "number"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceResolution"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Which units of place contain this coordinate",
+        "tags": [
+          "places"
         ]
       }
     },

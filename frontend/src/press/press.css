@@ -24,6 +24,23 @@
 .press {
   position: relative;
   isolation: isolate;
+  /*
+   * **The plates are printed on this sheet, not on the page around it.**
+   *
+   * `.press__screen` is deliberately over-sized (`inset: -25%`) and rotated, so
+   * a screen at 15° still reaches the corners of the frame rather than leaving
+   * them bare. Without clipping, that oversize escapes: on a small surface like
+   * §E17.3's receipt the halftone plates extended a third of the sheet's width
+   * past its edge in every direction, laying pink and green screens across the
+   * ledger above it and the page below.
+   *
+   * `clip` rather than `hidden`: it clips without creating a scroll container,
+   * so a sheet can never acquire a scrollbar or become a scroll anchor for the
+   * page. `isolation: isolate` above already contains the blend modes; this
+   * contains the geometry, and the two are separate properties that were being
+   * asked of one declaration.
+   */
+  overflow: clip;
 }
 
 .press__imagery {
@@ -64,6 +81,18 @@
     240px 240px,
     240px 240px;
   mix-blend-mode: multiply;
+}
+
+/*
+ * No imagery, no ink. The paper stages stay — a sheet is still a sheet, with
+ * grain and an edge — and the halftone stages stop, because there is nothing
+ * for them to screen.
+ *
+ * This is what brings §E17.3's receipt from 2.86:1 to a legible ground, and
+ * `tests/contrast.test.ts` now asserts the number so it cannot drift back.
+ */
+.press[data-imagery="none"] .press__screens {
+  display: none;
 }
 
 /* The faint deckle at the frame edge. A print is a physical object and it has

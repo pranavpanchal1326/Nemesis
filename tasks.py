@@ -753,6 +753,20 @@ def _web_fonts(args: list[str]) -> int:
     return run([sys.executable, "scripts/fetch_fonts.py", *args], cwd=WEB)
 
 
+@task("seed-demo", "Provision the local demo tenant — a city with ward geometry and two scripts")
+def _seed_demo(args: list[str]) -> int:
+    """Host-side Python against the running stack, like the gate scripts.
+
+    Not a fixture and not a migration: it provisions a tenant the only way this
+    repository allows anything to be provisioned — over HTTP, through the Phase 5
+    control plane, with no code change and no SQL. §E17.1's Place card needs ward
+    *boundaries*, and every tenant seeded by a gate run has names without
+    geometry, so the card's "no boundaries configured" branch was the only one
+    anybody running locally had ever seen.
+    """
+    return run([sys.executable, "scripts/seed_demo.py", *args])
+
+
 @task("web-openapi", "Export the OpenAPI document the frontend generates against")
 def _web_openapi(_: list[str]) -> int:
     # In the api container for the same reason `nem api-lock` is: reading the

@@ -133,7 +133,13 @@ async def _run_stage(
             tenant_id=tenant_id,
             complaint_id=complaint_id,
             stage=stage,
-            failure_mode=f"abstained:{exc}"[:200],
+            # A label, not a sentence. The reason is long — it names the
+            # missing prompt sets and tells a tenant how to add them — and it
+            # belongs in `last_error`, which is `Text`. Packing it into
+            # `failure_mode` clamped to 200 against a `varchar(128)`, so every
+            # abstained classification failed to record its own dead letter.
+            failure_mode="abstained",
+            detail=str(exc),
             attempts=attempt,
             correlation_id=correlation_id,
         )
@@ -210,6 +216,7 @@ async def _degrade(
     failure_mode: str,
     attempts: int,
     correlation_id: str | None,
+    detail: str | None = None,
 ) -> None:
     """Record the fallback, then continue the pipeline if the stage allows it.
 
@@ -225,6 +232,7 @@ async def _degrade(
         failure_mode=failure_mode,
         attempts=attempts,
         correlation_id=correlation_id,
+        detail=detail,
     )
     spec = spec_for(stage)
     if spec.continue_on_degrade and spec.next_stage is not None:

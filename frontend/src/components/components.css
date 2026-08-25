@@ -348,18 +348,77 @@
 }
 
 /* Ruled paper. The rule draws left-to-right rather than fading (§E11.1 #3),
-   which is drafting-table language and free. */
+   which is drafting-table language and free.
+ *
+ * **Two rows per entry on a phone, one on a desk.** The first pass laid three
+ * columns side by side at every width, and on a 390 px viewport that gave the
+ * event its own 12ch gutter — so *"Photo checked — taken here, taken now"* set
+ * as four ragged lines beside a hash. A ledger's job is to be read down the
+ * page, so the narrow layout puts the time and the fingerprint on one line and
+ * gives the sentence the full measure beneath them.
+ */
 .evidence-trail__row {
   display: grid;
-  grid-template-columns: max-content 1fr max-content;
-  gap: 0.75rem;
+  grid-template-areas:
+    "time hash"
+    "event event";
+  grid-template-columns: 1fr max-content;
+  column-gap: 0.75rem;
+  row-gap: 0.15rem;
   align-items: baseline;
-  padding-block: 0.35rem;
+  padding-block: 0.5rem;
   border-block-end: 1px solid var(--role-rule);
   min-height: var(--density-row);
 }
 
+@media (min-width: 34rem) {
+  .evidence-trail__row {
+    grid-template-areas: "time event hash";
+    grid-template-columns: max-content 1fr max-content;
+    row-gap: 0;
+  }
+}
+
 .evidence-trail__time {
+  grid-area: time;
+  color: var(--role-text-secondary);
+  white-space: nowrap;
+}
+
+.evidence-trail__event {
+  grid-area: event;
+}
+
+/* §E17.3 — the fingerprint. Twelve characters of a SHA-256, in the data face.
+   `tabular-nums` from the type scale keeps the column edge straight down the
+   page, which is what makes a run of them look like a ledger.
+ *
+ * **No `opacity`.** A first pass added `opacity: 0.75` to make it read as a
+ * quiet marginal note, and `tests/press-contrast.spec.ts` measured the result at
+ * **3.75:1** against §E22's 4.5:1 floor. That is §E2 defect #20 repeated
+ * exactly — *"`opacity: 0.8` on the severity score dropped all five below the
+ * floor"* — and it is repeated for the same reason: `--role-text-secondary` is
+ * already an overprint measured to sit just above the floor, so any transparency
+ * on top of it spends the margin that measurement bought. Quietness comes from
+ * the ink and the size, never from alpha. */
+.evidence-trail__hash {
+  grid-area: hash;
+  color: var(--role-text-secondary);
+  white-space: nowrap;
+}
+
+/* ADR-0043 — the row is disclosed and its payload is not. Set as a marginal
+   note rather than as a warning: withholding is the system working, and §E26's
+   rule that a degradation never wears an error colour applies here too.
+ *
+ * Auto-placed on its own implicit row rather than given a named area. A named
+ * area would reserve a track on every row, and only two of thirteen event types
+ * ever fill it — so twelve rows in the ledger would carry an empty band and a
+ * `row-gap` under them. It is optional in the markup and it is optional in the
+ * grid, which is the same fact stated once. */
+.evidence-trail__withheld {
+  grid-column: 1 / -1;
+  justify-self: start;
   color: var(--role-text-secondary);
 }
 

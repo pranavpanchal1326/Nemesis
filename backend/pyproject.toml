@@ -129,6 +129,12 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
+# `ast.NodeVisitor` dispatches on `visit_<NodeType>`, so the capitalised method
+# names are the standard library's API rather than this codebase's style. Ignored
+# by configuration rather than by an inline `noqa`, because a `noqa` is itself a
+# lintable thing: one ruff version called it necessary and the next called it
+# unused, and the file failed both ways within a week.
+"tests/test_perception_embeddings.py" = ["S101", "N802"]
 "alembic/versions/*" = ["N999", "E501"]
 # Operator-facing CLIs: stdout is the interface, not a debugging leftover.
 # T20 stays enabled everywhere else so a stray print cannot bypass structlog in

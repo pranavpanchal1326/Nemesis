@@ -18,9 +18,9 @@ from, so it is exactly as strong as the representation and free to compute.
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, Final
+from typing import Annotated, Any, Final
 
-from fastapi import APIRouter, File, Form, Header, Request, Response, UploadFile, status
+from fastapi import APIRouter, File, Form, Header, Query, Request, Response, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from geoalchemy2 import Geometry
 from sqlalchemy import cast, func, select
@@ -36,11 +36,20 @@ from nemesis.api.errors import (
     ProblemDetailError,
 )
 from nemesis.api.ratelimit import get_limiter
-from nemesis.api.v1.schemas import ComplaintResponse, ComplaintSubmissionResponse
+from nemesis.api.v1.schemas import (
+    ComplaintHistory,
+    ComplaintHistoryEvent,
+    ComplaintResponse,
+    ComplaintSubmissionResponse,
+)
 from nemesis.config import Settings
-from nemesis.db.models.complaint import Complaint
+from nemesis.db.models.complaint import Complaint, ComplaintCluster
+from nemesis.db.models.event import Event, EventChainHead
 from nemesis.db.models.work_order import WorkOrder
+from nemesis.domain.lifecycle import EntityType
 from nemesis.events.catalog import Latitude, Longitude
+from nemesis.events.disclosure import history_payload
+from nemesis.events.hashing import format_timestamp
 from nemesis.ingest.media import (
     MediaStore,
     StoredMedia,
@@ -196,6 +205,10 @@ async def submit_complaint(
         "complaint_id": str(receipt.complaint_id),
         "status": receipt.status,
         "estimated_processing_time_seconds": settings.ingest.estimated_processing_seconds,
+        # §E17.3's receipt, ADR-0044. The head is already in hand from the
+        # append that just happened; reading `event_chain_heads` again to
+        # recover it would be a round trip for a value this request computed.
+        "chain_hash": receipt.chain_hash,
     }
     response = Response(
         content=_json(body),
@@ -316,6 +329,32 @@ async def get_complaint(
     subquery carries its own explicit predicate, which is unambiguous to the
     guard, to the planner, and to a reader.
     """
+    # §E17.2's payoff, from the projection. Scalar subqueries rather than a
+    # join, for the reason the work-order one below states: the tenancy guard
+    # cannot see a `tenant_id` predicate inside a join's ON clause, and a
+    # subquery carries its own explicit one — unambiguous to the guard, to the
+    # planner, and to a reader. Two of them rather than one join because each
+    # returns a single scalar and the planner folds them into the same index
+    # lookup on the cluster's primary key.
+    cluster_report_count = (
+        select(ComplaintCluster.report_count)
+        .where(
+            ComplaintCluster.tenant_id == tenant.id,
+            ComplaintCluster.id == Complaint.cluster_id,
+        )
+        .scalar_subquery()
+        .label("cluster_report_count")
+    )
+    cluster_first_reported = (
+        select(ComplaintCluster.first_reported)
+        .where(
+            ComplaintCluster.tenant_id == tenant.id,
+            ComplaintCluster.id == Complaint.cluster_id,
+        )
+        .scalar_subquery()
+        .label("cluster_first_reported")
+    )
+
     newest_work_order = (
         select(WorkOrder.id)
         .where(
@@ -347,6 +386,8 @@ async def get_complaint(
                     func.ST_Y(cast(Complaint.location, Geometry)).label("latitude"),
                     func.ST_X(cast(Complaint.location, Geometry)).label("longitude"),
                     newest_work_order,
+                    cluster_report_count,
+                    cluster_first_reported,
                 ).where(Complaint.tenant_id == tenant.id, Complaint.id == complaint_id)
             )
         ).one_or_none()
@@ -377,6 +418,141 @@ async def get_complaint(
             # shorter would defeat the conditional request entirely.
             "Cache-Control": "private, max-age=5",
         },
+    )
+
+
+#: A page of history. 200 rather than 50: a complaint's whole life is a dozen
+#: events, and the ceiling exists to bound a pathological chain rather than to
+#: paginate a normal one. §E17.4's ledger is meant to be read in one screen.
+HISTORY_MAX_LIMIT: Final = 200
+
+COMPLAINT_ENTITY: Final = EntityType.COMPLAINT.value
+
+
+@router.get(
+    "/complaints/{complaint_id}/events",
+    response_model=ComplaintHistory,
+    summary="This complaint's own history, from the log",
+    responses={404: {"description": "Not found"}},
+)
+async def get_complaint_history(
+    complaint_id: uuid.UUID,
+    tenant: TenantDep,
+    session: SessionDep,
+    response: Response,
+    limit: Annotated[int, Query(ge=1, le=HISTORY_MAX_LIMIT)] = HISTORY_MAX_LIMIT,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> ComplaintHistory:
+    """§E17.4's ledger, read from the append-only log — ADR-0043, ADR-0044.
+
+    **Why this exists and the projection does not answer it.**
+    ``GET /complaints/{id}`` returns *what is true now*. §E17.4's argument is
+    that a status is not an answer — *"'In Progress' is the enemy"* — and that a
+    citizen is owed the sequence of things that happened, in order, with times.
+    That sequence is in ``events`` and nowhere else; a ledger reconstructed from
+    the projection would be a status badge with extra steps.
+
+    **What may be read, and by whom.** The complaint id is a UUIDv4 the system
+    hands to the submitter and to the officers who work the report, which makes
+    this a capability-scoped read rather than a broadcast — a different question
+    from the one ADR-0016 answers, and answered separately in
+    ``nemesis/events/disclosure.py``. Every row on the chain is returned;
+    ``payload`` carries only what a shaper there declares, and
+    ``payload_disclosed`` says which of the two kinds of empty a reader is
+    looking at.
+
+    **Why the chain head is returned separately from the last row's hash.** They
+    are equal when the whole history fits in one page and they are not equal
+    when it does not, and the value §E17.3's receipt is checked against is the
+    head. Inferring it from the tail of a page would be right until the day a
+    complaint had more than ``limit`` events, which is the worst kind of wrong.
+
+    **Uncached, deliberately.** ``Cache-Control: no-store`` rather than the
+    read path's five seconds: this is the one representation whose correctness
+    is its currency.
+    """
+    with tenant_scope(tenant.id):
+        head = (
+            await session.execute(
+                select(EventChainHead.sequence, EventChainHead.head_hash).where(
+                    EventChainHead.tenant_id == tenant.id,
+                    EventChainHead.entity_type == COMPLAINT_ENTITY,
+                    EventChainHead.entity_id == complaint_id,
+                )
+            )
+        ).one_or_none()
+
+        if head is None or int(head.sequence) == 0:
+            # No chain, or a head row created without an append. Either way this
+            # tenant has no such complaint, and the answer is the read path's
+            # 404 rather than an empty ledger — an empty ledger for a complaint
+            # that does not exist is a lie in the shape of a valid response.
+            raise ProblemDetailError(
+                status_code=HTTP_404_NOT_FOUND,
+                title="Complaint not found",
+                detail="No complaint with that identifier exists for this tenant.",
+                problem_type=f"{PROBLEM_BASE}/not-found",
+            )
+
+        rows = (
+            await session.execute(
+                select(
+                    Event.sequence,
+                    Event.event_type,
+                    Event.occurred_at,
+                    Event.payload,
+                    Event.previous_hash,
+                    Event.event_hash,
+                )
+                .where(
+                    Event.tenant_id == tenant.id,
+                    Event.entity_type == COMPLAINT_ENTITY,
+                    Event.entity_id == complaint_id,
+                )
+                # `ix_events_entity` is (tenant_id, entity_type, entity_id,
+                # sequence), so this is an index scan in order across whatever
+                # monthly partitions the complaint's life spans — not a sort.
+                .order_by(Event.sequence)
+                .offset(offset)
+                .limit(limit)
+            )
+        ).all()
+
+    response.headers["Cache-Control"] = "no-store"
+    return ComplaintHistory(
+        complaint_id=complaint_id,
+        chain_head=str(head.head_hash),
+        chain_head_sequence=int(head.sequence),
+        events=[_to_history_event(row) for row in rows],
+        # The head sequence *is* the count: sequences are 1-based and contiguous
+        # by construction, which is the property `event_chain_heads` exists to
+        # enforce. Counting the rows instead would be a second query that can
+        # only ever agree with this number or reveal a fork.
+        total=int(head.sequence),
+        limit=limit,
+        offset=offset,
+    )
+
+
+def _to_history_event(row: Any) -> ComplaintHistoryEvent:
+    """Shape one stored row for a reader holding the complaint id.
+
+    ``payload_disclosed`` distinguishes the two empties. A shaper that returns
+    nothing for an event that stored nothing is not withholding anything; a
+    shaper that returns nothing for an event that stored eight fields is. §E3.3
+    asks for the omission to be visible rather than faked, and a single ``{}``
+    with no marker beside it makes both cases look like the first.
+    """
+    stored = row.payload if isinstance(row.payload, dict) else {}
+    shaped = history_payload(row.event_type, stored)
+    return ComplaintHistoryEvent(
+        sequence=int(row.sequence),
+        event_type=str(row.event_type),
+        occurred_at=format_timestamp(row.occurred_at),
+        previous_hash=str(row.previous_hash),
+        event_hash=str(row.event_hash),
+        payload=shaped,
+        payload_disclosed=bool(shaped) or not stored,
     )
 
 

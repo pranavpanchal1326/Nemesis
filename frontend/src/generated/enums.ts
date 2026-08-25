@@ -107,6 +107,8 @@ export const REALTIME_SHAPED_EVENT_TYPES = [
   "classification_scored",
   "cluster_created",
   "cluster_match_found",
+  "exif_check_completed",
+  "media_redacted",
   "pipeline_stage_degraded",
   "safety_trigger_fired",
   "severity_scored",

@@ -17,6 +17,7 @@ from nemesis.api.v1.control_plane import router as control_plane_router
 from nemesis.api.v1.developers import portal_router
 from nemesis.api.v1.developers import router as developers_router
 from nemesis.api.v1.integrations import router as integrations_router
+from nemesis.api.v1.places import router as places_router
 from nemesis.api.v1.policies import router as policies_router
 from nemesis.api.v1.public import router as public_router
 from nemesis.api.v1.realtime import router as realtime_router
@@ -54,6 +55,12 @@ api_v1.include_router(review_router)
 # tenant-scoped one must resolve in favour of the authenticated route rather
 # than silently exposing it.
 api_v1.include_router(public_router)
+# Phase 18. Resolving a coordinate to the place tree — §E17.1's *Place* card.
+# Beside the complaint routes rather than under /control-plane, and the split is
+# the same one the review queue makes: reading which ward you are standing in is
+# operational, and administering the ward tree is configuration. The geometry
+# has existed since Phase 5 and nothing published a read of it.
+api_v1.include_router(places_router)
 api_v1.include_router(integrations_router)
 api_v1.include_router(developers_router)
 

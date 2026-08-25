@@ -38,8 +38,15 @@ repos:
         args: [--maxkb=1024]
       - id: detect-private-key
 
+  # **Pinned to the version the container runs**, not to whatever was current
+  # when this file was written. `nem check` and CI lint inside the api image;
+  # pre-commit lints in its own isolated env. Two ruff majors means two verdicts
+  # on the same file, and the way it surfaces is the worst possible: a commit
+  # that CI accepts and the hook refuses, over a rule one version enforces and
+  # the other does not. `visit_Assign` — a name `ast.NodeVisitor` requires — was
+  # exactly that, N802 under 0.8.4 and an unused `noqa` under 0.16.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.16.3
     hooks:
       - id: ruff
         args: [--fix]
