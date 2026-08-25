@@ -77,6 +77,24 @@ export function Press({
       data-quality={plan.quality}
       data-press={bypass ? "bypass" : "on"}
       data-plates={plan.plates.length}
+      /*
+       * **Is there anything to print on this sheet?**
+       *
+       * §E6.1's six stages are not one thing: 1–3 and 5 are *ink* — separation,
+       * halftone, misregistration, overprint — and 4 and 6 are *paper*, its
+       * grain and its deckled edge. A sheet with no imagery has paper and no
+       * ink, and until this attribute existed the screens painted a full-
+       * strength halftone field across it anyway.
+       *
+       * That is not a print. A halftone screen is what renders a *photograph*
+       * as dots; blank stock has no dots on it. And it had a measured cost:
+       * §E17.3's receipt carries no imagery, so its append-only sentence — the
+       * line the whole document exists to be believed on — sat on a screened
+       * ground at **2.86:1**, against §E22's 4.5:1 floor. The type was exempt
+       * from the press (ADR-0038) and the paper underneath it was not, which is
+       * half an exemption.
+       */
+      data-imagery={imagery === undefined ? "none" : "some"}
       style={rootStyle(plan)}
     >
       <svg className="press__defs" aria-hidden="true" focusable="false">

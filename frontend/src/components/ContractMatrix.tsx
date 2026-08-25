@@ -11,7 +11,7 @@ import type { RealtimeEnvelope } from "@/lib/realtime/envelope";
 import { BeforeAfter } from "./BeforeAfter";
 import { ContractorLedger } from "./ContractorLedger";
 import { DegradedBanner } from "./DegradedBanner";
-import { EvidenceTrail } from "./EvidenceTrail";
+import { EvidenceTrail, trailFromEnvelopes } from "./EvidenceTrail";
 import { FlaggedNotice } from "./FlaggedNotice";
 import { NotWired } from "./NotWired";
 import { Receipt } from "./Receipt";
@@ -118,7 +118,11 @@ export function ContractMatrix({ strings }: ContractMatrixProps) {
           {(["citizen", "officer", "public"] as const).map((view) => (
             <div key={view}>
               <p className="type-micro">{notTranslatable(view)}</p>
-              <EvidenceTrail entries={SAMPLE_TRAIL} view={view} strings={strings} />
+              <EvidenceTrail
+                entries={trailFromEnvelopes(SAMPLE_TRAIL)}
+                view={view}
+                strings={strings}
+              />
             </div>
           ))}
         </div>

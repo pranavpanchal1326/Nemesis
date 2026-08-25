@@ -37,7 +37,18 @@ export type TransportState =
   | "reconnecting";
 
 export interface Degradation {
-  /** Named, honest, and shown in secondary ink — never an error colour (§E26). */
+  /**
+   * A **locale key**, not a sentence.
+   *
+   * An earlier version held the English words. That made the one banner a
+   * citizen sees when the system is degraded the one piece of copy the Phase 5
+   * locale registry could never reach — against Phase 18's own gate, *"a locale
+   * added in the control plane appears in the UI with no code change"*, and on
+   * the surface where being understood matters most.
+   *
+   * Resolved at the point of render, where a `Strings` is in hand. Named,
+   * honest, and shown in secondary ink — never an error colour (§E26).
+   */
   readonly cause: string;
   readonly since: number;
 }

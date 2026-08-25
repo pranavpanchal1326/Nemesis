@@ -110,6 +110,63 @@ def _pipeline_stage_degraded(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _exif_check_completed(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """§E16.1 gate 2 — *EXIF INTACT* — and precisely nothing else (ADR-0045).
+
+    One boolean, because one boolean is the whole caption. The three fields left
+    behind are each withheld for a different reason, and the reasons are not
+    interchangeable:
+
+    ``distance_meters``
+        The metres between the citizen's stated location and their camera's. On
+        a stream whose every published coordinate is coarsened to ~110 m
+        (``GPS_DECIMALS``), a metre-precise distance from a coarse pin is a
+        second constraint on the same point — and two constraints is how a
+        coarsening gets undone. It is published to the *holder of the complaint
+        id* instead (``events/disclosure.py``), where it describes the reader's
+        own report rather than a stranger's.
+    ``trust_delta``
+        The §11.3 gradient. Publishing what each behaviour costs publishes the
+        surface an abuser optimises against.
+    ``reason``
+        System-authored prose that embeds the distance.
+    """
+    return {"exif_present": payload.get("exif_present")}
+
+
+def _media_redacted(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """§E16.1 gate 5 — *a face visibly blurs* — as two counts (ADR-0045).
+
+    **Why a count and not a boolean, on an unauthenticated stream.** §22.1's
+    promise is about *every* face, and the catalog keeps ``faces_detected`` and
+    ``faces_blurred`` apart precisely so a redaction that blurred some of them
+    is distinguishable from one that blurred all of them. A single
+    ``redacted: true`` cannot express failing that promise, and the surface where
+    the failure most needs to be visible is the citizen's own phone, watching
+    their own submission go through in real time.
+
+    **What that exposes, stated rather than waved past.** A reader of the whole
+    stream learns "a photograph attached to some report contained *n* faces".
+    The envelope for this type carries no position at all; associating it with a
+    place requires correlating on ``entity_id`` with a ``cluster_created``, whose
+    centroid is already coarsened to ~110 m. The photograph is never published,
+    the capture time is not in this payload, and *n* identifies nobody. That
+    residual is accepted, and it is strictly smaller than the alternative —
+    which is a product that claims to blur every face and publishes no number
+    anyone could use to check.
+
+    Withheld: both SHA-256s, because ``redacted_sha256`` resolves to an image on
+    ``/api/v1/review/media/{sha}`` and ``source_sha256`` addresses the unblurred
+    original (ADR-0031); and ``detector_id``, which names the model to evade and
+    is published to the id-holder instead.
+    """
+    return {
+        "media_kind": payload.get("media_kind"),
+        "faces_detected": payload.get("faces_detected"),
+        "faces_blurred": payload.get("faces_blurred"),
+    }
+
+
 #: Event type -> public payload shape. Absence means an empty payload, not an
 #: unfiltered one.
 _SHAPERS: Final[dict[str, PayloadShaper]] = {
@@ -121,6 +178,14 @@ _SHAPERS: Final[dict[str, PayloadShaper]] = {
     "work_order_created": _work_order_created,
     "citizen_confirmed": _citizen_confirmed,
     "pipeline_stage_degraded": _pipeline_stage_degraded,
+    # ADR-0045. §E16.1's pipeline theatre stages six gates and two of them —
+    # the EXIF check and the face blur — reached the browser with an empty
+    # payload, so the captions the blueprint specifies could not be driven from
+    # the stream at all. Added as a decision rather than a patch: the question
+    # "what may a browser learn about an EXIF check, or about where a face was"
+    # has an answer, and it is written down in the ADR and in the two shapers.
+    "exif_check_completed": _exif_check_completed,
+    "media_redacted": _media_redacted,
 }
 
 

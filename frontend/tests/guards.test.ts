@@ -27,6 +27,28 @@ describe("design-law guards", () => {
     expect(violations.some((v) => v.file === "exempt.ts")).toBe(false);
   });
 
+  it("naming a generated type is not declaring a contract", () => {
+    // Both shapes in this fixture tripped the guard before it was refined, and
+    // both are legitimate: `type X = components["schemas"]["Y"]` is a *name for*
+    // the published contract, and `import { type Complaint }` declares nothing
+    // at all. Fixed in the guard rather than papered over with an exemption
+    // comment, because an exemption on a correct line teaches the next reader
+    // that the rule is approximate.
+    expect(violations.some((v) => v.file === "generated-alias.ts")).toBe(false);
+  });
+
+  it("widening a generated type is still declaring a contract", () => {
+    // The refinement's own risk, asserted. An intersection is a different shape
+    // wearing the published one's name, which is exactly what Law 2 forbids —
+    // and it is the case a naive "does the right-hand side mention `components`"
+    // check would have waved through.
+    expect(
+      violations.some(
+        (v) => v.guard.id === "no-hand-written-contract" && v.file === "widened-contract.ts",
+      ),
+    ).toBe(true);
+  });
+
   it("every guard cites the section it enforces", () => {
     for (const v of violations) {
       expect(v.guard.source).toMatch(/§|ADR-/);

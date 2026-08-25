@@ -133,9 +133,9 @@ quietly overwritten, because §E3.3 applies to this file too:
 | §E10.2 wrote the tabular-figures rule as `font-variant-numeric: tabular-lining` | Not a CSS value. It computes to `normal`, so the first of §E10.2's *"two hard rules"* was doing nothing. The real declaration is `lining-nums tabular-nums` |
 | §E10.1 set the Devanagari leading rule as a flat **+0.15** | Measured, Devanagari ink runs to **1.289em** at `display-2`, against a Latin display leading of 1.04. The rule is a delta **and a floor**: `max(latin + 0.15, 1.35)`. Devanagari display type is genuinely looser than Latin display type — the script stacks matras above the shirorekha and below the baseline, and you cannot set it at 0.86 |
 | §E1 said the severity fields *"are already fields on the v1 complaint read schema"* | True of the Pydantic model, false of the **published contract**: the route returns a raw `Response` for its ETag path, so OpenAPI recorded `{}` and `api_contract_lock.json` protected nothing on the hottest read in the product. A generated client can only see what is published. Fixed in `complaints.py`; the lock now covers fifteen fields |
-| §E27's traceability table assumes every listed event arrives with data | **ADR-0016 makes realtime payloads default-deny, and only 8 of 33 registered event types are shaped for the wire.** Two of §E16.1's six pipeline gates — `exif_check_completed` and `media_redacted` — reach the browser with an empty payload, so *"EXIF INTACT"* and *"a face visibly blurs"* cannot be driven from the stream as specified. Adding a shaper is a privacy decision, not a formality, so it is argued in its own ADR at M5 rather than slipped in. The published `RealtimeShapedEventType` enum makes the distinction a compile error rather than an empty pin |
-| §E28 marks **"Tracking ledger from the event log"** REAL | Nothing reads the log back per entity. `GET /complaints/{id}` returns the projection; the two export datasets are `complaints` and `work-orders`. `<EvidenceTrail>` is built and correct, but with no history endpoint it can only show what arrives while the page is open — which §E17.4 itself calls the enemy. The row should read **component REAL, data ROADMAP**; the endpoint is scheduled |
-| §E17.3 says the receipt carries **"the complaint id and chain hash"** | The submission response publishes neither the hash nor a way to fetch it. `<Receipt>` renders nothing where it would go rather than a placeholder, so the gap is visible instead of faked |
+| §E27's traceability table assumes every listed event arrives with data | **ADR-0016 makes realtime payloads default-deny, and only 8 of 33 registered event types are shaped for the wire.** Two of §E16.1's six pipeline gates — `exif_check_completed` and `media_redacted` — reach the browser with an empty payload, so *"EXIF INTACT"* and *"a face visibly blurs"* cannot be driven from the stream as specified. Adding a shaper is a privacy decision, not a formality, so it is argued in its own ADR at M5 rather than slipped in. The published `RealtimeShapedEventType` enum makes the distinction a compile error rather than an empty pin. **Landed as ADR-0045**: `exif_present` on the broadcast, the distance and the reason to the id-holder only; both face counts on both, because §22.1 promises *every* face and one boolean cannot express failing it |
+| §E28 marks **"Tracking ledger from the event log"** REAL | Nothing reads the log back per entity. `GET /complaints/{id}` returns the projection; the two export datasets are `complaints` and `work-orders`. `<EvidenceTrail>` is built and correct, but with no history endpoint it can only show what arrives while the page is open — which §E17.4 itself calls the enemy. The row should read **component REAL, data ROADMAP** — and §E28 as a whole conflates *what Track E has built* with *what backs it*, which is why every row read REAL. **Landed as ADR-0043**: `GET /complaints/{id}/events` serves the chain, every row disclosed as a row with its hash links, payloads shaped by a second default-deny table. §E28 is restated below with the two questions in two columns |
+| §E17.3 says the receipt carries **"the complaint id and chain hash"** | The submission response publishes neither the hash nor a way to fetch it. `<Receipt>` renders nothing where it would go rather than a placeholder, so the gap is visible instead of faked. **Landed as ADR-0044**: the 202 carries `chain_hash` and the history endpoint carries the live `chain_head`. It is deliberately **not** on `GET /complaints/{id}` — the head advances on every append and `version` does not, so a hash served under that ETag would be stale behind a 304, and a stale hash on a document claiming *"this record cannot be edited"* fails in the exact direction the hash exists to prevent |
 | §E9.3's light table was implemented as *the glaze fills the field, the tint carries the type* | That measures **2.63–4.37:1** and failed `axe` in all twelve matrix combinations. §E9.3's own words are that the prints are backlit and *"the page ground is mitti-950 because that is the room, not the paper"* — so the ink glows and the room stays behind it: **13.48–15.04:1**. The glaze draws the mark and a printed edge at 3.09–5.72:1, which clears 3:1 for a meaningful graphic and not 4.5:1 for text, which is exactly why it never carries a word |
 | §E9.4's table gives each severity a **label** alongside its ink and shape | A token file cannot be translated by the Phase 5 locale registry, so a label held there reads *"Critical"* on a Marathi console forever — against Phase 18's own gate. Colour and shape are design; words are content. Labels moved to the locale bundle |
 
@@ -1178,39 +1178,67 @@ audit. A visual element not on this list, and not classifiable as chrome, is a d
 
 ## E28. Appendix C — REAL / SIMULATED / ROADMAP, frontend rows
 
-Reconciles into §44. Status is against commit `d8afb4f`.
+Reconciles into §44. Status is against commit `d0b533a` plus ADR-0043/0044/0045.
 
-| Frontend capability | Status | Blocking phase |
-|---|---|---|
-| Design system, tokens, press, type stack | REAL | — |
-| Report capture → submit → receipt | REAL | — |
-| Pipeline theatre (5 gates) | REAL | — |
-| Tracking ledger from the event log | REAL | — |
-| Severity breakdown panel | **SIMULATED** — the fields (`severity_score`, `severity_breakdown`, `severity_policy_version`) are already on the v1 read schema and return null | Phase 12 |
-| Cluster-merge hero, live | REAL | — |
-| Live map, instanced pins, WS store | REAL | — |
-| Temporal replay — **endpoint and UI both** | ROADMAP — *no replay endpoint exists; an earlier draft of this document wrongly listed the backend as shipped* | Phase 21 |
-| "Your Ward's Month" film | ROADMAP | Phase 21 |
-| Review queue | REAL | — |
-| Policy studio + simulation | REAL | — |
-| Control-plane admin (taxonomy, zones, departments, calendars, locales) | REAL | — |
-| Developer portal (keys, webhooks, usage, versions) | REAL | — |
-| Public zone / ward / contractor / budget pages | REAL — *data thin until Phases 14–17* | — |
-| Role-based console shells | ROADMAP | Phase 13 |
-| Command view SLA countdowns | ROADMAP | Phase 12 |
-| Area view + underreporting signal | ROADMAP | Phases 12, 23 |
-| Work order, assignment, contractor picker, budget entry | ROADMAP | Phase 14 |
-| Milestone gate strip | **SIMULATED** — fund release is a ledger event, never a disbursement (§15.5) | Phase 14 |
-| Closure gates + SSIM display | ROADMAP | Phase 15 |
-| Money view | ROADMAP | Phases 14, 23 |
-| Integrity room, case file, blacklist flow | ROADMAP | Phase 17 |
-| Contractor portal + appeals | ROADMAP | Phase 17 |
-| Report builder + verifiable PDF | ROADMAP | Phase 23 |
-| RTI draft generation | **SIMULATED** — template auto-fill only, no filing integration (§16.1) | — |
-| Accident-prone & traffic overlays | ROADMAP | Phase 23 |
-| PWA, offline queue, outdoor mode | ROADMAP | Phase 22 |
-| Sound design | REAL | — |
-| Tiers S / A / B / C / D fallback ladder | REAL | — |
+**This table was wrong, and the way it was wrong is worth recording rather than
+quietly fixing.** The original had one status column, and it answered two
+different questions at once: *does real backend stand behind this?* and *has
+Track E built it?* For most rows the two answers differ, and collapsing them
+produced a table where `Report capture → submit → receipt` read **REAL** while
+`/report` was a three-line placeholder, and `Tracking ledger from the event log`
+read **REAL** while no endpoint served a complaint's history at all. §6 Principle
+#8 and §E3.3 both say the same thing about this: an honesty table that is wrong
+is worse than no table, because it is the artefact a reader trusts *instead of*
+checking.
+
+So there are two columns now. **Component** is what Track E has shipped and can
+be opened in a browser. **Data** is what stands behind it. The milestone column
+says which step of `docs/FRONTEND-EXECUTION-PLAN.md` closes the component; the
+phase column says which backend phase closes the data. A row is only finished
+when both read REAL.
+
+| Frontend capability | Component | Data | Closes at |
+|---|---|---|---|
+| Design system, tokens, press, type stack | **REAL** — M1, M2 | — | done |
+| §E26 component contracts (badge, trail, before/after, flagged, suppression, receipt, ledger, banner, stamp) | **REAL** — M4; `<ClayScene>` outstanding | — | `<ClayScene>` at M8 |
+| Generated client, BFF seam, WebSocket store, reconciliation rule | **REAL** — M3 | **REAL** | done |
+| Report capture → submit → receipt | **ROADMAP** — no capture surface exists; `/report` is a placeholder | **REAL** — `POST /complaints` ships, and the 202 carries the chain head (ADR-0044) | M5 |
+| Pipeline theatre — **six** gates, not five | **ROADMAP** | **REAL** — all six are drivable from a genuine event since ADR-0045 shaped `exif_check_completed` and `media_redacted` | M5 |
+| The third outcome (`pending_classification`, §24.2) | **ROADMAP** | **REAL** — `pipeline_stage_degraded` is shaped, and the status is on the published enum | M5 |
+| Tracking ledger from the event log | **REAL** — `<EvidenceTrail>`, built against the published envelope | **REAL** — `GET /complaints/{id}/events` (ADR-0043) | screen at M5 |
+| Dedup payoff — *"you're the 4th person"* | **ROADMAP** | **REAL** — `cluster_match_found` carries `report_count` | M5 |
+| Severity breakdown panel | **ROADMAP** | **SIMULATED** — `severity_score`, `severity_breakdown`, `severity_policy_version` are on the published v1 schema and return null | M5/M7 · Phase 12 |
+| Cluster-merge hero, live | **ROADMAP** | **REAL** | M9 |
+| Live map, instanced pins | **ROADMAP** — the store is real, nothing renders a pin | **REAL** | M8 |
+| Temporal replay — endpoint and UI both | **ROADMAP** | **ROADMAP** — *no replay endpoint exists; an earlier draft of this document wrongly listed the backend as shipped* | Phase 21 |
+| "Your Ward's Month" film | **ROADMAP** | **ROADMAP** | Phase 21 |
+| Review queue | **ROADMAP** | **REAL** — `/api/v1/review` ships, media included | M7 |
+| Policy studio + simulation | **ROADMAP** | **REAL** — backtest, shadow mode, activation guardrail all ship | M7 |
+| Control-plane admin (taxonomy, zones, departments, calendars, locales) | **ROADMAP** | **REAL** | M7 |
+| Developer portal (keys, webhooks, usage, versions) | **ROADMAP** | **REAL** | M7 |
+| Public zone / ward / contractor / budget pages | **ROADMAP** | **REAL** — k-anonymous aggregates ship; *thin until Phases 14–17* | M6 |
+| Share cards (`satori` + `resvg`) | **ROADMAP** | **REAL** | M6 |
+| Role-based console shells | **ROADMAP** | **ROADMAP** | M7 · Phase 13 |
+| Command view SLA countdowns | **ROADMAP** | **ROADMAP** | M7 · Phase 12 |
+| Area view + underreporting signal | **ROADMAP** | **ROADMAP** | M7 · Phases 12, 23 |
+| Work order, assignment, contractor picker, budget entry | **ROADMAP** | **ROADMAP** | M7 · Phase 14 |
+| Milestone gate strip | **ROADMAP** | **SIMULATED** — fund release is a ledger event, never a disbursement (§15.5) | M7 · Phase 14 |
+| Closure gates + SSIM display | **ROADMAP** | **ROADMAP** | M7 · Phase 15 |
+| Money view | **ROADMAP** | **ROADMAP** | M7 · Phases 14, 23 |
+| Integrity room, case file, blacklist flow | **ROADMAP** | **ROADMAP** | M7 · Phase 17 |
+| Contractor portal + appeals | **ROADMAP** | **ROADMAP** | Phase 17 |
+| Report builder + verifiable PDF | **ROADMAP** | **ROADMAP** | M7 · Phase 23 |
+| RTI draft generation | **ROADMAP** | **SIMULATED** — template auto-fill only, no filing integration (§16.1) | M6 |
+| Accident-prone & traffic overlays | **ROADMAP** | **ROADMAP** | Phase 23 |
+| PWA, offline queue, outdoor mode | **ROADMAP** | **REAL** — server-side idempotency is what makes the queue safe, and it ships | M11 · Phase 22 |
+| Sound design | **ROADMAP** — the library is unauthored | — | M10 |
+| Tiers S / A / B / C / D fallback ladder | **ROADMAP** — the press's quality dial is REAL; the tier ladder above it is not | — | M8–M10 |
+| Golden images, Storybook diffs, Lighthouse, WCAG audit, usability session | **ROADMAP** — see the outstanding register, group A | — | M5–M12 |
+
+**Two rows are deliberately left as they were.** *Temporal replay* and *"Your
+Ward's Month"* were already honest, including the note recording that an earlier
+draft got one of them wrong. Rewriting a correction erases the record of the
+mistake, which is the thing this repository has consistently refused to do.
 
 ---
 

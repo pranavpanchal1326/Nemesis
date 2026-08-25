@@ -100,3 +100,6 @@ The concrete signal that should reopen this decision.
 | [0040](0040-the-browser-talks-to-a-bff-the-websocket-does-not.md) | The browser talks to a BFF; the WebSocket connects directly | Accepted | PROD · PLT |
 | [0041](0041-characters-are-event-driven-state-machines-not-timelines.md) | Characters are event-driven state machines, not timelines | Accepted | PROD |
 | [0042](0042-next-16-ships-typescript-7-waits.md) | Next.js 16 ships, amending §E15; the TypeScript 7 native compiler waits on the tooling the gates need | Accepted | PROD |
+| [0043](0043-a-complaints-history-is-readable-by-whoever-holds-its-id.md) | A complaint's history is readable by whoever holds its id, and every row is disclosed as a row | Accepted | PLT · SEC · PROD |
+| [0044](0044-the-receipt-carries-the-chain-head-the-polled-read-does-not.md) | The receipt carries the chain head; the polled read deliberately does not | Accepted | PLT · PROD |
+| [0045](0045-what-a-browser-may-learn-about-an-exif-check-and-a-redaction.md) | What a browser may learn about an EXIF check and a face redaction | Accepted | SEC · PLT · PROD |

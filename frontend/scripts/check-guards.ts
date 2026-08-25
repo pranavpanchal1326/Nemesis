@@ -39,6 +39,22 @@ const HEX_COLOUR = /#[0-9a-fA-F]{3,8}\b/;
 const CSS_COLOUR_FN = /\b(?:rgba?|hsla?|oklch|oklab|lab|lch|color-mix)\s*\(/;
 const GLSL_HINT =
   /\b(?:ShaderMaterial|RawShaderMaterial)\b|\bgl_(?:Position|FragColor|FragCoord)\b|\bvarying\s+(?:vec|float|mat)|#version\s+\d{3}/;
+/** `  type Complaint,` inside an import block. A named type import, not a
+ *  declaration — and the two are indistinguishable to a line-oriented rule
+ *  without this. */
+const IMPORTED_TYPE = /^\s*type\s+\w+\s*(?:as\s+\w+\s*)?,?\s*$/;
+
+/** `type X = components["schemas"][...]`, or the same over `paths` /
+ *  `operations`. An alias of a generated type is a *name for* the contract,
+ *  which is what execution-plan Law 2 asks for — the banned thing is a fresh
+ *  shape, not a shorter way to spell the published one.
+ *
+ *  The right-hand side must be *only* the generated index expression, so
+ *  `components["schemas"]["X"] & { extra: string }` still fails: widening a
+ *  published contract locally is re-declaring it by another route. */
+const ALIAS_OF_GENERATED =
+  /^\s*(?:export\s+)?type\s+\w+\s*=\s*(?:components|paths|operations)(?:\s*\[[^\]]+\])+\s*;\s*$/;
+
 const CDN_HOST =
   /https?:\/\/(?:[a-z0-9-]+\.)*(?:cdn|jsdelivr|unpkg|cdnjs|googleapis|gstatic|cloudflare|bootstrapcdn|typekit|fontawesome)[a-z0-9.-]*\//i;
 
@@ -98,8 +114,24 @@ const GUARDS: readonly Guard[] = [
     // Declaring a type that names a backend entity outside `generated/` is the
     // shape this ban is about. Narrow on purpose: it catches the real mistake
     // (re-declaring a contract) and not the legitimate one (a view model).
+    //
+    // **Two false positives were found and fixed here rather than exempted**,
+    // because an exemption comment on a correct line teaches the next reader
+    // that the rule is approximate.
+    //
+    // 1. `import { type Complaint } from ...` matched, because a named type
+    //    import inside a multi-line import block is a line beginning
+    //    `  type Complaint,`. Importing a type is never declaring one.
+    // 2. `export type Complaint = components["schemas"]["ComplaintResponse"]`
+    //    matched. That is the opposite of the banned thing: it *names* a
+    //    generated type so a surface can refer to it without spelling the index
+    //    expression eleven times. `src/lib/realtime/envelope.ts` has done
+    //    exactly this since M3 and escaped only because `RealtimeEnvelope` is
+    //    not on the entity list — which is luck, not design.
     test: (line, filePath) =>
       !filePath.startsWith(join("generated") + sep) &&
+      !IMPORTED_TYPE.test(line) &&
+      !ALIAS_OF_GENERATED.test(line) &&
       /^\s*(?:export\s+)?(?:interface|type)\s+(?:Complaint|WorkOrder|Contractor|BudgetAllocation|Cluster|Policy|Simulation|Tenant|Review|Event)(?:Read|Response|Payload|Schema|Dto)?\b/.test(
         line,
       ),

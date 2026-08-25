@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RealtimeEnvelope } from "../src/lib/realtime/envelope.ts";
 import { carriesPayload, parseMessage } from "../src/lib/realtime/envelope.ts";
 import { startReconciler } from "../src/lib/realtime/reconcile.ts";
-import { connectRealtime } from "../src/lib/realtime/socket.ts";
+import { BASE } from "../src/lib/i18n/bundles.ts";
+import { connectRealtime, REFUSED_CAUSE_KEY } from "../src/lib/realtime/socket.ts";
 import {
   clearEnvelopeListeners,
   realtimeStore,
@@ -160,9 +161,14 @@ describe("§E14.3 — a refused upgrade is normal degraded mode, not an error", 
     connect();
     sockets[0]?.close(1008);
     const degradation = realtimeStore.getState().degradation;
-    expect(degradation?.cause).toMatch(/switched off/i);
-    // §E26: "Calm register, secondary ink, never an error colour."
-    expect(degradation?.cause).not.toMatch(/error|failed|cannot/i);
+    // A key into the locale bundle, never the words themselves. A banner whose
+    // sentence is a literal in `src/` is a banner the Phase 5 registry can never
+    // translate — on the one surface where a reader most needs to understand.
+    expect(degradation?.cause).toBe(REFUSED_CAUSE_KEY);
+    expect(BASE.common[REFUSED_CAUSE_KEY]).toBeTypeOf("string");
+    // §E26: "Calm register, secondary ink, never an error colour." Asserted on
+    // the resolved sentence rather than on the key, which would be vacuous.
+    expect(BASE.common[REFUSED_CAUSE_KEY]).not.toMatch(/error|failed|cannot|unable/i);
   });
 
   it("an ordinary drop does reconnect, with backoff", () => {
@@ -263,11 +269,19 @@ describe("§E14.3 — the socket is a hint; the read path is the authority", () 
 
 describe("ADR-0016 — realtime payloads are default-deny", () => {
   it("a shaped event type is distinguishable from an unshaped one", () => {
-    // §E27 maps twenty-four event types to visuals. Eight carry a payload; the
+    // §E27 maps twenty-four event types to visuals. Ten carry a payload; the
     // rest say that something happened and nothing about what. A surface that
     // assumes otherwise renders an empty pin and looks broken.
+    //
+    // `media_redacted` used to be the unshaped example here, and ADR-0045 moved
+    // it. That is the assertion working: the list is generated from the
+    // backend's own shaper table, so a privacy decision taken in
+    // `nemesis/realtime/envelope.py` fails a frontend test rather than silently
+    // changing what a surface believes it will receive.
     expect(carriesPayload(envelope(1))).toBe(true);
-    expect(carriesPayload({ ...envelope(1), event_type: "media_redacted" })).toBe(false);
+    expect(carriesPayload({ ...envelope(1), event_type: "media_redacted" })).toBe(true);
+    expect(carriesPayload({ ...envelope(1), event_type: "complaint_submitted" })).toBe(false);
+    expect(carriesPayload({ ...envelope(1), event_type: "review_queued" })).toBe(false);
   });
 
   it("a malformed frame is dropped, not thrown", () => {

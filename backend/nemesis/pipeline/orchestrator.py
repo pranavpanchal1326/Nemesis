@@ -36,7 +36,7 @@ from typing import Any, Final
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nemesis.db.models.outbox import PipelineDeadLetter
+from nemesis.db.models.outbox import FAILURE_MODE_MAX_LENGTH, PipelineDeadLetter
 from nemesis.db.session import session_scope
 from nemesis.domain.lifecycle import DegradationFallback, EntityType
 from nemesis.events.store import AppendedEvent, EventStore
@@ -258,6 +258,7 @@ async def record_degradation(
     failure_mode: str,
     attempts: int,
     correlation_id: str | None = None,
+    detail: str | None = None,
 ) -> bool:
     """Take the stage's declared fallback, on the record.
 
@@ -305,6 +306,7 @@ async def record_degradation(
                 stage=stage,
                 attempts=attempts,
                 failure_mode=failure_mode,
+                detail=detail,
                 correlation_id=correlation_id,
             )
 
@@ -382,9 +384,29 @@ async def _upsert_dead_letter(
     stage: str,
     attempts: int,
     failure_mode: str,
+    detail: str | None,
     correlation_id: str | None,
 ) -> None:
-    """One open dead letter per (complaint, stage), updated rather than duplicated."""
+    """One open dead letter per (complaint, stage), updated rather than duplicated.
+
+    **The label is clamped here and nowhere else.** `failure_mode` is a short,
+    greppable classification in a `varchar(128)`; `last_error` is `Text` and is
+    where a sentence belongs. Clamping at the single write site — against the
+    column's own exported constant — is what stops a caller inventing a second
+    length and losing the row: an over-long value does not truncate, it raises
+    `StringDataRightTruncationError`, and the dead letter that was supposed to
+    make a failure findable disappears into a worker log instead.
+
+    That is not a hypothetical. The abstain path clamped to 200 against a column
+    of 128, so **every abstained classification failed to record**, and the only
+    trace was a SQLAlchemy traceback nobody was reading.
+    """
+    label = failure_mode[:FAILURE_MODE_MAX_LENGTH]
+    # The untruncated text, always. If a caller passed no detail then the label
+    # *is* the detail, and repeating it beats a null that means "we had something
+    # to say and dropped it".
+    recorded_detail = detail if detail is not None else failure_mode
+
     await session.execute(
         pg_insert(PipelineDeadLetter)
         .values(
@@ -394,8 +416,8 @@ async def _upsert_dead_letter(
             stage=stage,
             task_name=f"nemesis.pipeline.{stage}",
             attempts=attempts,
-            failure_mode=failure_mode,
-            last_error=failure_mode,
+            failure_mode=label,
+            last_error=recorded_detail,
             correlation_id=correlation_id,
         )
         .on_conflict_do_update(
@@ -407,8 +429,8 @@ async def _upsert_dead_letter(
             index_where=PipelineDeadLetter.resolved_at.is_(None),
             set_={
                 "attempts": attempts,
-                "failure_mode": failure_mode,
-                "last_error": failure_mode,
+                "failure_mode": label,
+                "last_error": recorded_detail,
                 "updated_at": datetime.now(tz=UTC),
             },
         )

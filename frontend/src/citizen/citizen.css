@@ -1,0 +1,564 @@
+/*
+ * §E17 — the citizen product.
+ *
+ * No colour, duration or type size is declared here. Every one arrives as a
+ * custom property generated from src/design/tokens.json, and
+ * scripts/check-guards.ts fails the build on a literal — §E24.
+ *
+ * Three rules this file obeys that the console's would not:
+ *
+ *   · **One thumb.** Every interactive target clears 44 px, and the two that
+ *     matter — the shutter and the pin nudges — clear 60 px, which is §E17.1's
+ *     own number and the one a gloved hand in §E21's outdoor mode needs.
+ *   · **Logical properties only.** No `left`, no `right`, no `margin-left`.
+ *     §E22 asks for RTL-ready primitives; this is what "ready" costs, and it
+ *     costs nothing if it is never violated once.
+ *   · **Severity ink never touches a non-severity element** (§E9.4 rule 1).
+ *     The send button is riso-black on kraft; there is no red anything.
+ */
+
+/* --------------------------------------------------------------------------
+ * The report flow
+ * ------------------------------------------------------------------------ */
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-block-size: 100dvh;
+  padding: 1rem;
+  padding-block-end: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* The viewfinder is full-bleed: §E17.1's "full-bleed camera" is a layout
+   instruction, and a camera inside a padded card is a form with a picture on
+   it. */
+.report[data-phase="capture"] {
+  padding: 0;
+  gap: 0;
+}
+
+.report__title {
+  margin: 0;
+}
+
+.report__send {
+  min-block-size: 3.5rem;
+  border: 1px solid var(--color-role-rule);
+  border-radius: 2px;
+  background: var(--color-riso-black);
+  color: var(--color-paper-50);
+  cursor: pointer;
+}
+
+.report__send:disabled {
+  background: var(--color-kraft-200);
+  color: var(--color-role-text-secondary);
+  cursor: not-allowed;
+}
+
+.report__back,
+.report__track {
+  align-self: start;
+  padding: 0.75rem 0;
+  border: 0;
+  background: none;
+  color: var(--color-role-text-signal);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.report__failure,
+.report__pending,
+.report__failure-note {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+.report__receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* --------------------------------------------------------------------------
+ * Viewfinder — §E17.1 step 1
+ * ------------------------------------------------------------------------ */
+
+.viewfinder {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.viewfinder__frame {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: var(--color-mitti-950);
+}
+
+.viewfinder__video,
+.viewfinder__still {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.viewfinder__fallback-note {
+  position: absolute;
+  inset-block-end: 1rem;
+  inset-inline: 1rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 2px;
+  background: var(--color-paper-50);
+  color: var(--color-role-text-secondary);
+}
+
+.viewfinder__controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  padding-block-end: max(1rem, env(safe-area-inset-bottom));
+  background: var(--color-paper-50);
+}
+
+/*
+ * The shutter. One control, unmistakable, and the largest target on the screen
+ * — §E17.1's "one shutter" is a statement about the count and about the size.
+ */
+.viewfinder__shutter {
+  display: grid;
+  place-items: center;
+  inline-size: 4.5rem;
+  block-size: 4.5rem;
+  padding: 0;
+  border: 3px solid var(--color-riso-black);
+  border-radius: 50%;
+  background: var(--color-paper-50);
+  cursor: pointer;
+}
+
+.viewfinder__shutter:disabled {
+  border-color: var(--color-role-rule);
+  cursor: not-allowed;
+}
+
+.viewfinder__shutter-ring {
+  inline-size: 3.25rem;
+  block-size: 3.25rem;
+  border-radius: 50%;
+  background: var(--color-riso-black);
+  transition: transform var(--duration-snap) var(--ease-out);
+}
+
+.viewfinder__shutter:active .viewfinder__shutter-ring {
+  transform: scale(0.88);
+}
+
+.viewfinder__pick,
+.viewfinder__voice,
+.viewfinder__undo,
+.viewfinder__retake {
+  position: relative;
+  min-block-size: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--color-role-rule);
+  border-radius: 2px;
+  background: var(--color-paper-50);
+  color: var(--color-role-text-primary);
+  cursor: pointer;
+}
+
+.viewfinder__voice[data-recording="true"] {
+  /* Recording is a *state*, and §E3.4 says colour carries one meaning or none.
+     Severity ink is out; the signal ink is what "something of yours is
+     active" already means everywhere else in the product. */
+  border-color: var(--color-role-text-signal);
+  color: var(--color-role-text-signal);
+}
+
+/*
+ * §E17.1's four-second undo, as a countdown rather than a toast.
+ *
+ * A toast that disappears is a promise the person has to catch; a bar that
+ * visibly empties is a promise they can watch expire. The bar is a scaled
+ * pseudo-element rather than an animated width, so it composites on the GPU and
+ * never lays out — this runs on a phone that is also encoding a photograph.
+ */
+.viewfinder__undo-bar {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  block-size: 2px;
+  inline-size: 100%;
+  transform: scaleX(var(--remaining, 1));
+  transform-origin: inline-start;
+  background: var(--color-role-text-signal);
+}
+
+.viewfinder__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  inline-size: 100%;
+  max-inline-size: var(--measure);
+}
+
+.viewfinder__field-input {
+  min-block-size: 3rem;
+  padding: 0.6rem;
+  border: 1px solid var(--color-role-rule);
+  border-radius: 2px;
+  background: var(--color-paper-50);
+  color: var(--color-role-text-primary);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.viewfinder__field-optional,
+.viewfinder__voice-done {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+.viewfinder__send {
+  inline-size: 100%;
+  max-inline-size: var(--measure);
+  min-block-size: 3.5rem;
+  border: 1px solid var(--color-riso-black);
+  border-radius: 2px;
+  background: var(--color-riso-black);
+  color: var(--color-paper-50);
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+ * Place — §E17.1 step 2
+ * ------------------------------------------------------------------------ */
+
+.place-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--color-role-rule);
+  border-radius: 2px;
+  background: var(--color-kraft-100);
+}
+
+.place-card__title {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+.place-card__name,
+.place-card__coordinates,
+.place-card__note,
+.place-card__locating {
+  margin: 0;
+}
+
+.place-card__coordinates,
+.place-card__note,
+.place-card__locating {
+  color: var(--color-role-text-secondary);
+}
+
+.place-card__adjust {
+  align-self: start;
+  min-block-size: 2.75rem;
+  padding: 0.5rem 0;
+  border: 0;
+  background: none;
+  color: var(--color-role-text-signal);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+/*
+ * The nudge pad. §E17.1 asks for "a map and a 60 px draggable pin"; the map is
+ * M8's and the 60 px target is here, because the requirement underneath the
+ * sentence is that nobody standing in traffic is asked to pinch-zoom.
+ */
+.place-card__pad {
+  display: grid;
+  grid-template-areas:
+    ".    north ."
+    "west pin   east"
+    ".    south .";
+  gap: 0.25rem;
+  justify-content: start;
+  margin-block-start: 0.5rem;
+}
+
+.place-card__nudge {
+  inline-size: 3.75rem; /* 60 px — §E17.1's number, and §E22's floor with room */
+  block-size: 3.75rem;
+  border: 1px solid var(--color-role-rule);
+  border-radius: 2px;
+  background: var(--color-paper-50);
+  cursor: pointer;
+}
+
+.place-card__nudge[data-direction="north"] {
+  grid-area: north;
+}
+.place-card__nudge[data-direction="south"] {
+  grid-area: south;
+}
+.place-card__nudge[data-direction="west"] {
+  grid-area: west;
+}
+.place-card__nudge[data-direction="east"] {
+  grid-area: east;
+}
+
+.place-card__nudge::after {
+  content: "";
+  display: block;
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  margin-inline: auto;
+  border-block-start: 2px solid var(--color-riso-black);
+  border-inline-start: 2px solid var(--color-riso-black);
+}
+
+.place-card__nudge[data-direction="north"]::after {
+  transform: rotate(45deg);
+}
+.place-card__nudge[data-direction="south"]::after {
+  transform: rotate(-135deg);
+}
+.place-card__nudge[data-direction="west"]::after {
+  transform: rotate(-45deg);
+}
+.place-card__nudge[data-direction="east"]::after {
+  transform: rotate(135deg);
+}
+
+.place-card__pin {
+  grid-area: pin;
+  inline-size: 3.75rem;
+  block-size: 3.75rem;
+  border: 2px solid var(--color-riso-black);
+  border-radius: 50%;
+  background: var(--color-kraft-200);
+}
+
+/* --------------------------------------------------------------------------
+ * The pipeline theatre — §E17.2
+ * ------------------------------------------------------------------------ */
+
+.theatre {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--color-role-rule);
+  border-radius: 2px;
+  background: var(--color-paper-50);
+}
+
+.theatre__title,
+.theatre__note {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+.theatre__gates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.theatre__gate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-block: 0.35rem;
+  border-block-end: 1px solid var(--color-role-rule);
+}
+
+.theatre__gate:last-child {
+  border-block-end: 0;
+}
+
+.theatre__gate-label {
+  color: var(--color-role-text-secondary);
+}
+
+/*
+ * A gate that has not resolved is *quiet*, not a spinner. §E17.2 is explicit —
+ * "do not show a spinner" — and the reason is that a spinner says nothing while
+ * these rows say what is being checked.
+ *
+ * **Quiet by ink, never by alpha.** §E2 defect #20 is `opacity: 0.8` on the
+ * severity score dropping every level below §E22's floor, and the same trap was
+ * set here: `--color-role-text-secondary` is an overprint measured to sit just
+ * above 4.5:1, so transparency on top of it spends exactly the margin that
+ * measurement bought. An unresolved gate is a sentence a citizen is *meant to
+ * read* — it says what is being checked — so it is set in secondary ink at full
+ * strength, and italic carries the "not yet" instead.
+ */
+.theatre__gate-stamp[data-waiting="true"] {
+  color: var(--color-role-text-secondary);
+  font-style: italic;
+}
+
+/* §24.2's third outcome reads as a decision, not as a failure. The hatch is
+   reserved for ADR-0039's unverified flags, so a degradation is the ordinary
+   rule in secondary ink with a dashed rule — a note in the margin. */
+.theatre__gate[data-state="degraded"] {
+  border-block-end-style: dashed;
+}
+
+/* --------------------------------------------------------------------------
+ * The dedup payoff — §E17.2
+ * ------------------------------------------------------------------------ */
+
+.dedup-payoff {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-inline-start: 3px solid var(--color-riso-black);
+  background: var(--color-kraft-100);
+}
+
+.dedup-payoff__since {
+  color: var(--color-role-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+ * Severity, and why — §E17.4
+ * ------------------------------------------------------------------------ */
+
+.severity-why {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.severity-why__label,
+.severity-why__unscored,
+.severity-why__empty,
+.severity-why__version {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+.severity-why__toggle {
+  min-block-size: 2.75rem;
+  padding: 0.5rem 0;
+  border: 0;
+  background: none;
+  color: var(--color-role-text-signal);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.severity-why__panel {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-role-rule);
+  border-radius: 2px;
+  background: var(--color-kraft-100);
+}
+
+.severity-why__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.severity-why__table caption {
+  margin-block-end: 0.4rem;
+  color: var(--color-role-text-secondary);
+  text-align: start;
+}
+
+.severity-why__table th,
+.severity-why__table td {
+  padding: 0.3rem 0.5rem;
+  border-block-end: 1px solid var(--color-role-rule);
+  text-align: start;
+}
+
+/* The three numeric columns align on the decimal point. §E10.2's first hard
+   rule, and the one place in the citizen product where a column of figures is
+   the argument. */
+.severity-why__table td {
+  font-variant-numeric: var(--numeric);
+  text-align: end;
+}
+
+/* --------------------------------------------------------------------------
+ * Track — §E17.4
+ * ------------------------------------------------------------------------ */
+
+.track {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  padding-block-end: max(1rem, env(safe-area-inset-bottom));
+}
+
+.track__title {
+  margin: 0;
+}
+
+.track__id,
+.track__chain-note,
+.track__loading,
+.track__error {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.track__ledger,
+.track__receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.track__ledger-title {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+ * Shared
+ * ------------------------------------------------------------------------ */
+
+.sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

@@ -21,9 +21,17 @@
           "required": false,
           "type": "null|number"
         },
+        "cluster_first_reported": {
+          "required": false,
+          "type": "null|string"
+        },
         "cluster_id": {
           "required": false,
           "type": "null|string"
+        },
+        "cluster_report_count": {
+          "required": false,
+          "type": "integer|null"
         },
         "complaint_id": {
           "required": true,
@@ -72,6 +80,41 @@
         "work_order_id": {
           "required": false,
           "type": "null|string"
+        }
+      }
+    },
+    "GET /api/v1/complaints/{complaint_id}/events": {
+      "required_params": [
+        "complaint_id"
+      ],
+      "response": {
+        "chain_head": {
+          "required": true,
+          "type": "string"
+        },
+        "chain_head_sequence": {
+          "required": true,
+          "type": "integer"
+        },
+        "complaint_id": {
+          "required": true,
+          "type": "string"
+        },
+        "events": {
+          "required": true,
+          "type": "array<object:ComplaintHistoryEvent>"
+        },
+        "limit": {
+          "required": true,
+          "type": "integer"
+        },
+        "offset": {
+          "required": true,
+          "type": "integer"
+        },
+        "total": {
+          "required": true,
+          "type": "integer"
         }
       }
     },
@@ -920,6 +963,22 @@
         "pending": {
           "required": true,
           "type": "integer"
+        }
+      }
+    },
+    "GET /api/v1/places/resolve": {
+      "required_params": [
+        "latitude",
+        "longitude"
+      ],
+      "response": {
+        "boundaries_configured": {
+          "required": false,
+          "type": "boolean"
+        },
+        "units": {
+          "required": false,
+          "type": "array<object:PlaceUnit>"
         }
       }
     },

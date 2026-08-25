@@ -298,23 +298,42 @@ async def upsert_prompt_set(
         await session.flush()
         return prompt_set
 
-    await session.execute(
-        update(TaxonomyPromptSet)
-        .where(
-            TaxonomyPromptSet.tenant_id == tenant_id,
-            TaxonomyPromptSet.id == existing.id,
+    # **`RETURNING`, so the updated row comes back from the statement that wrote
+    # it.** Two wrong answers were tried first and each failed in its own way.
+    #
+    # `session.expire(existing)` — what shipped — marks the attributes stale and
+    # defers the reload to whoever touches one next. In an async session that
+    # reload is blocking IO outside a greenlet, so the *caller* got
+    # `MissingGreenlet` instead of a row: `put_prompt_set` 500'd on every update,
+    # and nothing noticed because the endpoint only ever inserted until a seeding
+    # script re-ran it.
+    #
+    # `await session.refresh(existing)` fixes that and is refused by the tenancy
+    # guard, correctly: `refresh` selects by primary key alone, with no
+    # `tenant_id` predicate, which is exactly the shape ADR-0014's third layer
+    # exists to catch. The guard was right and the fix was lazy.
+    #
+    # One statement, one round trip, the tenant predicate already in its `WHERE`,
+    # and no window in which the instance is stale.
+    updated = (
+        await session.execute(
+            update(TaxonomyPromptSet)
+            .where(
+                TaxonomyPromptSet.tenant_id == tenant_id,
+                TaxonomyPromptSet.id == existing.id,
+            )
+            .values(
+                prompts=list(spec.prompts),
+                negative_prompts=list(spec.negative_prompts),
+                prompt_set_version=spec.prompt_set_version,
+                is_active=spec.is_active,
+                version=TaxonomyPromptSet.version + 1,
+            )
+            .returning(TaxonomyPromptSet)
         )
-        .values(
-            prompts=list(spec.prompts),
-            negative_prompts=list(spec.negative_prompts),
-            prompt_set_version=spec.prompt_set_version,
-            is_active=spec.is_active,
-            version=TaxonomyPromptSet.version + 1,
-        )
-    )
+    ).scalar_one()
     await session.flush()
-    session.expire(existing)
-    return existing
+    return updated
 
 
 async def prompt_sets_for(
