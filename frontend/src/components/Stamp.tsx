@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { CUES } from "@/sound/cues";
+import { sound } from "@/sound/graph";
 import type { Translated } from "@/lib/i18n/strings";
 import "./components.css";
 
@@ -49,6 +51,12 @@ export function Stamp({
     const frame = requestAnimationFrame(() => {
       setLanded(true);
     });
+    // §E11.1's *"soft thud on the foley bus"*, fired here and nowhere else.
+    // The stamp is the one confirmation primitive, so this is the one place in
+    // the product that makes the sound of a decision — §E3.4, and the
+    // `single-meaning` guard checks it. A no-op while muted, which is every
+    // deployment until somebody says otherwise.
+    sound.play("stamp", CUES.stamp.bus, CUES.stamp.recipe);
     return () => {
       cancelAnimationFrame(frame);
     };

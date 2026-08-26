@@ -73,7 +73,15 @@ export default async function ClayProofPage({
   const stage: SceneStage =
     stageParam === "model" || stageParam === "photograph" ? stageParam : "print";
 
-  const strings = await loadStrings("common", "en");
+  // **Two namespaces, and the second one is a bug fix.** The peer list beside
+  // the canvas renders `<Figure>` for each pin's report count, and `<Figure>`
+  // reads `figure.count` — which lives in `public`, because it is the same
+  // sentence the public pages print. Loading `common` alone rendered
+  // `⟦FIGURE.COUNT⟧` on all five thousand rows: the designed missing-key
+  // fallback doing its job on a route nobody had read the text of.
+  // `/developers/proof/story` and the landing already pass both; this route was
+  // the odd one out.
+  const strings = await loadStrings(["common", "public"], "en");
 
   return (
     // `data-ground` is load-bearing, not decoration: the semantic role tokens

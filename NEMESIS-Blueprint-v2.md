@@ -343,7 +343,7 @@ NEMESIS is an **event-driven system**, not a CRUD app. A complaint is a sequence
 | Cut | Reason | Status |
 |---|---|---|
 | Native mobile app | Laptop-only demo constraint; browser client covers all needs | ROADMAP |
-| PWA offline queue / service workers | Solves a field-connectivity problem out of scope for judging | ROADMAP |
+| PWA offline queue / service workers | Solves a field-connectivity problem out of scope for judging — **reversed at M11/F17, and §44 records why**: right for a demo, wrong for a pilot, and the server-side idempotency that makes it safe had already shipped | **Built** — §E21, ADR-0056 |
 | Separate vector database (Qdrant/Pinecone/Weaviate) | pgvector on existing Postgres performs comparably at this scale, avoids a second service to sync | Cut permanently unless scale demands it |
 | Keycloak | Multi-hour integration project on its own; lighter JWT + app-level RBAC ships faster without losing the demo-visible guarantee | ROADMAP |
 | SMS/IVR gateway (Twilio/Exotel) | Real cost and integration overhead | ROADMAP |
@@ -967,7 +967,7 @@ Any photo potentially containing minors is subject to the same face-blur pipelin
 Complaint volume correlates with smartphone access and civic engagement, not with actual infrastructure damage. Wealthier, more digitally engaged wards will generate disproportionate report volume; poorer or less-connected wards with objectively worse infrastructure may show as "no complaints = no problem," which is exactly backwards — and left unaddressed, the system would quietly reinforce existing inequality while appearing purely data-driven.
 
 ### 23.2 Mitigation — underreporting-zone flag
-Pull OSM `highway`/road-surface tags as a rough proxy for infrastructure age/quality per ward, overlay against complaint-density heatmap. Wards with high inferred infrastructure risk but low complaint density are flagged as "possible underreporting zone" — a dashboard toggle, cheap to build, and arguably the single most senior-level design decision in the whole system, since it preempts a bias critique before a judge or reviewer raises it. **Status: REAL**, a few hours of GIS work.
+Pull OSM `highway`/road-surface tags as a rough proxy for infrastructure age/quality per ward, overlay against complaint-density heatmap. Wards with high inferred infrastructure risk but low complaint density are flagged as "possible underreporting zone" — a dashboard toggle, cheap to build, and arguably the single most senior-level design decision in the whole system, since it preempts a bias critique before a judge or reviewer raises it. **Status: ROADMAP** — corrected at F18/M12.5, having read **REAL** since v2.0. The design argument above stands unchanged and none of it is implemented: no OSM ingestion, no density overlay, no flag on any endpoint. The console's area view renders the signal as a named fixture behind the §E24 chip, which is the honest way to draw a screen for work that has not happened — and is exactly why the status label mattered, since a reader trusting §44 would have taken the screenshot for the system. A few hours of GIS work is a cost estimate, not a state.
 
 ### 23.3 Political sensitivity framing
 A dashboard showing "Ward 12 has 40 unresolved potholes for 60 days" is implicitly a performance report on whoever is accountable for that ward — this affects adoption willingness, especially in government contexts. Default public framing leads with positive, incentive-aligned metrics (response rate, average resolution time) rather than an unresolved-count "shame board," with the raw unresolved-age metric available as a secondary drill-down rather than the headline view.
@@ -1096,7 +1096,7 @@ Example — cluster_match_found (drives the cluster-merge visualization):
 }
 ```
 
-### 26.4 Public transparency API (ROADMAP, schema described)
+### 26.4 Public transparency API (**REAL** — shipped at M6; this heading read ROADMAP until F18)
 
 ```
 GET /api/v1/public/ward/{ward_id}/summary
@@ -1415,7 +1415,7 @@ This index maps every gap identified through iterative review — both the origi
 | 35 | Lump-sum payment enables fraud | Milestone-based fund release (simulated financial model, real data structure) | 15.5, 17.3 |
 | 36 | Data tamper risk on financial/audit records | SHA-256 hash-chained event log (write path real, verification roadmap) | 9.3, 17.4 |
 | 37 | No fund-source/scheme-level tracing | `funding_source` tagging on work orders | 17.6 |
-| 38 | No public accountability API | Schema described (roadmap for implementation) | 16.3, 26.4 |
+| 38 | No public accountability API | **Shipped at M6** — the described surface answers over HTTP, opt-in per tenant and k-anonymous (ADR-0021, ADR-0046). Read *schema described* as the v2.0 position; the row is kept rather than deleted because the plan and the delivery are two different facts | 16.3, 26.4 |
 | 39 | Repeat-defect pattern not tracked per contractor | Contractor-specific repeat-defect clustering, reusing dedup engine | 17.5 |
 | 40 | Seasonal unfairness in performance scoring | Weather-context-normalized SLA scoring | 16.4 |
 | 41 | One-sided accountability invites resistance | Contractor dispute/appeal workflow (roadmap for demo, core for pilot) | 16.4 |
@@ -1695,11 +1695,12 @@ This is the single source of truth for every status claim made throughout this d
 | Seasonal/context SLA normalization | ROADMAP (designed, not implemented) | 16.4, 13.4 | Concept documented, implementation deferred |
 | Cross-ward internal comparison view | ROADMAP | 16.4 | Deferred, not needed for demo narrative |
 | RTI-draft auto-fill button | SIMULATED (template auto-fill only) | 16.1 | No real filing integration |
-| Public read-only transparency API | ROADMAP (schema described) | 16.3, 26.4 | No live-demo audience for this endpoint |
-| Underreporting-zone equity flag | REAL | 23.2 | High strategic value, cheap GIS overlay |
+| Public read-only transparency API | **REAL** — M6, ADR-0021, ADR-0046 | 16.3, 26.4 | **This row was ROADMAP and the work had already shipped**, which is the direction nobody audits for and the reason §E27 and §44 are now executed rather than read (F18/M12.1). All three endpoints §26.4 described answer today, tenant-scoped: `/{tenant}/zones`, `/ward/{code}/summary`, `/contractor/{id}/profile`, `/budget/{code}`. Read-only, unauthenticated, rate-limited, k-anonymous with suppression rendered rather than blanked, and publication is an act somebody takes with a justification on the chain rather than a flag a template sets |
+| Underreporting-zone equity flag | **ROADMAP** — was REAL | 23.2 | **Corrected at F18/M12.5, and this is the finding that gate exists to catch: a REAL row whose only rendering is a fixture.** Nothing ingests OSM road tags, nothing computes complaint density against them, and no endpoint serves a flag. The signal appears exactly once in this product — in `console/roadmap/AreaView.tsx`, behind the §E24 chip and a `<ContractGap>` naming what is missing — which is the screen behaving correctly and the status label being wrong. §E28 has said *component REAL, data ROADMAP · Phase 12 · Phase 23* since M7; this row had not been reconciled to it. *A few hours of GIS work* may still be true and is not the same claim as *built* |
 | Resolution-streak retention mechanic | ROADMAP | 21.3 | Cheap but non-critical, post-pilot |
 | SMS/IVR notification fallback | ROADMAP | 21.1 | Real cost, deferred pending pilot usage data |
-| Native mobile app / PWA offline queue | ROADMAP | 8.7 | Out of scope for laptop-only demo |
+| Native mobile app | ROADMAP | 8.7 | Laptop-only demo constraint; the browser client covers every need, and the PWA below is what a phone installs |
+| PWA offline queue / service workers | **REAL** — M11/F17 | 8.7, §E21 | **This row was ROADMAP and is now built**, and the change of mind is recorded rather than the row quietly rewritten. §8.7 cut it as *"a field-connectivity problem out of scope for judging"*, which was right for a demo and wrong for a pilot: the people expected to upload closure evidence have the worst connectivity in the system. `/field` installs, captures with the network switched off, survives a restart and files exactly once on reconnect — made safe by the server-side idempotency §26.1 already shipped (ADR-0056) |
 | Security threat model | REAL (documented) | 25 | Analysis complete; some listed mitigations are themselves roadmap items, clearly marked |
 | API contract documentation | REAL (documented) | 26 | Sketch of actual implemented surface |
 | SLA definitions + operational runbook | REAL (documented) | 27 | Defines targets; achievement of every target tracked post-pilot |

@@ -1,0 +1,554 @@
+/*
+ * The two front doors — §E14.4, §E22.
+ *
+ * No colour, size or duration is declared here. Every one arrives as a custom
+ * property generated from src/design/tokens.json, and scripts/check-guards.ts
+ * fails the build on a literal — which is why this file names roles
+ * (`--color-role-ground`) rather than inks: the same rules render on paper for
+ * a resident and on the light table for an officer, and the ground is chosen by
+ * the surface attribute rather than by a second stylesheet.
+ *
+ * Three decisions worth the reader's time:
+ *
+ *   · **The grid is `auto-fit` over a `minmax` floor, not a breakpoint.** A door
+ *     with four destinations and a door with fourteen are the same component;
+ *     hand-written breakpoints would mean the staff door reflowing correctly and
+ *     the citizen door — the one with fewer cards and more first-time visitors —
+ *     being the one nobody re-checked.
+ *   · **Logical properties throughout** (§E22): `padding-inline`,
+ *     `border-inline-start`. The whole page mirrors under `dir="rtl"` with no
+ *     second rule, which is the only way an RTL layout stays correct after the
+ *     next edit.
+ *   · **The card's hover and focus states are the same weight.** A pointer
+ *     affordance a keyboard does not get is the §E22 failure that never appears
+ *     in a screenshot, so both drive the same rule.
+ */
+
+/*
+ * **The page had one tonal value and it was the whole problem.**
+ *
+ * Every rule in this file was correct and the result still read as plain: one
+ * flat field of paper-50 from the first pixel to the last, every element a
+ * hairline on it, and the artwork shrunk into a corner like a stock photo
+ * somebody was embarrassed by. Typography at the right sizes is not a designed
+ * page. A designed page has *rhythm* — bands of different ground, a picture
+ * that carries weight, and one enormous thing at the top.
+ *
+ * So the shell stops owning the horizontal padding. The gutter becomes a
+ * variable each block spends for itself, which is what lets the masthead run
+ * its ground edge to edge while the index below it stays on the measure.
+ */
+.portal {
+  --portal-gutter: clamp(1rem, 5vw, 4rem);
+
+  background: var(--color-role-ground);
+  color: var(--color-role-text-primary);
+  min-block-size: 100dvh;
+  padding-block-end: clamp(1.5rem, 4vw, 3.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+/* The skip link is off-screen until focused, never `display: none` — a hidden
+   element is not in the tab order, which turns the accessibility affordance
+   into decoration. */
+.portal__skip {
+  position: absolute;
+  inset-inline-start: -100vw;
+  inset-block-start: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-role-ground);
+  color: var(--color-role-text-primary);
+  z-index: 2;
+}
+
+.portal__skip:focus-visible {
+  inset-inline-start: 0;
+}
+
+/*
+ * The masthead — §E5, §E6.
+ *
+ * A band, not a header. It carries its own ground (kraft, the citizen run's own
+ * stock) edge to edge, so the top of the page is a different material from the
+ * document below it — which is the oldest trick in editorial layout and the one
+ * thing this page had none of.
+ *
+ * The plate sits in the end column at the band's full height and is allowed to
+ * bleed off the trailing edge. A print that stops politely inside a margin is a
+ * thumbnail; a print that runs off the sheet is artwork.
+ */
+.portal__masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
+  align-items: stretch;
+  gap: clamp(1rem, 4vw, 3rem);
+  background: var(--color-kraft-100);
+  border-block-end: 2px solid var(--color-role-text-primary);
+  padding-inline-start: var(--portal-gutter);
+  /* No end padding: the plate is what finishes that edge. */
+  padding-inline-end: 0;
+}
+
+.portal__masthead-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-inline-size: 0;
+  /* Optically centred in the band, with more air above than below — a
+     standfirst that sits on the rule reads as a caption to it. */
+  padding-block: clamp(2rem, 6vw, 4.5rem) clamp(1.75rem, 5vw, 4rem);
+  justify-content: center;
+}
+
+/*
+ * The utility row — the lockup and the way back out, on one line.
+ *
+ * Above the title rather than beside it: a masthead's first line is where a
+ * reader looks to find out *where they are and how to leave*, and both answers
+ * belong there together. It wraps rather than truncating, because the Marathi
+ * label is longer than the English one and a door that clipped its own exit on
+ * the locale half its readers use would be the §E10.1 failure in miniature.
+ */
+.portal__utility {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-block-end: 0.75rem;
+}
+
+.portal__lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: inherit;
+  /* WCAG 2.2 AA 2.5.8 — 24 px minimum, met with the box rather than the type. */
+  min-block-size: 24px;
+}
+
+/*
+ * The mark, sized by its block edge.
+ *
+ * `inline-size: auto` against a fixed height, so the monogram keeps its own
+ * proportion whatever it is: the intrinsic `width`/`height` attributes are on
+ * the element to reserve the box before the bitmap arrives, and this is what
+ * decides how big it actually prints.
+ */
+.portal__lockup-mark {
+  block-size: 1.6rem;
+  inline-size: auto;
+  display: block;
+}
+
+.portal__wordmark {
+  color: var(--color-role-text-primary);
+  /* Wider than the type scale's own tracking, to echo the lockup's lettering.
+     The supplied wordmark is set very open; live type cannot borrow its
+     reversed E, but it can borrow its rhythm. */
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.portal__lockup:hover .portal__wordmark,
+.portal__lockup:focus-visible .portal__wordmark {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.3em;
+}
+
+/*
+ * The back link, and its arrow is a border rather than a glyph.
+ *
+ * A `←` in `content` would need flipping per script and would sit on the
+ * font's own baseline, which puts it a hair below the cap height of the label
+ * beside it. Two borders on a rotated square is the same mark, aligned by the
+ * box, and it mirrors for free under `dir="rtl"` because the rotation is
+ * applied to a logical inline edge.
+ */
+.portal__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-role-text-secondary);
+  text-decoration: none;
+  min-block-size: 24px;
+}
+
+.portal__back-mark {
+  inline-size: 0.45rem;
+  block-size: 0.45rem;
+  border-inline-start: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.portal__back:hover,
+.portal__back:focus-visible {
+  color: var(--color-role-text-signal);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+.portal__title {
+  margin: 0;
+  /* The title is the largest thing on the page and it should stop before the
+     column does; a display face running the full width of a desktop viewport
+     is a headline, and this is a cover. */
+  max-inline-size: 14ch;
+}
+
+.portal__standfirst {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+  max-inline-size: 46ch;
+}
+
+/*
+ * The plate — see `PortalPlate.tsx` for what it is and why it is drawn rather
+ * than photographed.
+ *
+ * `slice`, not `meet`: the drawing fills the band and is cropped by it, the way
+ * a picture is cropped to a column in a newspaper. A hairline on the start edge
+ * only, because the other three edges are the sheet.
+ */
+.portal__plate {
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 15rem;
+  display: block;
+  border-inline-start: 1px solid var(--color-role-rule);
+}
+
+/*
+ * Below the fold of a narrow screen the plate goes, and it goes completely.
+ *
+ * Not shrunk and not cropped. A resident opening this door on a handset in the
+ * street wants the four things they can do, and a decorative print pushing the
+ * first of them under the fold is the §E3.5 failure — the show outranking the
+ * tool — on the surface where it costs the most.
+ */
+@media (max-width: 48rem) {
+  .portal__masthead {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: var(--portal-gutter);
+  }
+
+  .portal__plate {
+    display: none;
+  }
+}
+
+.portal__main {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2rem, 4vw, 3.25rem);
+  padding-inline: var(--portal-gutter);
+}
+
+.portal__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/*
+ * The section head, and the rule that finishes the line.
+ *
+ * A label alone at the top of a group is a caption floating in space. A label
+ * followed by a rule to the end of the measure is a *section*, which is the
+ * oldest device in the book and the cheapest legibility this page can buy.
+ */
+.portal__group-title {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.portal__group-title::after {
+  content: "";
+  block-size: 1px;
+  background: var(--color-role-rule);
+}
+
+/*
+ * **One column, and the multi-column grid it replaces was the worst thing on
+ * the page.**
+ *
+ * `auto-fit` over a 22rem floor gave a wide screen three tracks, and the staff
+ * door's six sections hold one, four, one, two, four and one destination. So
+ * `COMMAND` printed a single row whose rule stopped at a third of the measure,
+ * `MONEY` did the same, and the sections that wrapped left a ragged hole down
+ * the end of the page. Every one of those short rules reads as a mistake,
+ * because a rule that stops before the margin is what an unfinished layout
+ * looks like.
+ *
+ * A table of contents is a column. It is a column in every book ever set,
+ * because the eye reads a list down and the rules that separate its entries
+ * have to reach the same margin the section head reached. Thirteen entries is a
+ * short page, not a long one, and a door is a surface people scroll.
+ */
+.portal__cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * **The rules stopped at 68ch, and the cause was a good rule doing its job.**
+ *
+ * `globals.css` caps §E10.2's prose measure on `:where(p, li, blockquote, dd,
+ * figcaption)` — the right default, because a line of prose longer than 68
+ * characters is hard to read and nobody should have to remember to say so. But
+ * an index entry is not prose: it is a *row*, and its rule has to reach the
+ * same margin the section head above it reached. Capped, every rule on the page
+ * stopped two thirds of the way across and read as an unfinished layout.
+ *
+ * The opt-out is here rather than in the global rule, and it is one line,
+ * because the default is correct and this is the exception. The measure has not
+ * gone anywhere — it moved to `.portal__card-hint`, which is the part of the
+ * row that is actually a sentence.
+ */
+.portal__cards > li {
+  max-inline-size: none;
+}
+
+/*
+ * A destination is a line in an index, not a button.
+ *
+ * **What was here was a 1px box on all four sides, and thirteen of them is a
+ * form.** The click target is unchanged — the whole row is still the `<a>`,
+ * which is the §E22 decision the old comment was right to record — but a
+ * bordered rectangle says *control* and these are contents. A numeral, a rule
+ * above, and air is what a table of contents looks like.
+ *
+ * Three columns: the numeral, the entry, and the mark that closes the line. The
+ * third exists because a full-measure rule over a short label leaves the end of
+ * the line unanswered — which is the job leader dots do in a printed contents,
+ * and this is the same job done with one glyph.
+ */
+.portal__card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0 1.5rem;
+  align-items: start;
+  padding-block: 1rem;
+  color: inherit;
+  text-decoration: none;
+  border-block-start: 1px solid var(--color-role-rule);
+  /* The start edge carries the hover, and it is transparent rather than absent
+     so the row does not shift by 2px when a pointer crosses it. */
+  border-inline-start: 2px solid transparent;
+  padding-inline: 0.75rem 0.5rem;
+}
+
+/*
+ * The mark that closes the line.
+ *
+ * Written as a custom property rather than as `content: "→"` so it flips with
+ * the script (§E22, A11): an arrow pointing at the margin in Latin points away
+ * from it in an RTL layout, and a direction that is wrong is worse than no
+ * direction at all.
+ */
+.portal__card {
+  --portal-mark: "\2192";
+}
+
+[dir="rtl"] .portal__card {
+  --portal-mark: "\2190";
+}
+
+.portal__card::after {
+  content: var(--portal-mark);
+  color: var(--color-role-rule);
+  align-self: center;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.portal__card:hover::after,
+.portal__card:focus-visible::after {
+  color: var(--color-role-text-signal);
+}
+
+/*
+ * The numeral, at a size that makes the column a spine.
+ *
+ * It was 11px mono at secondary ink — technically a numeral and visually a
+ * timestamp. A contents list gets its architecture from the figures down its
+ * start edge, and that only works if they are *big*: at this size the column of
+ * 01…13 is the second thing the eye finds after the title, and it is what stops
+ * a page of rules from reading as a spreadsheet.
+ *
+ * `tabular-nums` via the token, so 01 and 11 sit on the same stem — a ragged
+ * numeral column would undo the whole point of having one.
+ */
+.portal__card-index {
+  color: var(--color-role-rule);
+  font-family: var(--font-data);
+  font-size: 1.75rem;
+  line-height: 1;
+  font-variant-numeric: var(--numeric);
+  /* Optically aligned with the label's cap height rather than its line box. */
+  padding-block-start: 0.1em;
+  min-inline-size: 2.5ch;
+}
+
+.portal__card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-inline-size: 0;
+}
+
+/*
+ * **Selection is a rule and a weight, never a fill.**
+ *
+ * That sentence is `clay.css`'s, about the peer list, and the argument carries
+ * unchanged: a filled row needs a colour, and the only colours in this product
+ * that mean anything are severity glazes (§E9.4 rule 1). A destination is not
+ * a severity. So the hover is the start rule arriving, the numeral taking
+ * signal ink, and the label underlining — three weights, no new colour, and the
+ * same rule for a pointer and a keyboard.
+ */
+.portal__card:hover,
+.portal__card:focus-visible {
+  border-inline-start-color: var(--color-role-text-signal);
+}
+
+.portal__card:hover .portal__card-index,
+.portal__card:focus-visible .portal__card-index {
+  color: var(--color-role-text-signal);
+}
+
+.portal__card:hover .portal__card-label,
+.portal__card:focus-visible .portal__card-label {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+/* A focus ring as well as the hover treatment, because a hover state borrowed
+   for focus is a hover state — it says "the pointer is here", and a keyboard
+   user needs "the focus is here" at the contrast a ring carries. */
+.portal__card:focus-visible {
+  outline: 2px solid var(--color-role-text-signal);
+  outline-offset: 2px;
+}
+
+.portal__card-label {
+  display: block;
+}
+
+.portal__card-hint {
+  display: block;
+  color: var(--color-role-text-secondary);
+  /* The hint is a sentence and wants a measure; the row is now full width, so
+     without this it would run the whole page and stop being readable at the
+     exact moment the layout got roomier. */
+  max-inline-size: var(--measure);
+}
+
+.portal__card-chip {
+  display: block;
+  margin-block-start: 0.25rem;
+}
+
+.portal__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-inline: var(--portal-gutter);
+  /* The closing rule matches the masthead's weight. A document that opens on a
+     heavy rule and trails off on a hairline is a document that ran out. */
+  border-block-start: 2px solid var(--color-role-text-primary);
+  padding-block-start: 1rem;
+  margin-block-start: auto;
+}
+
+.portal__aside {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+.portal__aside a {
+  color: var(--color-role-text-primary);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  /* WCAG 2.2 AA 2.5.8 — 24 px minimum. */
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
+}
+
+.portal__aside-hint {
+  color: var(--color-role-text-secondary);
+}
+
+/*
+ * The receipt field — §E17.4, ADR-0043.
+ *
+ * A form and not a link, because a complaint's id is a capability rather than a
+ * name: the door cannot list what it must not know. It submits without
+ * JavaScript (a server action, posted), so Tier D reaches the ledger too.
+ */
+/*
+ * The receipt field is the one thing on this page that is *not* a destination,
+ * and it should not look like one.
+ *
+ * It keeps a ground of its own — kraft, the citizen run's own stock (§E9.2) -
+ * so it reads as a stub pasted onto the sheet rather than as the index's fifth
+ * line. That is the whole distinction §E17.4 needs a reader to make:
+ * everything above is somewhere to go, and this is something to do.
+ */
+.portal__track {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--color-kraft-100);
+  border-block-start: 2px solid var(--color-role-text-primary);
+  /* Bleeds into the gutter on both sides, so the band reads as a second ground
+     laid across the page rather than a wide box sitting on it. */
+  margin-inline: calc(var(--portal-gutter) * -1);
+  padding: 1.5rem var(--portal-gutter);
+}
+
+.portal__track-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.portal__track-input {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-role-ground);
+  color: var(--color-role-text-primary);
+  border: 1px solid var(--color-role-rule);
+  font-family: var(--font-data);
+  font-size: var(--text-body);
+}
+
+.portal__track-submit {
+  padding: 0.5rem 1rem;
+  background: var(--color-role-ground);
+  color: var(--color-role-text-primary);
+  border: 1px solid var(--color-role-text-primary);
+  cursor: pointer;
+}
+
+.portal__track-error {
+  margin: 0;
+  color: var(--color-role-text-signal);
+}

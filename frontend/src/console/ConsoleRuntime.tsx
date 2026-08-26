@@ -7,6 +7,7 @@ import { DegradedBanner } from "@/components/DegradedBanner";
 import { t, type Strings } from "@/lib/i18n/strings";
 import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
 import { realtimeStore } from "@/lib/realtime/store";
+import { SoundProvider } from "@/sound/SoundControl";
 
 /**
  * The console's one client boundary — §E19, §E13, §E14.3.
@@ -40,6 +41,7 @@ export function ConsoleRuntime({
 }) {
   return (
     <RealtimeProvider>
+      <SoundProvider />
       <StringsContext.Provider value={strings}>
         <TransportBanner strings={strings} />
         {children}

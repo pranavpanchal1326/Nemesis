@@ -129,7 +129,7 @@ export function TheMerge({ strings }: { readonly strings: Strings }) {
                 <li key={index} className="merge__ring" />
               ))}
             </ul>
-            <p className="type-micro">{t(strings, "story.merge.rings")}</p>
+            <p className="type-caption">{t(strings, "story.merge.rings")}</p>
 
             <p className="merge__live type-body">{t(strings, "story.merge.live")}</p>
             {/*

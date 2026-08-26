@@ -28,6 +28,14 @@ export default defineConfig(
     "tests/fixtures/lint/**", // deliberately-failing fixtures, linted in isolation
     "tests/fixtures/types/**", // deliberately-failing compiles, asserted by tests/types.test.ts
     "storybook-static/**", // a build output, like .next
+    // Playwright's own output: the HTML report and, on a failure, a trace whose
+    // `resources/` directory holds every script the page loaded — including
+    // third-party ones. They are gitignored, but ESLint's flat config does not
+    // read .gitignore, so `npm run lint` linted them and failed on files it had
+    // no tsconfig for. Only visible when a run has left artifacts behind, which
+    // is why it survived until F17.
+    "test-results/**",
+    "playwright-report/**",
   ]),
 
   js.configs.recommended,
@@ -84,6 +92,28 @@ export default defineConfig(
       // §E22 — WCAG 2.2 AA is a floor. A disabled a11y rule needs a written
       // reason at its call site, never a blanket-off here.
       "jsx-a11y/no-autofocus": "warn",
+    },
+  },
+
+  {
+    /**
+     * The service worker (§E21, F17).
+     *
+     * Plain JavaScript in `public/`, so it is served verbatim rather than
+     * bundled — a worker that went through the bundler would be fingerprinted,
+     * and a fingerprinted worker cannot be registered at a stable path. It is
+     * linted rather than ignored, because it is the one file in this repository
+     * that can serve a stale application to a field team.
+     *
+     * Type-aware rules are off for it: it is outside `tsconfig`'s `include`
+     * (correctly — it must not be compiled), and the service-worker globals are
+     * not in the DOM lib.
+     */
+    files: ["public/sw.js"],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      globals: { ...globals.serviceworker },
+      parserOptions: { project: false, projectService: false },
     },
   },
 

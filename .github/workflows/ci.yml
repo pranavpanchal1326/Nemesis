@@ -254,6 +254,15 @@ jobs:
       - name: Plan coverage (F1)
         run: python scripts/check_phase_coverage.py
 
+      # F18 / M12.2. §E27 of NEMESIS-Frontend-Blueprint.md says of itself that a
+      # visual element not on its table and not classifiable as chrome is a
+      # defect — which is a rule only if something executes the table. This
+      # reads it in both directions: every row against the event catalog, and
+      # every registered event type against frontend/src/. Reading it is how the
+      # two events with no surface at all (register row A18) were found.
+      - name: Surface traceability (§E27)
+        run: python scripts/check_surface_traceability.py
+
       # ADR-0051. docs/HARDWARE.md's budget table was missing two services, so
       # the documented total sat 384 MB below the declared one and the stack
       # over-subscribed the WSL2 VM with the obs profile up. The symptom was

@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { notTranslatable, t, type Strings } from "@/lib/i18n/strings";
-import { HonestyTable } from "@/public/HonestyTable";
+import { PortalPlate } from "@/portal/PortalPlate";
+import { HONESTY_COUNTS, HONESTY_STATUSES } from "@/public/generated/honesty";
 
 import type { StoryZone } from "./close";
 
@@ -63,13 +64,35 @@ export function TheReceipts({
       data-real="true"
       aria-labelledby="act-receipts"
     >
-      <h2 id="act-receipts" className="type-display-2">
-        {t(strings, "story.receipts.heading")}
-      </h2>
-      <p className="receipts__note type-body">{t(strings, "story.receipts.note")}</p>
+      {/*
+        The masthead. Act 9 is the document the film hands the reader, and it
+        opened as a heading with a sentence under it on an undifferentiated
+        sheet — correct type at every size and no composition at any of them.
+        The same three-rule device the front doors use, because this is the same
+        product and a reader arriving here from `/citizen` should not have to be
+        told so.
+      */}
+      <header className="receipts__masthead">
+        <div className="receipts__masthead-copy">
+          <h2 id="act-receipts" className="type-display-2">
+            {t(strings, "story.receipts.heading")}
+          </h2>
+          <p className="receipts__note type-body">{t(strings, "story.receipts.note")}</p>
+        </div>
 
-      <div>
-        <h3 className="type-heading">{t(strings, "story.receipts.api")}</h3>
+        {/*
+          The plan, and it is the same drawing the staff door carries. Deliberate
+          reuse rather than a second illustration: Act 9's subject is *every
+          place this city publishes*, which is a survey, and the film has just
+          spent nine acts at street level. One picture at two altitudes across
+          the product is a design system; two unrelated drawings of a city is
+          two people's work stapled together.
+        */}
+        <PortalPlate subject="plan" />
+      </header>
+
+      <div className="receipts__block">
+        <h3 className="receipts__head type-heading">{t(strings, "story.receipts.api")}</h3>
         {/* The endpoint that backs every figure above it — unauthenticated,
             k-anonymous and versioned (§26.4). Printed as the command rather
             than described, because a `curl` somebody can paste is the only
@@ -77,24 +100,62 @@ export function TheReceipts({
         <pre className="type-mono-data">{notTranslatable(curl)}</pre>
       </div>
 
-      {/* `data-story-honesty` is the marker `tests/story.spec.ts` asserts on,
-          and the storyboard carries it too — §E16.2's promise is about the
-          marketing *surface*, not about one of its tiers. */}
-      <div data-story-honesty="true">
-        <h3 className="type-heading">{t(strings, "story.receipts.honesty")}</h3>
-        <HonestyTable strings={strings} />
+      {/*
+        `data-story-honesty` is the marker `tests/story.spec.ts` asserts on, and
+        the storyboard carries it too — §E16.2's promise is about the marketing
+        *surface*, not about one of its tiers.
+
+        **The whole table used to be printed here, and it should not have
+        been.** Eighty-one rows is six and a half thousand pixels: the landing
+        spent more height on the honesty table than on the film, and a reader
+        scrolling for the receipts arrived at a wall of rows rather than at the
+        claim they came for. The table has a canonical home — `/{tenant}/honesty`
+        is indexable, deep-linkable and published (ADR-0046) — and this act's job
+        is to say *the record exists, here is its shape, here is the door*.
+
+        **The counts are published, not summarised away.** Every number below is
+        `HONESTY_COUNTS`, generated from §44 and §E28 by the same pipeline that
+        builds the full table, so this cannot drift into a flattering rounding of
+        it — and the statuses are named in full, so a reader sees the vocabulary
+        that includes CUT and ROADMAP before they follow the link.
+      */}
+      <div data-story-honesty="true" className="receipts__honesty">
+        <h3 className="receipts__head type-heading">{t(strings, "story.receipts.honesty")}</h3>
+        <p className="type-body">
+          {t(strings, "story.receipts.honestyCount", {
+            claims: HONESTY_COUNTS.system + HONESTY_COUNTS.surface,
+            real: HONESTY_COUNTS.systemReal + HONESTY_COUNTS.surfaceFinished,
+          })}
+        </p>
+        <p className="receipts__statuses type-micro">
+          {notTranslatable(HONESTY_STATUSES.join(" · "))}
+        </p>
+        <p className="type-body">
+          <Link href={`/${citySlug}/honesty`}>{t(strings, "story.receipts.honestyLink")}</Link>
+        </p>
       </div>
 
       {zones.length === 0 ? null : (
-        <ul>
-          {zones.map((zone) => (
-            <li key={zone.code}>
-              <Link href={`/${citySlug}/ward/${zone.code}`} className="type-body">
-                {notTranslatable(zone.name)}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="receipts__places">
+          <h3 className="receipts__head type-heading">{t(strings, "story.receipts.places")}</h3>
+          <p className="type-caption">{t(strings, "story.receipts.placesNote")}</p>
+          {/* Every published place, as the cards §E18's own index uses rather
+              than as a bare column of names. The list is the last thing on the
+              landing and it was thirteen unstyled list items — the shape of a
+              debug dump on the page that is supposed to be the proof. */}
+          <ul className="receipts__place-list">
+            {zones.map((zone) => (
+              <li key={zone.code}>
+                <Link className="receipts__place" href={`/${citySlug}/ward/${zone.code}`}>
+                  <span className="receipts__place-code type-micro">
+                    {notTranslatable(zone.code)}
+                  </span>
+                  <span className="type-body">{notTranslatable(zone.name)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );

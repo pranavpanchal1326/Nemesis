@@ -175,6 +175,23 @@ export const ROLE = {
     "flag-hatch": { value: "#FF48B0", min: 4.5, derivation: "ink.riso-flu-pink" },
     "flag-text": { value: "#E4DCCE", min: 4.5, derivation: "paper.bone-200" },
   },
+  outdoor: {
+    ground: { value: "#FBF8F3", min: 4.5, derivation: "paper.chalk" },
+    "text-primary": { value: "#16130F", min: 7, derivation: "ink.riso-black" },
+    "text-secondary": {
+      value: "#4B3526",
+      min: 7,
+      derivation: "paper.mitti-500 × paper.mitti-500 (overprint, §E6.3)",
+    },
+    "text-signal": {
+      value: "#043855",
+      min: 7,
+      derivation: "ink.riso-aqua × ink.riso-fed-blue (overprint, §E6.3)",
+    },
+    rule: { value: "#8A7462", min: 3, derivation: "paper.mitti-500" },
+    "flag-hatch": { value: "#FF48B0", min: 1.4, derivation: "ink.riso-flu-pink" },
+    "flag-text": { value: "#16130F", min: 7, derivation: "ink.riso-black" },
+  },
 } as const;
 export type Ground = keyof typeof ROLE;
 export type RoleName = keyof (typeof ROLE)["light"];
@@ -183,6 +200,7 @@ export type RoleName = keyof (typeof ROLE)["light"];
 export const ROLE_GROUNDS = {
   light: ["paper-50", "kraft-100", "kraft-200", "chalk"],
   dark: ["mitti-950"],
+  outdoor: ["chalk"],
 } as const;
 
 /**
@@ -204,30 +222,49 @@ export const SEVERITY_ROLE = {
  * differ on exactly one surface — §E9.3's light table, where the ground is
  * the room and the print on it is backlit — and `sheet` is filled in here
  * so no consumer has to remember which case it is in.
+ *
+ * `gradeGamma` is the run's exposure (ADR-0061), applied to the photograph
+ * about the sheet's white point before the plates are solved. Filled in at
+ * 1.0 — the identity — wherever the source does not state one, so a reader
+ * of this file can see that only one run is graded and every other is not.
  */
 export const INK_SET = {
   story: {
     stock: "paper-50",
     sheet: "paper-50",
     inks: ["riso-brown", "riso-sunflower", "riso-aqua"],
+    gradeGamma: 0.72,
   },
-  public: { stock: "paper-50", sheet: "paper-50", inks: ["riso-black", "riso-aqua", "severity"] },
+  public: {
+    stock: "paper-50",
+    sheet: "paper-50",
+    inks: ["riso-black", "riso-aqua", "severity"],
+    gradeGamma: 1,
+  },
   citizen: {
     stock: "kraft-100",
     sheet: "kraft-100",
     inks: ["riso-black", "riso-brown", "severity"],
+    gradeGamma: 1,
   },
   "console-day": {
     stock: "kraft-100",
     sheet: "kraft-100",
     inks: ["riso-black", "riso-fed-blue", "severity"],
+    gradeGamma: 1,
   },
   "console-night": {
     stock: "mitti-950",
     sheet: "bone-200",
     inks: ["riso-black", "riso-fed-blue", "severity"],
+    gradeGamma: 1,
   },
-  document: { stock: "chalk", sheet: "chalk", inks: ["riso-black", "riso-flu-pink"] },
+  document: {
+    stock: "chalk",
+    sheet: "chalk",
+    inks: ["riso-black", "riso-flu-pink"],
+    gradeGamma: 1,
+  },
 } as const;
 export type InkSetName = keyof typeof INK_SET;
 
@@ -318,6 +355,51 @@ export const LENS = {
   barrel: { amount: 0.035 },
   bloom: { threshold: 0.72, strength: 0.9, radiusPx: 18, holdSteps: 24 },
 } as const;
+
+/**
+ * §E12 — the sound design, as numbers (ADR-0050).
+ *
+ * Nothing here is a file. `src/sound/synth.ts` renders every cue from these
+ * at runtime, deterministically from `seed`, so what a reviewer hears is
+ * what CI hears. The two durations that accompany a motion are multiples of
+ * the 12 fps step, because §E11's coherence argument applies to a thud
+ * exactly as it applies to the stamp the thud belongs to.
+ */
+export const SOUND = {
+  gain: { master: 0.7, ambient: 0.22, foley: 0.5, positional: 0.34, alert: 0.62, ducked: 0.25 },
+  duckMs: 168,
+  crossfadeMs: 2400,
+  ambient: { loopSeconds: 8, voices: 3, lowHz: 90, highHz: 2400 },
+  foley: { attackMs: 4, bodyMs: 84, tailMs: 168, lowHz: 140, highHz: 5200 },
+  merge: { tapMs: 84, gapMs: 168, tapHz: 320, thumpHz: 62, thumpMs: 420 },
+  note: { hz: 528, decayMs: 2400, partial2: 2.76, partial3: 5.4, partial4: 8.93 },
+  positional: {
+    refDistanceMetres: 40,
+    maxDistanceMetres: 260,
+    rolloff: 1.6,
+    loopSeconds: 4,
+    maxVoices: 12,
+  },
+  sampleRate: 24000,
+  seed: 7,
+} as const;
+
+/**
+ * How the frame leaves the renderer, before §E6's press reads it.
+ *
+ * Phase 19's ship line asks for `SRGBColorSpace` and ACES Filmic tone
+ * mapping. Neither was set, and the symptom was not a colour cast: on the
+ * story run — brown, sunflower and aqua, no black plate (§E9.2) — an
+ * unmapped linear frame solved past full coverage on the one plate that
+ * carries the clay, and the film printed as a flat wash with the model
+ * invisible inside it.
+ */
+export const RENDER = { exposure: 1.35 } as const;
+
+/** §E16's film, as height. See the note in `tokens.json`: the reel was
+ *  twenty screens because the shortest act needed one, which let the
+ *  shortest act set the length of the whole film. */
+export const STORY = { viewports: 10, panelTopVh: 18, scrimReachPct: 58 } as const;
 
 /** The clay city, in real ground metres — never in scene units (M8.2). */
 export const WORLD = {

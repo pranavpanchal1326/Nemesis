@@ -2,7 +2,6 @@ import "server-only";
 
 import { shippedBundle, SOURCE_LOCALE } from "@/lib/i18n/bundles";
 import { makeStrings, mergeBundles, type Namespace, type Strings } from "@/lib/i18n/strings";
-import { upstream } from "@/server/upstream";
 
 export { SEEDED_LOCALES, SOURCE_LOCALE } from "@/lib/i18n/bundles";
 
@@ -11,8 +10,14 @@ export { SEEDED_LOCALES, SOURCE_LOCALE } from "@/lib/i18n/bundles";
  *
  * §E14.1 lists *"a place for locale negotiation"* as one of the reasons the BFF
  * seam exists at all. This is that place: the server decides which locale a
- * request gets, fetches the control plane's bundle for it, merges it over the
- * base, and hands the surfaces a resolved `Strings`.
+ * request gets, assembles the bundle for it, and hands the surfaces a resolved
+ * `Strings`.
+ *
+ * **Assembly is local, and ADR-0058 is why.** Product copy is authored by
+ * NEMESIS and versioned with the code; the Phase 5 locale registry carries
+ * *tenant-authored* words — a ward's name, a category's display name — and
+ * refuses an import into any namespace on this side. So there is no third tier
+ * and no upstream call: see `loadOne`, and register row A17.
  *
  * Doing it on the server rather than in the client is not an optimisation. The
  * public surfaces are server-rendered so they are indexable and shareable
@@ -72,12 +77,20 @@ function parseAcceptLanguage(header: string | null | undefined): string[] {
 /**
  * Assemble the bundle for one namespace and locale.
  *
- * The control plane's failure is not this page's failure: an unreachable
- * registry yields the base bundle and a correct page in the source language.
  * §E13's ladder says a degradation should be designed rather than apologised
  * for, and the designed degradation for text is *the words are still there*.
+ * Since ADR-0058 that is structural rather than defended: this function reads
+ * compiled-in bundles and cannot fail on a network, so an unreachable control
+ * plane costs a page nothing at all.
+ *
+ * **Still a promise, and no longer `async`.** Every caller is a server
+ * component that already awaits this, and the seam is worth keeping: a tier
+ * that reads anything but a compiled-in bundle is asynchronous again, and
+ * unwinding forty `await`s to put one back is a change nobody should have to
+ * make. Written as a promise-returning function rather than an `async` one so
+ * the absence of anything to await is visible in the source instead of implied.
  */
-export async function loadStrings(
+export function loadStrings(
   namespace: Namespace | readonly Namespace[],
   locale: string,
 ): Promise<Strings> {
@@ -93,62 +106,50 @@ export async function loadStrings(
   // `common` uses gets it by adding the key to `public` — not by reordering
   // arguments at eleven call sites.
   if (Array.isArray(namespace)) {
-    const parts = await Promise.all(
-      (namespace as readonly Namespace[]).map((one) => loadOne(one, locale)),
-    );
+    const parts = (namespace as readonly Namespace[]).map((one) => loadOne(one, locale));
     const merged = parts.reduce<Readonly<Record<string, string>>>(
       (all, part) => mergeBundles(all, part.bundle),
       {},
     );
     const primary = (namespace as readonly Namespace[]).at(-1) ?? "common";
-    return makeStrings(primary, locale, merged);
+    return Promise.resolve(makeStrings(primary, locale, merged));
   }
-  return loadOne(namespace as Namespace, locale);
+  return Promise.resolve(loadOne(namespace as Namespace, locale));
 }
 
-async function loadOne(namespace: Namespace, locale: string): Promise<Strings> {
-  // Three tiers, merged in order of authority: source language, shipped seed,
-  // control plane. Each one overrides the last key by key, so a registry that
-  // has translated forty of sixty keys renders forty translated and twenty in
-  // the source language — a partially-localised product rather than a broken
-  // one.
-  const seeded = shippedBundle(namespace, locale);
-
-  // **A17: this tier cannot currently resolve, and saying so here is the
-  // point.** The registry carries `taxonomy`, `organisation`, `zone` and
-  // `calendar` — tenant-authored words — and refuses an import into any of the
-  // four namespaces below, because `db/models/i18n.py` rules that product copy
-  // is authored by NEMESIS and reviewed like code. So the fetch answers `{}`
-  // and the merge is a no-op. Nothing renders wrong; the seed bundles carry the
-  // words. It is left wired rather than deleted because which way it should go
-  // is a decision with an argument on both sides, and F18 owns making it —
-  // deleting it quietly would settle the question by attrition.
-
-  if (locale === SOURCE_LOCALE) return makeStrings(namespace, locale, seeded);
-
-  // **The whole call is guarded, not just its error field.** `openapi-fetch`
-  // returns `{ error }` for a response the server sent and *throws* for a
-  // connection it never made — and an unreachable control plane is the second
-  // one. Without the catch, a deployment whose control plane is down renders a
-  // 500 for every non-source locale while rendering perfectly in English: a
-  // Marathi reader loses the page and an English reviewer never sees it.
+// Not `async`, and that is ADR-0058 showing in the type: with the third tier
+// gone there is nothing here to await. `loadStrings` stays `async` because it is
+// the awaited seam every caller already holds and because a future tier would be
+// asynchronous again; this one reads a compiled-in bundle.
+function loadOne(namespace: Namespace, locale: string): Strings {
+  // **Two tiers, and A17 is why there are not three — ADR-0058.**
   //
-  // Found by F12: the landing negotiates a locale from `Accept-Language`, so
-  // it was the first surface where a browser set to Marathi reached this line
-  // on a machine with no backend. The paragraph above this function already
-  // promised the behaviour — *"an unreachable registry yields the base bundle
-  // and a correct page in the source language"* — which is exactly the kind of
-  // promise that is worth a test rather than a comment.
-  try {
-    const { data, error } = await upstream.GET(
-      "/api/v1/control-plane/translations/{namespace}/{locale}",
-      { params: { path: { namespace, locale } } },
-    );
-    if (error !== undefined) return makeStrings(namespace, locale, seeded);
-    return makeStrings(namespace, locale, mergeBundles(seeded, data));
-  } catch {
-    return makeStrings(namespace, locale, seeded);
-  }
+  // Source language, then the shipped seed for this locale, the second
+  // overriding the first key by key. So a registry that has translated forty of
+  // sixty keys renders forty translated and twenty in the source language — a
+  // partially-localised product rather than a broken one.
+  //
+  // There used to be a third tier here: the Phase 5 locale registry, fetched
+  // for `common`, `citizen`, `console` and `public`. **It could never resolve.**
+  // `db/models/i18n.py` registers four namespaces — `taxonomy`,
+  // `organisation`, `zone`, `calendar` — and refuses an import into any of
+  // these; the reader does not validate its path parameter, so the request was
+  // answered `200 {}` and the merge was a no-op. Nothing rendered wrong, which
+  // is exactly what made it worth removing: a tier that can only ever return
+  // nothing is a capability this code claimed and did not have, and §E3.3 is a
+  // rule about precisely that.
+  //
+  // Phase 18's gate — *a locale added in the control plane appears in the UI
+  // with no code change* — is untouched, because it was never about this half.
+  // It governs **tenant-authored** words: a ward's name, a category's display
+  // name. Those arrive through the public read, and `nem gate-phase18-locale`
+  // asserts them end to end over HTTP against `zone`. Product copy is authored
+  // by NEMESIS and reviewed like code, which is the line `db/models/i18n.py`
+  // drew and ADR-0058 stopped contradicting.
+  //
+  // The guard `no-product-copy-from-the-registry` in `scripts/check-guards.ts`
+  // keeps the tier from returning as three plausible-looking lines.
+  return makeStrings(namespace, locale, shippedBundle(namespace, locale));
 }
 
 /** The keys this application asks for. Exported so a coverage test can compare

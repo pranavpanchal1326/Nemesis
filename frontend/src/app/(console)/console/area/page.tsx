@@ -1,7 +1,9 @@
 import { ConsoleShell } from "@/console/ConsoleShell";
+import { RoadmapFooter } from "@/console/roadmap/RoadmapFooter";
 import { screenById } from "@/console/screens";
 import { devOnly } from "@/lib/dev-only";
 import { consoleContext } from "@/server/console-context";
+import { publishedTenant } from "@/server/public-data";
 import { AreaView } from "@/console/roadmap/AreaView";
 
 /**
@@ -21,6 +23,7 @@ export default async function Page() {
   return (
     <ConsoleShell strings={strings} locale={locale} city={city} screen={screen}>
       <AreaView strings={strings} locale={locale} />
+      <RoadmapFooter screenId="area" strings={strings} tenant={publishedTenant() ?? null} />
     </ConsoleShell>
   );
 }

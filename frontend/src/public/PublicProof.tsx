@@ -172,6 +172,8 @@ export function PublicProof({ locale }: { readonly locale: string }) {
       locale={locale}
       locales={PROOF_LOCALES}
       generatedAt="2026-08-25T05:00:00+00:00"
+      // Embedded in the developer surface, which owns the page's landmark.
+      landmark="div"
       notice={first === undefined ? "" : first.zone.notice}
     >
       {CASES.map(({ id, zone }) => (

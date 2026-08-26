@@ -6,6 +6,7 @@ import { DegradedBanner } from "@/components/DegradedBanner";
 import { t, type Strings } from "@/lib/i18n/strings";
 import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
 import { realtimeStore } from "@/lib/realtime/store";
+import { SoundProvider } from "@/sound/SoundControl";
 
 /**
  * The film's one client boundary — the same shape `<CitizenShell>` has, and for
@@ -39,6 +40,7 @@ export function StoryShell({
 }) {
   return (
     <RealtimeProvider>
+      <SoundProvider />
       <TransportBanner strings={strings} />
       {children}
     </RealtimeProvider>

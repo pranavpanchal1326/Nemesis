@@ -18,6 +18,7 @@ describe("design-law guards", () => {
     ["no-glsl", "glsl.ts"],
     ["no-cdn", "cdn.ts"],
     ["no-hand-written-contract", "hand-written-contract.ts"],
+    ["no-product-copy-from-the-registry", "product-copy-registry.ts"],
   ])("%s fires on its seeded violation", (id, file) => {
     expect(fired).toContain(id);
     expect(violations.some((v) => v.guard.id === id && v.file === file)).toBe(true);
@@ -47,6 +48,24 @@ describe("design-law guards", () => {
         (v) => v.guard.id === "no-hand-written-contract" && v.file === "widened-contract.ts",
       ),
     ).toBe(true);
+  });
+
+  it("the registry ban is narrow: coverage is the tenant-authored half", () => {
+    /**
+     * ADR-0058 removes a *caller*, not the mechanism. `translations/coverage`
+     * answers *how much of this tenant's own taxonomy is translated* — it is
+     * the half Phase 18's gate is actually about, the control-plane admin
+     * screen reads it, and a ban that swallowed it would be banning the thing
+     * the ADR keeps. The fixture carries both, and only one may fire.
+     */
+    const fromThisGuard = violations.filter(
+      (v) =>
+        v.guard.id === "no-product-copy-from-the-registry" && v.file === "product-copy-registry.ts",
+    );
+    expect(fromThisGuard.length).toBe(2);
+    for (const v of fromThisGuard) {
+      expect(v.text).not.toContain("coverage");
+    }
   });
 
   it("every guard cites the section it enforces", () => {

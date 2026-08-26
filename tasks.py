@@ -288,6 +288,12 @@ def _check(_: list[str]) -> int:
             # document because every ship line and every open register row is
             # claimed by exactly one phase in it. This is that rule, executed.
             ("plan coverage", [sys.executable, "scripts/check_phase_coverage.py"]),
+            # F18 / M12.2. §E27 says of itself that a visual element not on it
+            # is a defect — which is only a rule if somebody executes the table.
+            # This does, in both directions, against the event catalog and
+            # against `frontend/src/`. Host-side for the same reason the catalog
+            # check is: it reads the blueprint, which the api container cannot.
+            ("surface traceability", [sys.executable, "scripts/check_surface_traceability.py"]),
         ]
     )
 

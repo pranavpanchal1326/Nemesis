@@ -1,0 +1,57 @@
+/*
+ * §E12 — the unmute affordance.
+ *
+ * No colour, duration or curve is declared here; every one arrives as a
+ * generated custom property (§E24). There is no animation in this file at all,
+ * which is correct for a control whose whole job is to state a fact: a toggle
+ * that animated would be adding a second meaning to a motion vocabulary §E3.4
+ * caps at five.
+ */
+
+.sound {
+  display: flex;
+  align-items: baseline;
+  gap: 1ch;
+  flex-wrap: wrap;
+}
+
+/*
+ * **`--role-*`, not `--color-role-*`, and this was a bug.**
+ *
+ * The two families are not synonyms: `--color-role-text-primary` is the paper
+ * ground's ink, and `--role-text-primary` is *whichever ground this element is
+ * standing on* — remapped by `[data-surface="console"]` and `[data-ground]`
+ * (§E9.3, §E22). This control renders on the film (paper) **and** in the
+ * console's masthead (mitti-950), and it was asking for the paper value in both
+ * places. On the light table that is riso-black on near-black: the button was
+ * there, tabbable, correctly labelled *"Turn sound on"* — and invisible, on all
+ * twelve console screens.
+ *
+ * `axe` did not catch it, and the reason is worth keeping: the button's own
+ * background is `none` and its ancestors' are transparent up to the surface, so
+ * the scan cannot resolve a background colour and reports the check as
+ * *incomplete* rather than as a violation. An incomplete is a question, and
+ * nobody was answering it. The rule that would have prevented it is simple —
+ * **a component rendered on more than one ground uses the ground-aware
+ * family** — and it is now `check-guards.ts`' tenth ban.
+ */
+.sound__toggle {
+  background: none;
+  border: 1px solid var(--role-rule);
+  color: var(--role-text-primary);
+  padding-block: 0.25rem;
+  padding-inline: 0.75rem;
+  cursor: pointer;
+}
+
+/* Pressed is a state, and it is drawn rather than only announced: an
+   `aria-pressed` button that looks identical in both states is accessible to a
+   screen reader and unusable to everybody else. */
+.sound__toggle[aria-pressed="true"] {
+  border-color: var(--role-text-signal);
+  color: var(--role-text-signal);
+}
+
+.sound__note {
+  color: var(--role-text-secondary);
+}

@@ -111,7 +111,7 @@ export function ColdOpen({ strings }: { readonly strings: Strings }) {
 
         <div className="cold-open__cue">
           <span className="cold-open__cue-rule" aria-hidden="true" />
-          <p className="type-micro">{t(strings, "story.scroll")}</p>
+          <p className="type-caption">{t(strings, "story.scroll")}</p>
         </div>
       </div>
     </section>
@@ -141,7 +141,7 @@ export function TheWalk({ strings }: { readonly strings: Strings }) {
         <p className="walk-lines__line type-display-2">{t(strings, "story.walk.inProgress")}</p>
         <p className="walk-lines__line type-display-2">{t(strings, "story.walk.weeksPass")}</p>
       </div>
-      <p className="type-micro">{t(strings, "story.walk.described")}</p>
+      <p className="type-caption">{t(strings, "story.walk.described")}</p>
     </section>
   );
 }
@@ -204,7 +204,7 @@ export function TheSilence({ strings }: { readonly strings: Strings }) {
         <blockquote className="silence__quote type-title">
           {t(strings, "story.silence.quote")}
         </blockquote>
-        <p className="type-micro">{t(strings, "story.silence.described")}</p>
+        <p className="type-caption">{t(strings, "story.silence.described")}</p>
       </div>
     </section>
   );

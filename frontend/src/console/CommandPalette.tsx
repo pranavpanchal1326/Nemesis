@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { t, type Strings } from "@/lib/i18n/strings";
+import { CUES } from "@/sound/cues";
+import { sound } from "@/sound/graph";
+import { useModalDuck } from "@/sound/SoundControl";
 import { arrowAction, isTypingTarget, moveSelection, resolveShortcut, SHORTCUTS } from "./keyboard";
 import { roadmapPhase, SCREENS, type Screen } from "./screens";
 import "./console.css";
@@ -42,6 +45,11 @@ export function CommandPalette({ strings }: { readonly strings: Strings }) {
 
   const matches = filterScreens(SCREENS, query, strings);
 
+  // §E12's master duck. The palette is a modal and the rest of the product
+  // should step back while it is open — which is what a duck is for, and is
+  // the reason it is counted in the graph rather than toggled here.
+  useModalDuck(open);
+
   const close = useCallback(() => {
     dialog.current?.close();
     setOpen(false);
@@ -50,6 +58,10 @@ export function CommandPalette({ strings }: { readonly strings: Strings }) {
   const show = useCallback(() => {
     setQuery("");
     setSelected(0);
+    // §E12: *"paper slide on panel open"*. The palette is the console's one
+    // modal panel, so this is the cue's single call site — §E3.4, checked by
+    // the `single-meaning` guard.
+    sound.play("paperSlide", CUES.paperSlide.bus, CUES.paperSlide.recipe);
     // `showModal` throws if the dialog is already open, and "already open" is
     // reachable — a second ⌘K arrives before React has re-rendered.
     if (dialog.current !== null && !dialog.current.open) dialog.current.showModal();

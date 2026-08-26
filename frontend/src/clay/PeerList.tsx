@@ -66,10 +66,10 @@ export function PeerList({
       data-clay-digest={entityDigest(entities)}
       data-clay-count={String(entities.length)}
     >
-      <h2 id={headingId} className="type-caption clay-peers__title">
+      <h2 id={headingId} className="type-micro clay-peers__title">
         {t(strings, "clay.title")}
       </h2>
-      <p className="type-micro clay-peers__hint">{t(strings, "clay.listHint")}</p>
+      <p className="type-caption clay-peers__hint">{t(strings, "clay.listHint")}</p>
 
       {entities.length === 0 ? (
         // §E3.3 — an honest empty state, with the reason. Not a spinner and not
@@ -110,10 +110,10 @@ function PeerRow({
     <>
       <span className="clay-peers__label type-body">{notTranslatable(entity.label)}</span>
       <SeverityBadge level={level} strings={strings} density="compact" />
-      <span className="clay-peers__state type-micro">
+      <span className="clay-peers__state type-caption">
         {t(strings, `clay.state.${entity.state}`)}
       </span>
-      <span className="clay-peers__reports type-micro">
+      <span className="clay-peers__reports type-caption">
         {t(strings, "clay.reports")}{" "}
         {/* The figure goes through `<Figure>`, which is the only route a
             published count has to a screen (ADR-0021). A list beside a map is

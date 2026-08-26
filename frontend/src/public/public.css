@@ -101,6 +101,29 @@
   gap: 0.75rem;
 }
 
+/*
+ * WCAG 2.2 AA, 2.5.8 Target Size (Minimum) — 24 × 24 CSS px.
+ *
+ * The language switch was the worst offender in the product: three links at
+ * 15 × 18, 16 × 18 and 12 × 18 px, side by side, on the surface most likely to
+ * be opened on a phone. `axe` does not test 2.5.8 — the criterion is new in
+ * WCAG 2.2 and needs layout geometry rather than a DOM rule — so a clean scan
+ * said nothing about it, which is exactly the gap `docs/reports/wcag-audit-
+ * gap.md` says an automated pass leaves behind.
+ *
+ * The box grows and the type does not: §E10's scale is a design decision and
+ * this is a hit area, so the fix is padding and a minimum, not a larger word.
+ */
+.public__locales a,
+.public__footer a,
+.public__place-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
+  min-inline-size: 24px;
+  justify-content: center;
+}
+
 .public__locales a[aria-current="true"] {
   text-decoration: none;
   font-weight: 600;

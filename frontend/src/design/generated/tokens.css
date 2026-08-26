@@ -56,6 +56,13 @@
   --color-role-dark-rule: #8a7462;
   --color-role-dark-flag-hatch: #ff48b0;
   --color-role-dark-flag-text: #e4dcce;
+  --color-role-outdoor-ground: #fbf8f3;
+  --color-role-outdoor-text-primary: #16130f;
+  --color-role-outdoor-text-secondary: #4b3526;
+  --color-role-outdoor-text-signal: #043855;
+  --color-role-outdoor-rule: #8a7462;
+  --color-role-outdoor-flag-hatch: #ff48b0;
+  --color-role-outdoor-flag-text: #16130f;
 
   /* Faces (§E10) — self-hosted, no CDN (§6 Principle #6) */
   --font-narrative: Gambarino, "Gambarino Fallback", Georgia, serif;
@@ -107,6 +114,9 @@
   --layer-text: 30;
   --layer-chrome: 40;
   --layer-overlay: 50;
+  --story-viewports: 10;
+  --story-panel-top: 18dvh;
+  --story-scrim-reach: 58%;
 }
 
 /* Semantic roles, resolved per ground (§E22, §E9.3) */
@@ -129,6 +139,16 @@
   --role-rule: var(--color-role-dark-rule);
   --role-flag-hatch: var(--color-role-dark-flag-hatch);
   --role-flag-text: var(--color-role-dark-flag-text);
+}
+
+[data-ground="outdoor"] {
+  --role-ground: var(--color-role-outdoor-ground);
+  --role-text-primary: var(--color-role-outdoor-text-primary);
+  --role-text-secondary: var(--color-role-outdoor-text-secondary);
+  --role-text-signal: var(--color-role-outdoor-text-signal);
+  --role-rule: var(--color-role-outdoor-rule);
+  --role-flag-hatch: var(--color-role-outdoor-flag-hatch);
+  --role-flag-text: var(--color-role-outdoor-flag-text);
 }
 
 /* Density — three modes, persisted per user (§E19) */

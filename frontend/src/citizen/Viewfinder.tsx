@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { t, type Strings } from "@/lib/i18n/strings";
+import { CUES } from "@/sound/cues";
+import { sound } from "@/sound/graph";
 
 import "./citizen.css";
 
@@ -184,6 +186,12 @@ export function Viewfinder({
   const shutter = useCallback(() => {
     const element = video.current;
     if (element === null || element.videoWidth === 0) return;
+
+    // §E12's shutter, on the frame the photograph is actually taken and
+    // nowhere else. A no-op while muted. It fires before the encode rather
+    // than in the callback, because a shutter that lands 40 ms after the
+    // button reads as lag rather than as a camera.
+    sound.play("shutter", CUES.shutter.bus, CUES.shutter.recipe);
 
     const canvas = document.createElement("canvas");
     canvas.width = element.videoWidth;

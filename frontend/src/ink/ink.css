@@ -1,0 +1,44 @@
+/*
+ * §E8 — the ink layer.
+ *
+ * Almost nothing. The figure is drawn on a canvas by `draw.ts`, so this file
+ * owns a box and a couple of sizes and declares no colour, no duration and no
+ * curve — the §E11.1 audit reads every stylesheet in `src/` and this one has
+ * nothing for it to find, which is the correct amount for a layer whose whole
+ * motion is a stepped clock writing to a 2D context.
+ *
+ * **There is no animation here on purpose.** A CSS transition on a figure would
+ * smooth the very snap §E7.2 asks for: *"poses hold two frames, then snap"*.
+ * The stop-motion read is the absence.
+ */
+
+.ink {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  pointer-events: none;
+}
+
+.ink__canvas {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/* An empty state's figure sits beside its sentence rather than over it, and is
+   sized in `ch` so it scales with the type it stands next to rather than with
+   the viewport. */
+.ink--inline {
+  inline-size: 8ch;
+  block-size: 12ch;
+  flex: none;
+}
+
+.ink--act {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  inline-size: 26ch;
+  block-size: 38ch;
+  max-block-size: 46dvh;
+}

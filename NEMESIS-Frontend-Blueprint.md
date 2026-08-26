@@ -1149,6 +1149,15 @@ than two independent pickers.
 §6 Principle #9 requires every visual element to map to a real pipeline event. This table is the
 audit. A visual element not on this list, and not classifiable as chrome, is a defect.
 
+**Executed, not read — `scripts/check_surface_traceability.py` (M12.2).** The table is checked in
+both directions against the event catalog and against `frontend/src/`: a row naming an event that
+does not exist fails, a registered event on no row fails, a row claiming the browser reacts to
+something nothing binds fails, and — the direction nobody looks in — a row marked as waiting on a
+phase that the frontend already binds fails too. **Three rows were wrong when it was first run**,
+all three in the flattering direction: the work-order pair and the SSIM row carried a bare
+*(Phase 14)* / *(Phase 15)* note over facts the evidence trail has rendered since M5, and two
+registered events appeared on no row at all. See [`docs/reports/e27-audit.md`](docs/reports/e27-audit.md).
+
 | Event | Surface | Visual |
 |---|---|---|
 | `complaint_submitted` | Report, map, console | Pin pushed into the clay; the Settle motion |
@@ -1167,19 +1176,24 @@ audit. A visual element not on this list, and not classifiable as chrome, is a d
 | `pipeline_stage_degraded` / `system_degradation` | Every surface | `<DegradedBanner>` |
 | `policy_drafted` / `policy_certified` / `policy_transitioned` | Policy studio | Revision list; activation stamp |
 | `evaluation_set_published` | Simulation | Backtest availability |
-| `work_order_created` / `work_order_assigned` | Console kanban, tracking | Assignment row *(Phase 14)* |
-| `ssim_verification_completed` | Closure | The printed SSIM score *(Phase 15)* |
+| `work_order_created` / `work_order_assigned` | Evidence trail; console kanban | Assignment row on the trail, visible to citizen, officer and public; the board itself *(Phase 14)* |
+| `ssim_verification_completed` | Evidence trail; closure | Verification row on the trail; the printed SSIM score on the closure screen *(Phase 15)* |
 | `citizen_confirmation_requested` | Tracking | Pending gate |
 | `citizen_confirmed` | Tracking, map, character | Stamp; Modak; closure dissolve; Rive `relief` |
 | `citizen_disputed` | Tracking, contractor profile | Dispute row on the public record |
 | `taxonomy_published` / `organisation_changed` / `tenant_provisioned` | Console control plane | Tree updates |
 | `admin_action` | Audit view | Ledger row |
+| `evaluation_set_retired` / `policy_certification_waived` | **Nowhere — F18 finding, register row A18** | The guardrail being switched off, and the activation that bypassed it, are on the chain and on no screen *(Phase 17)* |
 
 ---
 
 ## E28. Appendix C — REAL / SIMULATED / ROADMAP, frontend rows
 
-Reconciles into §44. Status is against **M7** plus ADR-0043/0044/0045/0046.
+Reconciles into §44. Status is against **M12** — every row below was read against what is
+actually running at F18, and `frontend/tests/reconciliation.test.ts` now asserts that each
+one names evidence which exists, that a finished row traces to a passing test, and that no
+REAL row is drawn by a fixture. Three rows were wrong. See
+[`docs/reports/m12-reconciliation.md`](docs/reports/m12-reconciliation.md).
 
 **What M7 changed here, and what it deliberately did not.** Thirteen console
 rows moved. Four moved to **REAL / REAL** and are finished — the review queue,
@@ -1253,10 +1267,13 @@ when both read REAL.
 | Honesty table published as data (§44 + §E28) | **REAL** — M6; generated from these two documents and drift-checked in CI, so a blueprint edit that is not republished is a build failure | **REAL** | done |
 | RTI draft generation | **ROADMAP** | **SIMULATED** — template auto-fill only, no filing integration (§16.1) | Phase 23 |
 | Accident-prone & traffic overlays | **ROADMAP** | **ROADMAP** | Phase 23 |
-| PWA, offline queue, outdoor mode | **ROADMAP** | **REAL** — server-side idempotency is what makes the queue safe, and it ships | M11 · Phase 22 |
-| Sound design | **ROADMAP** — the library is unauthored | — | M10 |
-| Tiers S / A / B / C / D fallback ladder | **ROADMAP** — the press's quality dial is REAL; the tier ladder above it is not | — | M8–M10 |
-| Golden images, Storybook diffs, Lighthouse, WCAG audit, usability session | **ROADMAP** — see the outstanding register, group A | — | M5–M12 |
+| PWA, offline queue, outdoor mode | **REAL** — M11/F17; `/field` installs, captures with the network switched off, survives a restart and files exactly once on reconnect (ADR-0056), and outdoor mode is a third role ground whose every text floor is checked at 7:1. The *job list* is the exception and carries the §E24 chip: `openapi.json` has no work-order schema, and this screen draws **no fixture jobs at all** — three invented jobs on a *do this next* surface is where a fixture stops being a fixture | **REAL** — server-side idempotency is what makes the queue safe, and it ships | M11 · Phase 22 |
+| Sound design | **REAL** — M10/F16; §E12's graph, six interaction cues each at one call site, the merge cue and the struck note bound to real events, muted by default with the unmute designed rather than hidden. **ADR-0050**: synthesised at runtime, so the library is source rather than files — and the cost is stated, *synthesised paper is not paper* | **REAL** — the two cues the system plays are `cluster_match_found` and `safety_trigger_fired`, both shipped and shaped | M10 |
+| Positional foley — *hear where the problems are* | **ROADMAP** — the mechanism is built and asserted, and is wired to nothing | **ROADMAP** — the published read carries wards, not categorised positioned defects; choosing a loop from a ward's name would assert a fault nobody detected ([report](docs/reports/positional-foley-gap.md)) | M10 · a categorised positioned read |
+| The character layer — the four figures of §E8.2 | **REAL** — M9.6/F15; §E8.1's eight inputs and eight states by their exact names, no timeline anywhere in `src/ink/` (enforced by a guard), and the figure is drawn rather than played. **ADR-0048**: the contract is the state machine, not `.riv` — and the cost is stated, *the drawing is cruder than an illustrator's* | **REAL** for the two bindings this system emits (`exif_check_completed`, `pipeline_stage_degraded`); **ROADMAP** for `citizen_confirmed`, which nothing appends ([report](docs/reports/character-relief-gate.md)) | M9 · Phase 15 |
+| Tiers S / A / B / C / D fallback ladder | **REAL** — M8–M10/F16; every rung asserted to render what §E13's table says, against the same `capabilitiesFor()` and `pressQualityFor()` the scene builds itself from rather than a transcription of the table. S and A are one forced trigger, because ADR-0037 makes the backend the renderer's choice | — | M8–M10 |
+| Golden images, Storybook diffs, Lighthouse budgets | **REAL** — M7/F1 and F3. Baselines for every surface at fixed seed, camera and scale, each **verified to fail** against a deliberately perturbed render; `storybook:diff` compares against the base ref and fails on an unreviewed visual change; `lighthouserc.json` asserts ≥ 90 performance and accessibility on three routes, three runs and the median, against a production build. **This half of the row read ROADMAP for five milestones after it shipped** — F1 closed A8, A9 and A14 and the row was never split | — | done |
+| WCAG 2.2 AA verified by a person; measured task-success from a usability session | **ROADMAP** — A15 and A16, and the two clauses in this document that no amount of code closes. The automated half is done and clean: `axe` across three densities × two scripts on the console, both scripts on the citizen, public and story surfaces, and all seven fixture screens. The half that is a person has not happened. The instruments are written and the sessions are unbooked — [`docs/reports/wcag-audit-gap.md`](docs/reports/wcag-audit-gap.md), [`docs/reports/usability-session-gap.md`](docs/reports/usability-session-gap.md) | — | M12 — booked by nobody |
 
 **Two rows are deliberately left as they were.** *Temporal replay* and *"Your
 Ward's Month"* were already honest, including the note recording that an earlier

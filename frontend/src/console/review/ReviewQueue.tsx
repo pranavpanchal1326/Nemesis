@@ -171,8 +171,12 @@ export function ReviewQueue({
     <div className="review">
       <section className="review__list-pane" aria-label={t(strings, "queue.label")}>
         <div className="review__filter">
+          {/* Its own words. This label read *"Search screens and actions"* —
+              the command palette's placeholder, borrowed — on the control that
+              filters an officer's work list. A screen reader announced the
+              wrong instruction on the console's busiest REAL screen. */}
           <label className="type-micro" htmlFor="review-filter">
-            {t(strings, "palette.placeholder")}
+            {t(strings, "queue.filter")}
           </label>
           <input
             id="review-filter"

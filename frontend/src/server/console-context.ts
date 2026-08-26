@@ -2,7 +2,7 @@ import "server-only";
 
 import { headers } from "next/headers";
 
-import { cityNameFallback } from "@/server/public-data";
+import { cityNameFallback, publishedTenant } from "@/server/public-data";
 import { loadStrings, negotiateLocale, SEEDED_LOCALES } from "@/server/strings";
 import { resolveTenant } from "@/server/upstream";
 import type { Strings } from "@/lib/i18n/strings";
@@ -60,5 +60,17 @@ export async function consoleContext(): Promise<ConsoleContext> {
  * the note it should find.
  */
 function cityName(): string {
+  // **The published slug first, and this is a bug fix.** `resolveTenant()`
+  // returns the tenant *id* — an opaque UUID (ADR-0040) — and title-casing one
+  // produced the masthead this console actually shipped with:
+  // *"672c8898 6103 49d2 B45d C04932c03873"*, on every screen, beside the
+  // wordmark, where a city's name goes. It also reached the clay layer's own
+  // caption, so the model announced itself as a model of a UUID.
+  //
+  // A slug is a name a city chose (ADR-0046) and is the right thing to
+  // title-case. An id is not a name at all, and `cityNameFallback` now refuses
+  // to dress one up as one.
+  const published = publishedTenant();
+  if (published !== undefined) return cityNameFallback(published);
   return cityNameFallback(resolveTenant() ?? "");
 }

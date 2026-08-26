@@ -158,7 +158,24 @@ export function createPressPass(
       Math.log(Math.max(stockLinear[2], MIN_CHANNEL)),
     ).sub(log(max(sampled.rgb, vec3(MIN_CHANNEL, MIN_CHANNEL, MIN_CHANNEL))));
     const row = vec3(plate.separation[0], plate.separation[1], plate.separation[2]);
-    const density = clamp(dot(row, needed), 0, 1);
+
+    // Stage 0 — the run's exposure (ADR-0061).
+    //
+    // The grade is a gamma about the sheet's own white point, `graded = sheet ·
+    // (sample / sheet)^gamma`, and it is written here as a scale on `needed`
+    // because in absorbance space those are the *same expression*:
+    //
+    //     log(graded) = log(sheet) + gamma · (log(sample) − log(sheet))
+    //     ⇒ log(sheet) − log(graded) = gamma · (log(sheet) − log(sample))
+    //
+    // So one multiply is the whole grade, and `gamma = 1` is exactly the
+    // identity — which is what lets every ungraded run keep its separation bit
+    // for bit. It is applied before the dot product and after the sample, which
+    // is the order that makes it an exposure rather than a density fudge: the
+    // press still prints exactly what it is given, and what it is given is the
+    // photograph at the exposure this run was chosen for.
+    const graded = needed.mul(float(plan.gradeGamma));
+    const density = clamp(dot(row, graded), 0, 1);
 
     // Stage 4 — risograph ink is uneven, roller-streaked, and denser at the
     // leading edge of a pass. One low-frequency field per plate, shifted per

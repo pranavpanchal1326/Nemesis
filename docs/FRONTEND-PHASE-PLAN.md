@@ -32,16 +32,17 @@ Established by audit against the blueprint on 2026-08-25, not from memory.
 
 | | |
 |---|---|
-| Milestones done | **M0–M9** (10 of 13) |
+| Milestones done | **M0–M12** — all thirteen. Track E is closed |
 | §E28 capabilities | M8 moved *Live map, instanced pins* to **REAL / REAL** and finished the §E26 contract row |
-| §E5 materials | **PAPER** partial · **CLAY** shipped at M8 · **INK** does not exist — Stage 4 owns it |
-| Register debt inside "done" milestones | **A9, A12, A15, A16** open — F1 closed A8 and A13; F2 closed A1, A2, A10 and A11; F3 closed A14; **F8 closed A7** |
+| §E5 materials | **PAPER** partial · **CLAY** shipped at M8 · **INK** shipped at F15 (ADR-0048) — all three materials exist |
+| Register debt inside "done" milestones | **A15 and A16** open, and only those two — the WCAG audit and the usability session, both a person and neither booked. F1 closed A8, A9 and A13; F2 closed A1, A2, A10 and A11; F3 closed A14; F8 closed A7; **F18 closed A17** (ADR-0058) and **found A18**, which Phase 17 owns. A12 stays *Accepted* |
 | Backend the frontend needs | **C6** open — C7 and C8 landed with ADR-0052; **a new one is named below** |
-| Stack for M10 | **none of it installed** — deliberate; M9's four (`lenis`, `gsap`, `@theatre/core`, `@theatre/studio`) landed with F12 |
-| Assets for M10 | **none of them exist** — and this is still the largest risk in the plan (§4) |
+| Stack for M10 | **none of it needed** — ADR-0050 synthesises the library in the browser, so M10 added no dependency at all |
+| Assets for M10 | **generated, not authored** — §4's largest risk was answered the way §4 proposed and the costs are recorded in ADR-0048, ADR-0049 and ADR-0050 rather than absorbed |
 
-The clay exists and the film runs on it. The ink does not, and Stage 4 is what
-needs it: F15's four figures are the last §E5 material.
+The clay exists and the film runs on it. **The ink exists too, since F15** —
+the four figures of §E8.2 are the last §E5 material and they are drawn from a
+state machine rather than played from a file (ADR-0048).
 
 > **Stage 0 is done.** F1 and F2 have both landed, and the register rows above
 > are struck out in `FRONTEND-EXECUTION-PLAN.md` rather than only here. Two
@@ -193,6 +194,116 @@ needs it: F15's four figures are the last §E5 material.
 > too — because §E16.2's promise is about the marketing *surface*, not about one
 > of its tiers.
 
+
+
+> **Stage 4 is done, and it cost three published gaps rather than three quiet
+> ones.** F15–F17 have landed and **M10 and M11 are closed**; M9's last ship
+> line — the characters — closed here rather than in Stage 3, and M9's own row
+> says so. Six things are worth carrying forward rather than leaving in a
+> commit.
+>
+> **The three reserved ADRs are written, and a fourth was written late.** §4
+> reserved 0048–0050 and all three exist: **ADR-0048** (the character contract
+> is the state machine, not `.riv`), **ADR-0049** (Tier C's prints are drawn,
+> not rendered from the scene) and **ADR-0050** (the sound library is
+> synthesised at runtime and no audio is committed). 0049 belonged to F14 and
+> was not written there; it is reconstructed here from what F14 built, and its
+> status line says so rather than pretending to be contemporaneous. F17 needed
+> two more: **ADR-0056** (the offline queue is keyed by the idempotency key) and
+> **ADR-0057** (compression transplants EXIF and strips nothing).
+>
+> **§E3.4 stopped being a review pass.** *"Enforced in review, not by taste"* is
+> the blueprint's own wording, and F16 replaces it with three guards in
+> `check-guards.ts` — bloom, the stamp curve, and severity ink — each with a
+> written allowlist. `scripts/check-guards.ts` now carries **eight** bans, up
+> from four; the fourth new one is F15's, and it bans a timeline anywhere in
+> `src/ink/`, which is how §E8.1's *"inputs rather than playback"* becomes a
+> build failure instead of a promise.
+>
+> **The gates found six defects and two of them were in code this stage did not
+> write.** In F15's own work: a machine settled `walking: false` before
+> `stopped: true` and so left a figure at the cold open for any reader who
+> deep-linked or reloaded mid-scroll — the fix is a precedence and a
+> visited-guard in `settle()`, plus `Machine.apply()`, because four writes are
+> four statements and an act is one. In F16's: a looping ambient bed carried
+> 400 ms of silence at its seam, so the city would have gone quiet once a lap
+> forever; and `SoundGraph.state()` returned a fresh object per call, which
+> through `useSyncExternalStore` is an infinite render loop — the browser
+> reported it as the unmute button detaching from the DOM until the case timed
+> out. The same snapshot-identity trap was avoided by design in `ink/machine.ts`
+> and walked into an hour later in `sound/graph.ts`, which is why both now
+> document it.
+>
+> **Three clauses are published as unmet rather than passed quietly**, in the
+> pattern F14 set for the merge:
+>
+> * **`citizen_confirmed` fires nothing, because nothing appends it.** The event
+>   is registered, projected and shaped for the wire, and §E17.5's
+>   close-the-loop door is Phase 15 on both sides. The E2E case skips by name;
+>   the mechanism is exercised with the two events this deployment does emit —
+>   [`docs/reports/character-relief-gate.md`](reports/character-relief-gate.md).
+> * **Positional foley is built and wired to nothing.** The only positioned data
+>   this frontend receives is wards; a loop chosen from a ward's *name* would be
+>   a sound asserting a fault type nobody detected, which is the one §E12 cue
+>   admitted specifically because it is not decoration —
+>   [`docs/reports/positional-foley-gap.md`](reports/positional-foley-gap.md).
+> * **The field app's job list draws no jobs.** `openapi.json` has no work-order
+>   schema, and F7's own precedent — fixture *values* behind the chip, never a
+>   fixture *shape* — does not reach here, because there is no shape. Three
+>   invented jobs on the surface whose entire purpose is *do this next* is where
+>   a fixture stops being a fixture. Everything below the list is real.
+>
+> **§44 changed its mind in public.** §8.7 cut the PWA offline queue as *"a
+> field-connectivity problem out of scope for judging"*. That was right for a
+> demo and wrong for a pilot, and the row now reads REAL with the reversal and
+> its reason written into the table rather than the old row silently rewritten.
+>
+> **Ten golden baselines were re-captured, and Law 4 requires the argument
+> rather than the commit.** The full browser suite ended `10 failed, 2 skipped,
+> 225 passed`, and every one of the ten was a §E24 golden image on the film.
+> The diff says exactly what changed: **the unmute control, and nothing else** —
+> 473 pixels of a bordered button in the top-right corner of every act. That
+> control is not a decoration somebody added; §E12 requires an unmute
+> affordance that is *"designed rather than hidden"*, and a fixed control above
+> the fold is what that sentence asks for on a nine-viewport scroll. So the
+> baselines were stale in the correct direction: they photograph a film that
+> was missing something the blueprint specifies. Re-captured with
+> `--update-snapshots`, verified by a clean re-run, and recorded here rather
+> than in a commit message.
+>
+>
+> **The storyboard's baseline had to be captured twice, and the reason is a
+> property of the tool worth writing down.** The batch re-capture wrote a frame
+> 1280×8396; the page renders 1280×8924, deterministically, measured three times
+> in a row. **`--update-snapshots` writes the first capture it takes and does
+> not run the retry-until-stable loop a normal `toHaveScreenshot` assertion
+> runs**, so a baseline captured inside a batch of ten can encode a transient —
+> here, half a viewport of a page that had not finished settling. Re-captured
+> on its own and verified green twice. A baseline is a claim about what the
+> product looks like, so the correct procedure is capture-then-verify, not
+> capture-and-trust.
+>
+> **One live case flaked under batch load and passes alone**: F13's *"Act 5's
+> stamps come from a complaint's own ledger"*. That is the condition
+> `tests/story.spec.ts` already documents at length about this laptop — a live
+> pipeline, CLIP inference and a dev server sharing one machine by design
+> (ADR-0002) — and not a new defect.
+>
+> **Two things the re-capture exposed about the golden set itself**, neither of
+> them F15–F17's to fix and both worth the next reader knowing. The film's
+> goldens are captured on this machine at a rung where the clay does not render
+> — the frames carry §E13's *running in a reduced mode* panel — so **they cannot
+> show the ink figure**, and the character layer's visual regression coverage is
+> `tests/ink.spec.ts`'s state assertions rather than a picture. And the ten
+> baselines are `-win32` only; a `-linux` set exists for the citizen goldens and
+> not for these, so a CI runner would regenerate rather than compare.
+>
+> **One measurement is worth keeping.** The offline reload renders the queue
+> correctly on the **production** build and does not on the dev server, which
+> serves the shell from the worker and then cannot hydrate it — measured on this
+> checkout, not assumed, and the reason `tests/field.spec.ts` reads the store
+> rather than the rendered list for that one assertion.
+
 ---
 
 ## 1. The ordering laws still govern
@@ -210,7 +321,8 @@ they have not changed. Two of them decide this plan's shape:
 A fourth rule is added by this plan and applies to every phase:
 
 **Law 4 — a phase may not lower a gate that already passes.** Not a style
-preference: M0–M6 plus Stage 0 ship **312 automated tests** — 181 in vitest, 131 in Playwright — and the failure mode of a long
+preference: the suite is now **448 vitest assertions across 29 files** plus the
+Playwright suite, and the failure mode of a long
 build is that a later phase quietly relaxes an earlier one to get green. Every
 phase below runs the **full** `nem check` and `nem web-check`, and a phase that
 needs an existing gate changed must change it **in its own commit, with the
@@ -222,12 +334,12 @@ argument written down**, never as a side effect of shipping a screen.
 
 | Stage | Phases | What it buys | Milestones closed |
 |---|---|---|---|
-| **0 · Ground truth** | F1–F2 | The net that catches everything after it | register Group A |
-| **1 · The light table** | F3–F7 | The console — the product's actual daily surface | **M7** |
-| **2 · The clay** | F8–F11 | The city as a material | **M8** |
-| **3 · The film** | F12–F14 | The Walk | **M9** |
-| **4 · People, sound, field** | F15–F17 | Ink, ears, and the phone in a basement | **M9, M10, M11** |
-| **5 · Close** | F18 | The honesty table verified line by line | **M12** |
+| **0 · Ground truth** ✓ | F1–F2 | The net that catches everything after it | register Group A |
+| **1 · The light table** ✓ | F3–F7 | The console — the product's actual daily surface | **M7** |
+| **2 · The clay** ✓ | F8–F11 | The city as a material | **M8** |
+| **3 · The film** ✓ | F12–F14 | The Walk | **M9** |
+| **4 · People, sound, field** ✓ | F15–F17 | Ink, ears, and the phone in a basement | **M9, M10, M11** |
+| **5 · Close** ✓ | F18 | The honesty table verified line by line | **M12** |
 
 **Stage 0 is first and it is not negotiable.** Stages 2 and 3 are the most visual
 work in the project and there is currently **no visual regression baseline at
@@ -686,10 +798,20 @@ support is exactly what this phase exists to find.
 - **No REAL row is backed by a fixture.**
 - `check_phase_coverage.py` reports zero unclaimed lines.
 
-**Closes:** **M12**, A15, A16, A17.
+**Closes:** **M12**, **A17** (ADR-0058).
+**Carries:** **A15** and **A16** — owned by this phase, everything code can do is done, and neither is closed. `scripts/check_phase_coverage.py` gained the word at F18 and its docstring argues why: the vocabulary had no truthful state for a row a phase is responsible for and cannot finish, and the two alternatives were to claim a close that did not happen or to write the work off as accepted.
 **Claims:** M12.1 · M12.2 · M12.3 · M12.4 · M12.5
 **Traces:** §E27, §E28, §44, §E24.
-**Risk:** A15 and A16 are the two clauses no amount of code closes. They need people booked, and booking them is a lead-time item that should start at F3 rather than at F18.
+**Risk — and it landed exactly as written.** A15 and A16 are the two clauses no
+amount of code closes. They need people booked, and booking them is a lead-time item
+that should start at F3 rather than at F18. **It did not start at F3, or at all.** The
+risk was named at plan time, foreseen for fifteen phases, and not mitigated — so F18
+closes by writing that down rather than by absorbing it. Both rows carry the instrument
+instead of the outcome: [`wcag-audit-gap.md`](reports/wcag-audit-gap.md) dispositions all
+56 AA criteria and flags three items as expected-to-fail in advance;
+[`usability-session-gap.md`](reports/usability-session-gap.md) is ten tasks with binary
+criteria and no pass mark. A prepared, unbooked session is a different state from an
+unprepared one, and it is the state Track E ends in.
 
 ---
 

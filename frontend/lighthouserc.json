@@ -37,7 +37,9 @@
     "for the others would be this file asserting a requirement nobody wrote.",
     "Measured today: /report 1.98 s median, /honesty 3.06 s — the honesty table is",
     "a forty-row document and its LCP is that document. If a budget is ever wanted",
-    "there, it belongs in §E23 first."
+    "there, it belongs in §E23 first.",
+    "",
+    "F17 adds /field. §E25's Phase 22 gate asks that the flow be 'usable end to end on a throttled 2G profile', and that clause has two halves with two right instruments. The *flow* — capture, compress, queue — is asserted in tests/field.spec.ts with CDP throttling, because what §E21 actually claims is that none of it waits on the network. The *cold load* is this file's half, for the reason stated four paragraphs up: a development bundle downloaded at 50 kbps measures webpack. Mobile emulation is already the default here, which is the device a field phone actually is."
   ],
   "ci": {
     "collect": {
@@ -47,7 +49,8 @@
       "url": [
         "http://127.0.0.1:3311/report",
         "http://127.0.0.1:3311/pune-demo/honesty",
-        "http://127.0.0.1:3311/console"
+        "http://127.0.0.1:3311/console",
+        "http://127.0.0.1:3311/field"
       ],
       "numberOfRuns": 3,
       "settings": {

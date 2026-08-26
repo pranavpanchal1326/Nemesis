@@ -1,0 +1,282 @@
+/*
+ * §E21 — the field surface.
+ *
+ * > **Outdoor mode** goes near-monochrome with heavier weights and larger type.
+ * > Sunlight on a phone at noon defeats every subtle palette; design for gloves
+ * > and glare, not for a design review.
+ *
+ * No colour, duration, curve or type size is declared here; every one arrives
+ * as a generated custom property (§E24). Outdoor mode changes **no colour in
+ * this file** — it sets `data-ground="outdoor"`, the generated stylesheet
+ * re-points every `--role-*` property at the 7:1 values, and everything below
+ * is correct without knowing it is in sunlight. That is the same mechanism
+ * §E9.3's light table uses, and it is why the Phase 22 contrast clause is a
+ * token test rather than a visual review.
+ *
+ * What outdoor mode *does* change here is size and weight, because those are
+ * layout rather than palette: bigger targets for gloves, heavier strokes for
+ * glare.
+ *
+ * **Logical properties only.** No left, no right (§E22, A11).
+ */
+
+/* The same cap the citizen surface takes, for the same reason — see the note
+   in `citizen.css`. §E21's posture is a phone held at arm's length in the sun;
+   a 1440 px window is a place that phone might be plugged into, not a different
+   product. */
+.field {
+  max-inline-size: 32rem;
+  margin-inline: auto;
+  inline-size: 100%;
+  min-block-size: 100dvh;
+  background: var(--role-ground);
+  color: var(--role-text-primary);
+  display: grid;
+  align-content: start;
+  gap: var(--density-gutter);
+  padding: 1rem;
+}
+
+.field__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1ch;
+}
+
+.field__wordmark {
+  margin: 0;
+  font: inherit;
+  color: var(--role-text-secondary);
+}
+
+/* Outdoors, in gloves, at arm's length: the target is the whole word and the
+   underline stays on. §E21's rule is larger weights and higher contrast, and a
+   link that only shows itself on hover is a link that does not exist on a
+   phone. */
+.field__wordmark a {
+  color: inherit;
+  text-underline-offset: 0.25em;
+  padding: 0.25rem 0;
+  display: inline-block;
+}
+
+/* A target sized for a gloved thumb rather than for a cursor. 44 px is the
+   usual accessibility floor; this is deliberately above it, because the floor
+   assumes a bare finger and a steady hand. */
+.field__outdoor {
+  min-block-size: 3rem;
+  padding-inline: 1.25rem;
+  background: none;
+  border: 2px solid var(--role-rule);
+  color: var(--role-text-primary);
+  cursor: pointer;
+}
+
+.field__outdoor[aria-pressed="true"] {
+  border-color: var(--role-text-signal);
+  color: var(--role-text-signal);
+}
+
+.field__main {
+  display: grid;
+  gap: calc(var(--density-gutter) * 2);
+}
+
+/* A warning is a sentence, not a colour. §E9.4 rule 2 — colour is never the
+   only channel — and on this surface it cannot be the channel at all, because
+   the palette is near-monochrome by design. */
+.field__warning {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-inline-start: 4px solid var(--role-text-primary);
+  background: var(--color-kraft-100);
+}
+
+.field__fix {
+  margin: 0;
+  color: var(--role-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+ * Jobs
+ * ------------------------------------------------------------------------ */
+
+.jobs {
+  display: grid;
+  gap: var(--density-gutter);
+}
+
+.jobs__link[data-online="false"] {
+  /* Offline is stated, not alarmed about. §E17.1: "offline is not an error
+     state" — and on this surface it is the expected one. */
+  font-weight: 700;
+}
+
+.jobs__gap,
+.jobs__stages {
+  margin: 0;
+}
+
+.jobs__stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1ch;
+  list-style: none;
+  padding: 0;
+}
+
+.jobs__stage {
+  border: 1px solid var(--role-rule);
+  padding: 0.25rem 0.75rem;
+  color: var(--role-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+ * Capture
+ * ------------------------------------------------------------------------ */
+
+.capture {
+  display: grid;
+  gap: var(--density-gutter);
+}
+
+.capture__row {
+  display: flex;
+  align-items: center;
+  gap: 1.5ch;
+}
+
+/* §E21's "large camera button". A label wrapping a hidden input, so the whole
+   block is the target and the platform camera opens on tap. */
+.capture__button {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-block-size: 6rem;
+  border: 3px solid var(--role-text-primary);
+  cursor: pointer;
+}
+
+.capture__button:has(input:disabled) {
+  border-color: var(--role-rule);
+  color: var(--role-text-secondary);
+  cursor: not-allowed;
+}
+
+/* Visually hidden, still focusable, still the accessible control. Not
+   `display: none`, which would take it out of the tab order and out of the
+   accessibility tree. */
+.capture__input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.capture__result {
+  display: grid;
+  gap: 0.5ch;
+  margin: 0;
+}
+
+.capture__result div {
+  display: flex;
+  gap: 1ch;
+}
+
+.capture__result dt {
+  color: var(--role-text-secondary);
+}
+
+.capture__result dd {
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+ * The outbox
+ * ------------------------------------------------------------------------ */
+
+.outbox {
+  display: grid;
+  gap: var(--density-gutter);
+}
+
+.outbox__list {
+  display: grid;
+  gap: var(--density-gutter);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.outbox__row {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid var(--role-rule);
+  padding: 0.75rem;
+}
+
+/* State is carried by the word, and the border weight seconds it. Never by
+   colour alone (§E9.4 rule 2) — and never by severity ink, which belongs to
+   severity and to nothing else (§E3.4, and the `single-meaning-severity`
+   guard). */
+.outbox__row[data-state="parked"] {
+  border-inline-start-width: 4px;
+}
+
+.outbox__row[data-state="sent"] {
+  border-style: dashed;
+}
+
+.outbox__state,
+.outbox__key,
+.outbox__failure {
+  margin: 0;
+}
+
+.outbox__key {
+  color: var(--role-text-secondary);
+}
+
+.outbox__discard,
+.outbox__drain {
+  min-block-size: 3rem;
+  padding-inline: 1.25rem;
+  background: none;
+  border: 2px solid var(--role-rule);
+  color: var(--role-text-primary);
+  cursor: pointer;
+  justify-self: start;
+}
+
+/* --------------------------------------------------------------------------
+ * Outdoor mode — size and weight (the palette is the token layer's job)
+ * ------------------------------------------------------------------------ */
+
+.field[data-outdoor="true"] {
+  /* Heavier and larger, uniformly. A scale factor rather than a second type
+     scale: §E10.2's steps are a system, and outdoor mode is the same system
+     read at arm's length in glare, not a different one. */
+  font-size: 1.15em;
+  font-weight: 600;
+}
+
+.field[data-outdoor="true"] .capture__button {
+  min-block-size: 8rem;
+  border-width: 4px;
+}
+
+.field[data-outdoor="true"] .outbox__row,
+.field[data-outdoor="true"] .jobs__stage {
+  border-width: 2px;
+}
+
+.field[data-outdoor="true"] .field__outdoor,
+.field[data-outdoor="true"] .outbox__discard,
+.field[data-outdoor="true"] .outbox__drain {
+  min-block-size: 3.5rem;
+  border-width: 3px;
+}

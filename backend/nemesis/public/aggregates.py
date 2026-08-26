@@ -12,13 +12,25 @@ The tenancy guard covers this by construction (ADR-0014), and the tests assert
 it here anyway, because "the guard would have caught it" is a claim about a layer
 rather than about this code.
 
-**Why complaints join zones on a label.** ``complaints.ward`` is a string and
-``zones.code`` is the tenant's place vocabulary; the two are matched by value.
-That is the honest state of the schema — Phase 5 shipped ``zones`` as the
-supersession of the ``ward`` label and Phase 12 is what makes routing write the
-zone reference. Doing the label match now and saying so is better than
-inventing a foreign key the pipeline does not populate, which would produce a
-public page that is permanently empty for reasons no reader could diagnose.
+**Why complaints join zones on a label, and what happens when nothing wrote
+one.** ``complaints.ward`` is a string and ``zones.code`` is the tenant's place
+vocabulary; the two are matched by value. That is the honest state of the schema
+— Phase 5 shipped ``zones`` as the supersession of the ``ward`` label and Phase
+12 is what makes routing write the zone reference.
+
+The note that used to end here said the label match was better than inventing a
+foreign key the pipeline does not populate, "which would produce a public page
+that is permanently empty for reasons no reader could diagnose". **That is
+exactly what it produced.** Nothing writes ``ward`` — it appears in no domain
+event and no entry in ``events/catalog.py`` — so on a deployment with 671
+processed complaints every zone published ``total_reports: 0``, and the reason
+was undiagnosable from the outside in precisely the way the note feared.
+
+So the join falls back to the geometry, and the fallback is not a second source
+of truth: a report's location is *already* the thing routing would consult
+(``api/v1/places.py`` resolves a coordinate to a zone chain with the same
+``ST_Covers`` over the same GiST index). See ``_in_zone`` for the predicate and
+for why it is gated on ``ward IS NULL`` rather than replacing the label.
 """
 
 from __future__ import annotations
@@ -29,7 +41,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 
 from geoalchemy2 import Geometry
-from sqlalchemy import and_, cast, func, or_, select
+from sqlalchemy import and_, cast, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -179,7 +191,7 @@ async def zone_summary(
 
         window: list[ColumnElement[bool]] = [
             Complaint.tenant_id == tenant_id,
-            Complaint.ward == zone_code,
+            _in_zone(tenant_id, zone_code),
         ]
         if since is not None:
             window.append(Complaint.reported_at >= since)
@@ -240,6 +252,68 @@ async def zone_summary(
         by_category=categories,
         suppressed=False,
         suppression=Suppression(threshold=threshold, suppressed_buckets=hidden),
+    )
+
+
+def _in_zone(tenant_id: uuid.UUID, zone_code: str) -> ColumnElement[bool]:
+    """Whether a complaint belongs to this zone — by label, or failing that, by where it is.
+
+    **Two branches, and the order matters.**
+
+    ``ward == zone_code`` is the primary and stays primary. A tenant whose
+    pipeline routes reports to zones has an authoritative answer already, and
+    that answer must win: routing can legitimately place a report somewhere its
+    raw coordinate does not fall — a report filed from across the road, a ward
+    boundary corrected after the fact, an operator moving a case.
+
+    The geometry branch fires **only when the label is NULL**, which is the
+    "nobody has routed this yet" case. It is not a guess. ``Zone.boundary`` is
+    the tenant's own published geometry and ``Complaint.location`` is where the
+    report was made; ``ST_Covers`` between them is the same question
+    ``places.py`` answers for §E17.1's Place card, against the same two GiST
+    indexes (``ix_zones_boundary``, ``ix_complaints_location``). If those two
+    disagreed, the Place card a citizen is shown would already be wrong.
+
+    **It walks down, not just across.** Only leaves carry geometry in practice —
+    a tenant draws its wards and lets the zone and the city be their union — so
+    matching ``Zone.code`` alone would leave every parent at zero while its
+    children filled in. The ``path`` prefixes gather this zone *and every
+    descendant*, which is what makes a city's total the union of its wards
+    rather than a separate empty row. ``EXISTS`` rather than a join, so a report
+    covered by two nested boundaries is counted once for each zone that contains
+    it and once only.
+
+    **It retires itself.** The day routing writes ``ward``, the first branch
+    matches and this one never evaluates. Nothing here has to be removed for
+    Phase 12 to take over — which is the property that made this preferable to
+    backfilling a column or registering an event for it.
+    """
+    # LIKE metacharacters in a tenant-authored code would silently widen the
+    # match. Escaped rather than trusted: `code` is control-plane data, and the
+    # rule elsewhere in this file is that a predicate says what it means.
+    safe = zone_code.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    covering = (
+        select(literal(1))
+        .select_from(Zone)
+        .where(
+            Zone.tenant_id == tenant_id,
+            Zone.is_active.is_(True),
+            Zone.boundary.isnot(None),
+            or_(
+                Zone.code == zone_code,
+                # A root: `CITY/...`. And a zone anywhere below one: `.../CITY/...`.
+                Zone.path.like(f"{safe}/%", escape="\\"),
+                Zone.path.like(f"%/{safe}/%", escape="\\"),
+            ),
+            func.ST_Covers(Zone.boundary, Complaint.location),
+        )
+        .exists()
+    )
+
+    return or_(
+        Complaint.ward == zone_code,
+        and_(Complaint.ward.is_(None), covering),
     )
 
 
@@ -324,7 +398,7 @@ async def _auto_confirmed_count(
         WorkOrder.complaint_cluster_id.in_(
             select(Complaint.cluster_id).where(
                 Complaint.tenant_id == tenant_id,
-                Complaint.ward == zone_code,
+                _in_zone(tenant_id, zone_code),
                 Complaint.cluster_id.is_not(None),
             )
         ),
@@ -362,7 +436,7 @@ async def _median_resolution_hours(
         WorkOrder.complaint_cluster_id.in_(
             select(Complaint.cluster_id).where(
                 Complaint.tenant_id == tenant_id,
-                Complaint.ward == zone_code,
+                _in_zone(tenant_id, zone_code),
                 Complaint.cluster_id.is_not(None),
             )
         ),

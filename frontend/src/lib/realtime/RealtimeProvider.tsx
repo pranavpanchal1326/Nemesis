@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { ApiError } from "@/lib/api/complaints";
 import { complaintKey } from "@/lib/api/queries";
 
 import { startRealtimeBridge, type RealtimeEndpoint } from "./bridge";
@@ -31,7 +32,17 @@ function makeQueryClient(): QueryClient {
         // A read that fails is retried twice and then reported. The surfaces
         // render a named degradation rather than a spinner that never resolves
         // (§E13) — an infinite retry is how a broken deployment looks healthy.
-        retry: 2,
+        //
+        // **Except where trying again cannot work.** `ApiError.retriable`
+        // already draws that line for the submit path — 429 and 5xx will
+        // plausibly succeed, a 404 will not — and the reads were ignoring it.
+        // The visible cost was on §E17.4: a mistyped receipt id spent two
+        // backoffs saying *"Reading the record…"* before admitting it could not
+        // be read, so the screen's slowest, least certain state was the one a
+        // typo produced. A definitive refusal is an answer, and this renders it
+        // as one.
+        retry: (failureCount, error) =>
+          error instanceof ApiError ? error.retriable && failureCount < 2 : failureCount < 2,
         refetchOnWindowFocus: true,
       },
     },

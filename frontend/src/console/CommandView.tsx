@@ -1,6 +1,7 @@
 import { ClayScene } from "@/clay/ClayScene";
 import type { ClayWorld } from "@/server/clay-data";
 import { NotWired } from "@/components/NotWired";
+import { InkFigure } from "@/ink/InkFigure";
 import { plural, t, type Strings } from "@/lib/i18n/strings";
 
 import { ConsolePrint } from "./ConsoleShell";
@@ -72,6 +73,27 @@ export function CommandView({
             <p className="type-body">
               {plural(strings, "queue.count", summary.open, { count: summary.open })}
             </p>
+            {/*
+              §E8.2 puts the Officer in *"console empty states, onboarding,
+              'nothing breaches today'"* — and an empty queue is the one state
+              this screen reaches that is genuinely good news. `live`, so the
+              figure straightens up when a `citizen_confirmed` lands while
+              somebody is looking at a quiet queue: the only figure in the
+              product that answers to the whole stream rather than to one
+              report, because on this screen any confirmation is the officer's.
+            */}
+            {summary.open === 0 ? (
+              <div className="command__quiet">
+                <InkFigure
+                  strings={strings}
+                  figure="officer"
+                  className="ink--inline"
+                  live
+                  fill={0.9}
+                />
+                <p className="type-caption">{t(strings, "queue.quiet")}</p>
+              </div>
+            ) : null}
             <ul className="command__reasons">
               {summary.byReason.map(({ reason, count }) => (
                 <li key={reason} className="command__reason type-caption">

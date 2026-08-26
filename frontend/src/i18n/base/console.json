@@ -331,5 +331,11 @@
   "state.loading": "Reading",
   "state.error": "That did not load. Nothing was changed.",
   "state.retry": "Try again",
-  "state.roadmapValues": "The shape is real and generated from the contract. The values on this screen are fixtures until the phase named on the chip lands."
+  "state.roadmapValues": "The shape is real and generated from the contract. The values on this screen are fixtures until the phase named on the chip lands.",
+  "queue.quiet": "Nothing is waiting on a decision right now.",
+  "queue.filter": "Filter this queue",
+  "roadmap.what": "What lands here",
+  "roadmap.phaseLine": "Phase {phase} populates this screen's contract. Until it does, every value above is a fixture behind a published type — the shape is real and the numbers are not.",
+  "roadmap.traces": "Implements {section}",
+  "roadmap.until": "What this city publishes about the same subject today"
 }

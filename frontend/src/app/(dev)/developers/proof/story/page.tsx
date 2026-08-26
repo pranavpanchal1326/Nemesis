@@ -7,7 +7,7 @@ import { StoryShell } from "@/story/StoryShell";
 import { Walk } from "@/story/Walk";
 import type { StoryZone } from "@/story/acts/close";
 import { fetchClayWorld } from "@/server/clay-data";
-import { cityNameFallback, fetchCity } from "@/server/public-data";
+import { cityNameFallback, fetchCity, publishedTenant } from "@/server/public-data";
 import { loadStrings } from "@/server/strings";
 
 /**
@@ -100,7 +100,12 @@ export default async function StoryProof({
    * slug names a city that has already *published* (ADR-0046), which is a
    * public fact by construction.
    */
-  const slug = one("tenant") ?? process.env["NEMESIS_STORY_TENANT"] ?? null;
+  // `?stage=model|photograph|print` — the same control the clay proof has had
+  // since M8, on the film. See the prop's own note in `Walk.tsx`: a frame that
+  // arrives as a flat wash cannot be attributed to the model, the lens or the
+  // press without one.
+  const stageParam = one("stage");
+  const slug = one("tenant") ?? publishedTenant() ?? null;
   const strings = await loadStrings(["common", "public"], "en");
 
   if (slug === null) {
@@ -146,6 +151,9 @@ export default async function StoryProof({
             pinnedT={position}
             step={step}
             at={at}
+            {...(stageParam === "model" || stageParam === "photograph" || stageParam === "print"
+              ? { stage: stageParam }
+              : {})}
           />
         </StoryShell>
       </Press>

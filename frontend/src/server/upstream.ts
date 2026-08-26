@@ -98,6 +98,59 @@ const tenantHeader: Middleware = {
 };
 
 /**
+ * The status a **transport** failure is reported as — the API is not answering
+ * at all, as opposed to answering with a refusal.
+ *
+ * 503 rather than 502: the upstream did not produce a bad response, it produced
+ * none, and the distinction is the one an operator reads first in a log.
+ */
+const UPSTREAM_UNREACHABLE = 503;
+
+/**
+ * A backend that is **down** is an answer, not an exception — and this is where
+ * that is turned from one into the other.
+ *
+ * Every route handler in `app/api/` already reads `{ data, error, response }`
+ * and renders a designed message when `error` is set. None of them survived the
+ * upstream being *unreachable*, because `fetch` does not resolve with a status
+ * in that case — it rejects, the rejection escapes the handler, and Next
+ * answers `500` with a framework error page. So a stack with the API stopped
+ * showed a console screen with a browser-level failure in it rather than the
+ * sentence this product wrote for exactly that moment.
+ *
+ * **This is the same fault F12 found in `loadStrings`**, which caught the
+ * control plane's error *response* and not the thrown connection: a deployment
+ * whose control plane was down rendered a 500 for every non-source locale and
+ * rendered perfectly in English. That one was fixed by removing the call
+ * (ADR-0058). This one cannot be — the console's whole job is to read the
+ * upstream — so it is fixed at the seam instead, once, rather than in twelve
+ * handlers that would each have to remember.
+ *
+ * **Only transport failures are converted.** A `TypeError` from `fetch` means
+ * the request never completed; anything else thrown here is this application's
+ * own bug, and returning it unchanged keeps it loud instead of disguising it as
+ * a well-formed 503 the surfaces would render as *"the service is not
+ * answering"*. A bug that reads as an outage is a bug nobody looks for.
+ */
+const unreachableUpstream: Middleware = {
+  onError({ error }) {
+    if (!(error instanceof TypeError)) return;
+
+    // Shaped as the backend's own problem+json (`nemesis/api/errors.py`), so
+    // callers narrow it exactly as they narrow a real refusal and no handler
+    // needs a second code path for the case where there was no server.
+    return Response.json(
+      {
+        type: "about:blank",
+        title: "The service is not answering.",
+        status: UPSTREAM_UNREACHABLE,
+      },
+      { status: UPSTREAM_UNREACHABLE, headers: { "Content-Type": "application/problem+json" } },
+    );
+  },
+};
+
+/**
  * The typed upstream client, generated from `openapi.json`.
  *
  * Every path, parameter and response body is inferred from the committed
@@ -107,6 +160,7 @@ const tenantHeader: Middleware = {
  */
 export const upstream = createClient<paths>({ baseUrl: baseUrl() });
 upstream.use(tenantHeader);
+upstream.use(unreachableUpstream);
 
 /** Where the browser opens its socket. Public by construction (ADR-0040). */
 export function realtimeUrl(): string {
@@ -140,5 +194,23 @@ export async function upstreamFetch(
   const headers = new Headers(init.headers);
   const tenant = resolveTenant();
   if (tenant !== undefined) headers.set("X-Tenant-ID", tenant);
-  return fetch(new URL(path, baseUrl()), { ...init, headers });
+
+  // The same conversion `unreachableUpstream` performs for the typed client,
+  // spelled out here because this path does not go through its middleware. A
+  // caller of this function reads a `Response`; an unreachable API has to be
+  // one, or the submission handler answers a citizen's photograph with a
+  // framework stack trace.
+  try {
+    return await fetch(new URL(path, baseUrl()), { ...init, headers });
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error;
+    return Response.json(
+      {
+        type: "about:blank",
+        title: "The service is not answering.",
+        status: UPSTREAM_UNREACHABLE,
+      },
+      { status: UPSTREAM_UNREACHABLE, headers: { "Content-Type": "application/problem+json" } },
+    );
+  }
 }

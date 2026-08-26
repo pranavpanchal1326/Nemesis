@@ -29,7 +29,7 @@
  * because a gate that only holds on one backend holds on neither.
  */
 
-import { WebGPURenderer } from "three/webgpu";
+import { NoToneMapping, SRGBColorSpace, WebGPURenderer } from "three/webgpu";
 
 import type { Backend } from "./tier";
 
@@ -69,6 +69,28 @@ export async function createClayRenderer(options: ClayRendererOptions): Promise<
   });
 
   await renderer.init();
+
+  /*
+   * Phase 19's ship line: *"correct colour management (`SRGBColorSpace`), ACES
+   * Filmic tone mapping"*. Half of it belongs here and half of it does not, and
+   * the half that does not is why the film printed blank.
+   *
+   * **The colour space is the renderer's.** It states what the final frame is
+   * in, and three's WebGPU default already matches — stated rather than assumed,
+   * because a gate that reads a ship line should find the line implemented.
+   *
+   * **The tone map is not.** `renderer.toneMapping` is applied on the way *out*
+   * of the pipeline, and §E6's press sits *inside* it: the separation samples
+   * the lens, not the framebuffer. So an output tone map leaves the press
+   * reading raw linear radiance — which on the story run (brown, sunflower,
+   * aqua; no black plate, §E9.2) solves past full coverage on every clay
+   * mid-tone, and the film prints as one flat field of solid brown with the
+   * city invisible inside it. The tone map has to happen where the press can
+   * see it, so it is a node in the graph (`scene.ts`), and this stays
+   * `NoToneMapping` so the frame is never mapped twice.
+   */
+  renderer.outputColorSpace = SRGBColorSpace;
+  renderer.toneMapping = NoToneMapping;
 
   const detach = attachLossListeners(renderer, options);
   return { renderer, backend: backendOf(renderer), detach };

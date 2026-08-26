@@ -29,18 +29,327 @@
   color: var(--color-role-text-primary);
 }
 
-/* The stage is fixed rather than sticky: sticky is relative to a scroll
-   container and the film's container is the document, so a sticky stage
-   detaches the moment the receipts (act 9, below the fold) push past it. */
+/*
+ * The stage is **sticky**, and the note that used to be here said fixed — with
+ * a reason that was right about sticky and wrong about what was happening.
+ *
+ * `position: fixed` was silently not fixed. `.press__text` carries
+ * `transform: translateZ(0)` (ADR-0038's rasterisation guarantee, gate-tested
+ * in `press-text-exempt.spec.ts`), and **a transformed ancestor becomes the
+ * containing block for every fixed descendant inside it.** So `inset: 0` did
+ * not mean the viewport, it meant the sheet — and the sheet is the whole film:
+ * the stage measured 1440 × 25 248 px, the clay rendered once into a box
+ * twenty-eight screens tall, and scrolling moved the model *away* instead of
+ * moving the camera through it. Nine acts of authored camera track, over an
+ * image that had scrolled off the top of the page after the first viewport.
+ *
+ * That is the whole of "the film does not animate", and no amount of camera
+ * work would have fixed it.
+ *
+ * Sticky is the right answer here rather than a workaround: it is relative to
+ * the scroll container, it holds for exactly as long as `.walk` is on screen,
+ * and it releases when Act 9's receipts arrive — which is the behaviour §E16
+ * asks for anyway, and which the old note described as sticky's flaw. The stage
+ * is given the viewport's height explicitly, because a sticky box takes its
+ * size from its content and the content here is a canvas that would happily be
+ * any size at all.
+ */
 .walk__stage {
-  position: fixed;
-  inset: 0;
+  position: sticky;
+  inset-block-start: 0;
+  block-size: 100dvh;
+  /*
+   * **Out of flow, which `fixed` was for free and `sticky` is not.** A sticky
+   * box still occupies its slot, so the stage pushed the reel down by exactly
+   * one screen: the landing opened on an empty frame and the first act began
+   * below the fold. The negative margin gives the space back and leaves the
+   * pinning intact — the standard pairing, and the reason it is written here
+   * rather than discovered again is that the symptom (a blank first screen)
+   * looks nothing like the cause.
+   */
+  margin-block-end: -100dvh;
   z-index: var(--layer-world);
   pointer-events: none;
+  /*
+   * **The stage releases with the film, not with the page.** Sticky holds an
+   * element for the height of its containing block, and the containing block
+   * here is `.walk` — which includes Act 9's receipts below the film. So the
+   * model, the tier banner and the peer list stayed pinned over the receipts,
+   * a printed page that has nothing to do with them. Negative bottom margin of
+   * exactly the receipts' height is the wrong tool; making the film's own box
+   * the containing block is the right one, and `.walk__film` below is that box.
+   */
+}
+
+/* The film: the stage, the figure and the reel. The receipts are outside it,
+   which is what lets the stage stop when the film stops. */
+.walk__film {
+  position: relative;
 }
 
 .walk__stage > * {
   block-size: 100%;
+}
+
+/*
+ * The skip link — off-screen until focused, which is what a skip link is.
+ *
+ * It was rendered in the normal flow at the top of the document, in the same
+ * corner as the fixed way-in nav, and the two printed over each other on the
+ * first screen of the landing. A skip link is for a keyboard, and a keyboard
+ * only needs it when it is focused; leaving it visible bought nothing and cost
+ * the film its opening frame.
+ */
+.walk__skip {
+  position: absolute;
+  inset-inline-start: -100vw;
+  inset-block-start: 0;
+  z-index: var(--layer-overlay);
+  padding: 0.5rem 0.75rem;
+  background: var(--color-role-ground);
+  color: var(--color-role-text-primary);
+}
+
+.walk__skip:focus-visible {
+  inset-inline-start: 0;
+}
+
+/* The two front doors. Fixed at the top start corner, opposite the unmute, so
+   the film keeps the whole frame and a visitor who arrived to *do* something
+   never has to reach the ninth act to find out where. Chrome, not a beat: it
+   does not move with the camera and it is not on the reel. */
+.walk__ways {
+  position: fixed;
+  inset-block-start: 1rem;
+  inset-inline-start: 1rem;
+  z-index: var(--layer-chrome);
+  display: flex;
+  gap: 1rem;
+}
+
+.walk__ways a {
+  color: var(--color-role-text-primary);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+  /* WCAG 2.2 AA 2.5.8 — 24 px minimum, met with the box rather than the type. */
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
+}
+
+/* §E12's unmute. Fixed with the stage rather than scrolling away with the
+   reel: a reader who decides at act six that they want sound should not have to
+   scroll back to the top to say so. */
+.walk__sound {
+  position: fixed;
+  inset-block-start: 1rem;
+  inset-inline-end: 1rem;
+  z-index: var(--layer-chrome);
+}
+
+/*
+ * The reading ground — §E5, §E9.3.
+ *
+ * **The acts are set in paper inks and the stage is a clay render.** Those two
+ * facts were true separately and nobody put them together: `--role-text-*` is
+ * chosen against paper-50, the film prints it onto the model, and the secondary
+ * ink lands at roughly 1.5:1 on the terracotta. The big pull quotes survived on
+ * size alone; the ghost flags, the described lines and every `type-micro`
+ * caption under them did not — Act 3 shipped nine flags a reader could not read
+ * and a described line that was there for exactly the people it failed.
+ *
+ * The fix is not a veil over the model and it is not a second set of inks. It
+ * is the press: **paper is the ground, the clay is printed on it** (§E5's
+ * three-material law), so the sheet carries the inline-start edge where the
+ * copy lives and the model comes up out of it. Composition and legibility are
+ * the same move, which is the only kind of fix this direction accepts.
+ *
+ * Reach is a token, because how much of the frame the sheet keeps is an
+ * art-direction decision (see `tokens.json`). The angle is a custom property
+ * rather than `to right`, because gradients have no logical direction and this
+ * file does not write `right` (§E22, A11).
+ */
+.walk__stage {
+  --story-scrim-angle: 90deg;
+}
+
+[dir="rtl"] .walk__stage {
+  --story-scrim-angle: 270deg;
+}
+
+.walk__stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Above the model, below the panel's card and below the reel — the reel is
+     a later sibling on its own layer, so only the card needs to say so. */
+  pointer-events: none;
+  background: linear-gradient(
+    var(--story-scrim-angle),
+    var(--color-role-ground),
+    transparent var(--story-scrim-reach)
+  );
+}
+
+/*
+ * The peer list, on the film's stage — §E22, §E13.
+ *
+ * `<ClayScene>` lays the list beside the canvas in every tier, and that rule is
+ * right: *"the list is a peer, not a fallback"*, and hiding it on the landing
+ * would make it the thing nobody looks at. What the landing added, and did not
+ * account for, is **fixed chrome in the same corners**. The column started at
+ * `y: 0` and ran to `x: 1440` — so its heading sat under the unmute button and
+ * its rows ended flush against the edge of the screen, with no gutter at all.
+ *
+ * Scoped to `.walk__stage`, because this is a fact about the *film's*
+ * composition and not about the component: the console's proof route has no
+ * fixed chrome and wants every pixel of the column.
+ */
+/*
+ * On the film the model fills the frame.
+ *
+ * `<ClayScene>`'s own stage is `aspect-ratio: 16 / 10`, which is right for a
+ * panel inside a console screen and wrong for a fixed stage behind a film: it
+ * left the clay occupying the top-left sixty per cent of the viewport with
+ * paper below it, and that empty band under the model is most of what reads as
+ * "gaps" while scrolling. The film's stage is the frame, so the picture takes
+ * the height it is given.
+ */
+.walk__stage .clay {
+  block-size: 100%;
+  align-items: stretch;
+  /* Wider than the component's 1.6fr / 1fr. That ratio is right for a console
+     panel where the list is half the work; on the film the model is the subject
+     and the index is a card set on it — and now that ADR-0061 has put a city
+     back in the frame, the difference is the difference between a film and a
+     sidebar with a picture beside it. */
+  grid-template-columns: minmax(0, 2.3fr) minmax(17rem, 1fr);
+}
+
+.walk__stage .clay__stage {
+  aspect-ratio: auto;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.walk__stage .clay__panel {
+  /* No inner scrollbar. `.clay-peers__list` already caps its own height, and a
+     second scrollbar beside the document's — on a page whose entire interaction
+     is scrolling — is an invitation to scroll the wrong one. */
+  padding-inline: 1rem;
+  /* Clear of the unmute and the ways nav, both of which are fixed at 1rem with
+     a 24 px box — so the first thing in the panel starts below them rather than
+     under them. The *panel* and not the list: the tier notice sits above the
+     list inside it, and it was the notice whose sentence ran under the unmute
+     button — "so the model keeps its frame rate. Bolder, not lesser" printed
+     straight through a control. */
+  padding-block-start: 3.5rem;
+  padding-block-end: 1rem;
+}
+
+/*
+ * **The card, and why the column was not one.**
+ *
+ * The list sat in the grid's second column with no ground of its own, which
+ * meant it sat on `.walk`'s paper — butted against a full-bleed clay render at
+ * sixty-one per cent of the frame, with no inset, no rule and no transition.
+ * Two materials meeting on a hard vertical seam is a collage, not a
+ * composition, and it is the one element on the stage that is beside the film
+ * rather than in it: the acts float over the model, the figure walks through
+ * it, and the index stood outside in its own half of the screen.
+ *
+ * A card fixes it in the language the direction already has. §E16 Act 4 peels a
+ * photograph off the world into a paper card — paper laid on clay is the
+ * product's own move, not a new one — so the model runs the whole width and the
+ * index is a card set down on it. Nothing is dimmed, nothing loses contrast:
+ * the card keeps paper-50 and its full-strength inks, and it gains the frame
+ * edge it never had.
+ *
+ * `+ .clay__panel` is the guard, not a shortcut. The overlap is only correct
+ * when there is a stage to overlap; Tier D and the reduced-motion rung render
+ * no canvas at all, and there the panel is the column and should stay one.
+ */
+@media (min-width: 60.0625rem) {
+  .walk__stage .clay__stage {
+    grid-area: 1 / 1 / 2 / -1;
+    /* The frame is the frame. A border here would be a second one inside it. */
+    border: 0;
+  }
+
+  .walk__stage .clay__stage + .clay__panel {
+    grid-area: 1 / 2 / 2 / -1;
+    align-self: start;
+    /* Above the reading ground, which the stage paints over the whole frame. */
+    position: relative;
+    z-index: 1;
+    margin-block: 3.5rem 1rem;
+    margin-inline-end: 1rem;
+    /* The 3.5rem is now the card's own clearance of the fixed chrome, so the
+       padding goes back to being padding. */
+    padding: 1rem;
+    /* Held inside the frame — and the clip is the *list's*, never the card's.
+       `overflow: hidden` on the card alone cut the two notes under the list
+       through the middle of a line of type: "the model's light is this city's
+       local time and the model's rain is its real weather — the" and then the
+       edge of the card. A column that ends mid-sentence is worse than one that
+       scrolls, because a reader cannot tell there is more. So the card is a
+       flex column, the list is the only part that gives, and everything the
+       component prints below it stays on the sheet. */
+    max-block-size: calc(100% - 4.5rem);
+    display: flex;
+    flex-direction: column;
+    background: var(--color-role-ground);
+    border: 1px solid var(--color-role-rule);
+  }
+
+  .walk__stage .clay__stage + .clay__panel .clay-peers {
+    display: flex;
+    flex-direction: column;
+    /* Without this a flex child refuses to shrink below its content and the
+       card grows back out of the frame — the default `min-block-size: auto`. */
+    min-block-size: 0;
+    flex: 1 1 auto;
+  }
+
+  .walk__stage .clay__stage + .clay__panel .clay-peers__list {
+    /* The component caps the list at 32rem for a console panel. On the film the
+       frame is the cap, so the list takes what the notes leave and no more. */
+    max-block-size: none;
+    min-block-size: 0;
+    flex: 1 1 auto;
+  }
+}
+
+/* The ink layer (§E5, §E8). Fixed with the stage rather than scrolling with
+   the reel — the figure walks because the camera travels, not because the page
+   moves under them. Above the clay, below the paper: the compositing order is
+   the three-material law. */
+.walk__figure {
+  /*
+   * The Reporter — §E5, §E8 — pinned to the frame, out of flow, and clear of
+   * the type.
+   *
+   * Three things were wrong with one rule. It was `fixed`, so it was fixed to
+   * the *sheet* (`.press__text` is transformed) and stood at the bottom of a
+   * twenty-eight-screen box rather than at the bottom of the frame. Sticky
+   * fixes that and takes a slot in the flow, so the height it occupies is given
+   * back exactly. And it stood bottom-**start**, which is the corner every
+   * act's copy uses: on the cold open the figure was drawn straight through
+   * "AI civic operations agent" and the scroll cue.
+   *
+   * It now stands at the end of the clay's column — beside the model it is
+   * walking through, and outside the measure the type occupies. Placed by the
+   * box rather than by aligning the child, because the ink layer positions
+   * itself absolutely inside this one.
+   */
+  position: sticky;
+  inset-block-start: calc(100dvh - min(44ch, 52dvh));
+  block-size: min(44ch, 52dvh);
+  margin-block-end: calc(-1 * min(44ch, 52dvh));
+  margin-inline-start: min(46%, 42rem);
+  inline-size: min(24ch, 26vw);
+  z-index: var(--layer-press);
+  pointer-events: none;
 }
 
 .walk__reel {
@@ -64,13 +373,39 @@
   position: relative;
   scroll-snap-align: start;
   display: grid;
-  align-content: center;
+  /* `start`, not `center`: the panel is sticky and positions itself, and a
+     centred grid would fight it for the same axis. */
+  align-content: start;
   gap: var(--density-gutter);
   padding: 2rem clamp(1rem, 5vw, 5rem);
-  /* Set per act from the §E16 table by <Walk>; see acts.ts. The film is
-     twenty viewports tall so that the shortest act — the cold open, five per
-     cent of the spine — still clears a full screen and can be snapped to. */
-  block-size: calc(var(--act-span) * 20 * 100dvh);
+  /*
+   * Set per act from the §E16 table by `<Walk>`; see `acts.ts`.
+   *
+   * **The multiplier is a token now, and it came down from twenty to ten.**
+   * Twenty was arithmetic rather than a decision: the cold open is five per
+   * cent of the spine, one screen was the floor for a snap point, and 1 / 0.05
+   * is 20 — so the *shortest* act set the length of the whole film. The result
+   * was nine acts spread over twenty screens, most of them one paragraph
+   * suspended in the middle of three empty ones, and a reader who wanted the
+   * receipts paying eighteen thousand pixels to reach them.
+   *
+   * Ten screens keeps scroll and `t` linear in each other — which is the one
+   * property this sizing exists to preserve — and the panels below are sticky,
+   * so an act that is now shorter than a screen still holds its copy for the
+   * whole act instead of flashing past. Nothing about the film's content
+   * changed; the camera track is authored against `t`, not against pixels.
+   */
+  block-size: calc(var(--act-span) * var(--story-viewports) * 100dvh);
+  /*
+   * **A floor of one screen, and it is what makes the sticky panels legible.**
+   * An act shorter than the viewport cannot hold its own copy: the panel sticks,
+   * the act ends under it, and the next act's panel sticks *below the first*, so
+   * two beats are on screen at once reading as one confused one. The floor is
+   * the same guarantee the twenty-viewport multiplier used to buy by accident —
+   * except it costs one screen per act instead of stretching every act to reach
+   * it.
+   */
+  min-block-size: 100dvh;
   pointer-events: none;
 }
 
@@ -82,7 +417,23 @@
   pointer-events: auto;
 }
 
+/*
+ * The copy holds while its act plays.
+ *
+ * It used to sit at the centre of its section, which on a two- or three-screen
+ * act meant: a screen of nothing, one screen of type, a screen of nothing. The
+ * gaps were not composition — they were the by-product of sizing an act by its
+ * share of the spine and then centring one paragraph inside it.
+ *
+ * Sticky is the fix and it is also the right reading of §E16: an act is a beat
+ * the *camera* plays, and the caption belongs to the whole beat rather than to
+ * one screen in the middle of it. Held above centre — the clay is the subject,
+ * the type is the caption, and a caption at dead centre argues with what it is
+ * captioning.
+ */
 .act__panel {
+  position: sticky;
+  inset-block-start: var(--story-panel-top);
   max-inline-size: var(--measure);
   display: grid;
   gap: var(--density-gutter);
@@ -254,9 +605,24 @@
  * Act 4 — the report, and the peel
  * ------------------------------------------------------------------------ */
 
+/*
+ * **It centred itself, and the film has no centre free to sit in.**
+ *
+ * `justify-items: center` put Act 4's panel in the middle of the frame — which
+ * is where the Reporter stands (`.walk__figure` is placed at 46%) and where the
+ * peer list's card begins. The phone was drawn through the ink figure, the
+ * caption under it ran beneath the card, and the described line — the one §E22
+ * puts there for the readers who cannot see the canvas — was the part that went
+ * under it.
+ *
+ * Every other act holds its copy in the column at the inline-start edge, which
+ * is also the column the reading ground covers. Act 4 is not the exception it
+ * was styled as: the phone is the subject of the beat, but the beat is still a
+ * caption on a film, and a subject that has to be composited around two things
+ * already in the frame is not centred, it is colliding.
+ */
 .report-act {
   align-content: center;
-  justify-items: center;
 }
 
 /* The phone, as a frame the camera has pushed into. The real capture surface
@@ -475,11 +841,195 @@
 
 .receipts {
   position: relative;
-  z-index: var(--layer-paper);
+  /* Above the film's own layer: the last act's sticky panel is still on screen
+     as the receipts arrive, and the sheet is what the reader is now reading. */
+  z-index: var(--layer-text);
   display: grid;
+  /* `minmax(0, 1fr)`, not the default `auto` — and this is a bug fix, not a
+     tidy-up. An `auto` grid column is sized to the widest item's *max-content*,
+     which here is a `curl` command and the §44 table; on a 390 px phone the
+     column resolved to 573 px inside a 390 px box, and `.press` clips, so the
+     final act of the landing — the receipts, the part that proves the film was
+     not a film — had its right third cut off on every handset. The same
+     `minmax(0, …)` the console's frame uses, for the same reason. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2rem;
   padding: 3rem clamp(1rem, 5vw, 5rem);
   background: var(--color-role-ground);
+}
+
+/* What is genuinely wider than a phone scrolls inside its own box rather than
+   being clipped: a shell command cannot reflow, and a table this wide would not
+   be readable if it did. */
+.receipts :is(pre, table) {
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+
+.receipts table {
+  display: block;
+}
+
+/*
+ * The sheet's masthead, and the section heads under it.
+ *
+ * Act 9 is the *document* — the part that proves the film was not a film — and
+ * it was set as a stack of headings separated by 2rem of nothing. The three
+ * weights of rule the front doors use are the whole fix, and using the same
+ * ones is the point: a reader who came here from `/citizen` is reading one
+ * product, and two houses' worth of typography on two pages of it is how a
+ * design system stops being one.
+ */
+.receipts__masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+  align-items: stretch;
+  gap: clamp(1rem, 4vw, 3rem);
+  background: var(--color-kraft-100);
+  border-block-end: 2px solid var(--color-role-text-primary);
+  /* Bleeds the act's own gutter on three sides, so the receipts open on a band
+     the way the front doors do — the film hands the reader a document, and a
+     document has a masthead rather than a heading. */
+  margin: -3rem clamp(-5rem, -5vw, -1rem) 0;
+  padding-inline-start: clamp(1rem, 5vw, 5rem);
+  padding-inline-end: 0;
+}
+
+.receipts__masthead-copy {
+  display: grid;
+  gap: 0.5rem;
+  align-content: center;
+  padding-block: clamp(2rem, 5vw, 3.5rem);
+  min-inline-size: 0;
+}
+
+.receipts__masthead .portal__plate {
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 13rem;
+  display: block;
+  border-inline-start: 1px solid var(--color-role-rule);
+}
+
+@media (max-width: 48rem) {
+  .receipts__masthead {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline-end: clamp(1rem, 5vw, 5rem);
+  }
+
+  .receipts__masthead .portal__plate {
+    display: none;
+  }
+}
+
+/* A heading and a rule to the end of the line — the same sectioning device
+   `portal.css` uses, drawn by the stylesheet so it is never in the accessible
+   name. */
+.receipts__head {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.receipts__head::after {
+  content: "";
+  block-size: 1px;
+  background: var(--color-role-rule);
+}
+
+.receipts__block {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/*
+ * The `curl` is the one claim on this page a reader can check in ten seconds,
+ * and it was a bare `<pre>` in the flow — indistinguishable from the prose
+ * around it. On its own stock with a heavy start rule it reads as a specimen:
+ * something quoted from elsewhere and pasted onto the sheet, which is exactly
+ * what it is.
+ */
+.receipts__block pre {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  background: var(--color-kraft-100);
+  border-inline-start: 3px solid var(--color-role-text-primary);
+}
+
+/*
+ * The counts are the strongest numbers on the landing — how many claims this
+ * product makes about itself and how many are running against real data — and
+ * they were a sentence in the body face between two other sentences. The block
+ * gets the stub treatment the citizen door's receipt field gets, for the same
+ * reason: it is not more prose, it is the figure the section exists to publish.
+ */
+.receipts__honesty {
+  display: grid;
+  gap: 0.5rem;
+  background: var(--color-kraft-100);
+  border-block-start: 2px solid var(--color-role-text-primary);
+  padding: 1.25rem;
+}
+
+/* The last thing on the landing, and it is a set of doors rather than a list of
+   words — the same card the §E18 index uses, because they lead to the same
+   pages and two renderings of one thing is one too many. */
+.receipts__places {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.receipts__place-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.5rem;
+}
+
+.receipts__place {
+  display: grid;
+  gap: 0.15rem;
+  block-size: 100%;
+  padding: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid var(--color-role-rule);
+  border-inline-start-width: 3px;
+}
+
+/* The same hover doctrine as the front doors: the start rule arrives and the
+   name underlines. A whole border changing colour moves a reader's eye to the
+   box; what they are choosing is the place. */
+.receipts__place:hover,
+.receipts__place:focus-visible {
+  border-inline-start-color: var(--color-role-text-signal);
+}
+
+.receipts__place:hover .receipts__place-code,
+.receipts__place:focus-visible .receipts__place-code {
+  color: var(--color-role-text-signal);
+}
+
+.receipts__place-code {
+  color: var(--color-role-text-secondary);
+  letter-spacing: 0.08em;
+}
+
+/* The way to the full table reads as a way, not as a sentence. */
+.receipts__honesty a {
+  color: var(--color-role-text-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+.receipts__statuses {
+  color: var(--color-role-text-secondary);
+  letter-spacing: 0.08em;
 }
 
 .receipts__note {

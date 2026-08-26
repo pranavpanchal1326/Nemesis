@@ -3,7 +3,12 @@ import { headers } from "next/headers";
 
 import { Press } from "@/press/Press";
 import { fetchClayWorld } from "@/server/clay-data";
-import { cityNameFallback, fetchCity, fetchPublishedLocales } from "@/server/public-data";
+import {
+  cityNameFallback,
+  fetchCity,
+  fetchPublishedLocales,
+  publishedTenant,
+} from "@/server/public-data";
 import { loadStrings, negotiateLocale, SEEDED_LOCALES } from "@/server/strings";
 import { directionOf } from "@/lib/i18n/direction";
 import { Storyboard } from "@/story/Storyboard";
@@ -65,7 +70,7 @@ export default async function Landing({
   const requested = params["locale"];
   const explicit = Array.isArray(requested) ? requested[0] : requested;
 
-  const slug = process.env["NEMESIS_STORY_TENANT"] ?? null;
+  const slug = publishedTenant() ?? null;
   const available = slug === null ? SEEDED_LOCALES : await fetchPublishedLocales(slug);
   const locale = negotiateLocale({
     ...(explicit === undefined ? {} : { explicit }),

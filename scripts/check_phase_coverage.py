@@ -18,9 +18,9 @@ which is the standing objection to the phase plan existing at all.
    Group B — are each claimed by exactly one phase's `**Claims:**` line. Not
    zero, not two.
 2. **Open register rows** — Group A and Group C — are each either claimed by a
-   phase's `**Closes:**` line, or carry an explicit **disposition** in their own
-   id cell. Three dispositions exist and each is a sentence somebody has to
-   write down:
+   phase's `**Closes:**` line, **carried** by a phase's `**Carries:**` line, or
+   carry an explicit **disposition** in their own id cell. Three dispositions
+   exist and each is a sentence somebody has to write down:
 
    * `Closed` / `Landed` / `Done` — the work happened.
    * `Accepted` — a recorded deviation that no phase will ever close, and
@@ -28,8 +28,27 @@ which is the standing objection to the phase plan existing at all.
    * `Owned by …` — real work owned outside F1–F18, which Track E cannot claim
      on somebody else's behalf (C6, backend Phase 12).
 
-   A row with neither a claim nor a disposition is the failure this catches:
-   work that both documents assume the other one is tracking.
+   A row with none of the three is the failure this catches: work that both
+   documents assume the other one is tracking.
+
+   **`Carries:` was added at F18, and the argument belongs here rather than in a
+   commit message** — execution-plan Law 4 requires a phase that changes a gate
+   to change it deliberately and say why. The vocabulary above had exactly two
+   truthful states for an open row: *a phase will close it*, or *nothing ever
+   will*. A15 and A16 are neither. They are the WCAG audit and the usability
+   session — the two clauses no amount of code closes — and F18 did everything
+   code can do: dispositioned all 56 AA success criteria, wrote a ten-task
+   session protocol with binary criteria, flagged three expected failures in
+   advance, and booked nobody, because there is nobody to book.
+
+   Forced into the old vocabulary, the options were to let F18 claim `Closes:`
+   on two rows it did not close — which is precisely the lie this whole document
+   exists to prevent, told by the check meant to catch it — or to mark them
+   `Accepted`, which asserts no session will ever happen and quietly writes off
+   the largest unquantified risk in the frontend. So the vocabulary gained the
+   state that was missing: **a phase owns this row, has done what it can, and
+   has not closed it.** Carried rows are counted and printed separately, so they
+   cannot pass as closed and cannot pass as unowned.
 3. **A row claimed twice must say so.** Two phases may share a row only when
    each claim names its part — `A14 (citizen + public half)` and `A14
    (department half)`. A bare double claim is the ownership dispute the rule
@@ -103,10 +122,15 @@ def read_register() -> dict[str, str | None]:
     return rows
 
 
-def read_phases() -> tuple[dict[str, list[str]], dict[str, list[tuple[str, str | None]]]]:
-    """`{phase: [ship ids]}` and `{phase: [(register id, part)]}`."""
+def read_phases() -> tuple[
+    dict[str, list[str]],
+    dict[str, list[tuple[str, str | None]]],
+    dict[str, list[str]],
+]:
+    """`{phase: [ship ids]}`, `{phase: [(register id, part)]}`, `{phase: [carried]}`."""
     claims: dict[str, list[str]] = defaultdict(list)
     closes: dict[str, list[tuple[str, str | None]]] = defaultdict(list)
+    carries: dict[str, list[str]] = defaultdict(list)
     phase: str | None = None
 
     for line in PHASES.read_text(encoding="utf-8").splitlines():
@@ -121,13 +145,16 @@ def read_phases() -> tuple[dict[str, list[str]], dict[str, list[tuple[str, str |
         if line.startswith("**Closes:**"):
             for key, part in CLOSES_ITEM.findall(line):
                 closes[phase].append((key, part or None))
-    return claims, closes
+        if line.startswith("**Carries:**"):
+            for key, _ in CLOSES_ITEM.findall(line):
+                carries[phase].append(key)
+    return claims, closes, carries
 
 
 def main() -> int:
     ship_lines = read_ship_lines()
     register = read_register()
-    claims, closes = read_phases()
+    claims, closes, carries = read_phases()
 
     problems: list[str] = []
 
@@ -157,6 +184,13 @@ def main() -> int:
             )
 
     # 2, 3 and 4 — register rows.
+    carried_by: dict[str, list[str]] = defaultdict(list)
+    for phase, keys in carries.items():
+        for key in keys:
+            carried_by[key].append(phase)
+            if key not in register:
+                problems.append(f"{phase} carries {key}, which is not a register row")
+
     closed_by: dict[str, list[tuple[str, str | None]]] = defaultdict(list)
     for phase, rows in closes.items():
         for key, part in rows:
@@ -166,6 +200,14 @@ def main() -> int:
 
     for key, disposition in sorted(register.items()):
         owners = closed_by.get(key, [])
+        keepers = carried_by.get(key, [])
+        # A row cannot be both closed and carried: one phase says the work
+        # happened and another says it did not, about the same row.
+        if owners and keepers:
+            problems.append(
+                f"{key} is closed by {', '.join(phase for phase, _ in owners)} and carried by "
+                f"{', '.join(keepers)} — one of the two phases is wrong about the same row"
+            )
         if disposition is not None:
             # A row somebody disposed of AND planned is not an error, but it is
             # worth saying out loud: one of the two statements is stale.
@@ -174,12 +216,20 @@ def main() -> int:
                     f"{key} is recorded as '{disposition}' and is also claimed by "
                     f"{', '.join(phase for phase, _ in owners)} — one of the two is stale"
                 )
+            if keepers:
+                problems.append(
+                    f"{key} is recorded as '{disposition}' and is also carried by "
+                    f"{', '.join(keepers)} — a disposed row needs no keeper"
+                )
+            continue
+        if keepers:
             continue
         if not owners:
             problems.append(
-                f"{key} is open, is claimed by no phase, and carries no disposition. "
-                f"Either a phase closes it, or its row says why nothing will "
-                f"(Accepted / Owned by ...)"
+                f"{key} is open, is claimed by no phase, is carried by no phase, and "
+                f"carries no disposition. Either a phase closes it, a phase carries it "
+                f"(**Carries:**, for work no code can finish), or its row says why "
+                f"nothing ever will (Accepted / Owned by ...)"
             )
         elif len(owners) > 1 and any(part is None for _, part in owners):
             problems.append(
@@ -193,10 +243,14 @@ def main() -> int:
         return 1
 
     open_rows = sum(1 for value in register.values() if value is None)
+    held = sorted(carried_by)
+    carried_note = (
+        f"; {len(held)} carried and not closed ({', '.join(held)}) — see each row" if held else ""
+    )
     print(
         f"coverage: {len(ship_lines)} ship lines and {open_rows} open register rows "
         f"({len(register)} total), each claimed by exactly one of "
-        f"{len(set(claims) | set(closes))} phases"
+        f"{len(set(claims) | set(closes) | set(carries))} phases{carried_note}"
     )
     return 0
 

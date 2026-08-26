@@ -21,11 +21,47 @@
  * The report flow
  * ------------------------------------------------------------------------ */
 
+/*
+ * A phone surface, opened on a desktop — §E17, §E21, §E13.
+ *
+ * These screens are designed for one thumb: §E17.1's full-bleed viewfinder,
+ * §E21's gloves-and-glare controls. Nothing about that changes on a laptop, and
+ * until this rule the layout simply *stretched* — a 1300 px "Take a photo"
+ * button, a shutter marooned in the middle of an empty page, and the last
+ * control pushed off the bottom of a 900 px window.
+ *
+ * So the column stops growing and centres. Not a desktop redesign: the same
+ * screen, at the width it was drawn for, with the room around it left as room.
+ * A max in `rem` rather than a media query, because what is being constrained
+ * is the measure of the layout and not a class of device.
+ */
+/*
+ * The surface owns the viewport height; the screen fills what is left.
+ *
+ * `.report` claimed `100dvh` for itself while the way-back link sat above it,
+ * so the column was one viewport *plus* forty pixels and the last control fell
+ * off the bottom of every window. The height belongs to the surface — there is
+ * exactly one of those — and the screen inside it takes the remainder.
+ */
+[data-surface="report"] {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.report,
+.track {
+  max-inline-size: 32rem;
+  margin-inline: auto;
+  inline-size: 100%;
+}
+
 .report {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  min-block-size: 100dvh;
+  flex: 1;
+  min-block-size: 0;
   padding: 1rem;
   padding-block-end: max(1rem, env(safe-area-inset-bottom));
 }
@@ -89,7 +125,13 @@
 .viewfinder {
   display: flex;
   flex-direction: column;
-  min-block-size: 100dvh;
+  /* `flex: 1` inside `.report`'s 100dvh column, not a second `100dvh` of its
+     own. Two stacked full-viewport boxes plus the way-back link came to more
+     than one screen, so the last control — *"Say what's wrong"* — sat below the
+     fold on any window shorter than about 950 px, on the screen where the two
+     buttons are the entire product. */
+  flex: 1;
+  min-block-size: 0;
 }
 
 .viewfinder__frame {
@@ -561,4 +603,31 @@
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/* The way back to the door — §E17, ADR-0059.
+   Above the viewfinder and first in the tab order after the transport banner,
+   because a citizen who opened the camera by accident should not have to guess
+   the URL of everything else. One line of caption type: §E17.1's rule is that
+   the app opens *in the viewfinder*, and a navigation bar that competed with
+   the shutter would be breaking it to fix something smaller. */
+.citizen__ways {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem clamp(0.75rem, 4vw, 1.5rem);
+  /* Aligned with the column below it. A centred screen under a link pinned to
+     the far edge of a 1440 px window reads as two unrelated pages. */
+  max-inline-size: 32rem;
+  margin-inline: auto;
+  inline-size: 100%;
+}
+
+.citizen__ways a {
+  color: var(--color-role-text-secondary);
+  text-underline-offset: 0.25em;
+  /* WCAG 2.2 AA 2.5.8 — 24 px minimum. One thumb, in the street, is the whole
+     posture of this surface, so this is the last place to leave a 14 px box. */
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
 }

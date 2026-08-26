@@ -90,7 +90,14 @@ async function fileAReport(page: Page, description: string): Promise<string> {
 
   // §E17.1 step 2 — Place. Geolocation is granted in `test.use` below, so the
   // card resolves against the seeded tenant's real ward boundaries.
-  await expect(page.getByRole("heading", { name: /where/i })).toBeVisible();
+  //
+  // `exact` on the card's own heading, not `/where/i`. The loose pattern was
+  // fine while this screen had exactly one heading and stopped being fine the
+  // moment it got the `<h1>` it should always have had — the screen now says
+  // *"Where is it?"* to a screen reader and *"Where"* over the card, and both
+  // are correct. The step being driven here is the card, so the card is what
+  // this locator names.
+  await expect(page.getByRole("heading", { name: "Where", exact: true })).toBeVisible();
   const send = page.getByRole("button", { name: /^send$/i });
   await expect(send).toBeEnabled({ timeout: 15_000 });
   await send.click();

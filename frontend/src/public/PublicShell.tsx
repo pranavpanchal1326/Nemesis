@@ -30,6 +30,7 @@ export function PublicShell({
   locales,
   generatedAt,
   notice,
+  landmark = "main",
   children,
 }: {
   readonly city: string;
@@ -62,6 +63,19 @@ export function PublicShell({
    * greyed out at the bottom where a screenshot crops it off.
    */
   readonly notice?: string;
+  /**
+   * The element the page body sits in. `main` everywhere a visitor reaches
+   * this shell, and `div` in the one place it is **embedded inside another
+   * surface's landmark**: `/developers/proof/public` renders this shell inside
+   * the developer group, whose layout already owns the page's `<main>`, and the
+   * result was `<main><main>` — the nested-landmark violation the layouts in
+   * `(public)` and `(report)` both have docstrings about avoiding.
+   *
+   * The same escape `<ReportFlow>` takes for the same reason, spelled the same
+   * way: a prop with a correct default, so the honest case needs no thought and
+   * the embedded case has to say so.
+   */
+  readonly landmark?: "main" | "div";
   readonly children: ReactNode;
 }) {
   // Derived from the locale, never passed alongside it. §E22 claims RTL-ready
@@ -69,6 +83,7 @@ export function PublicShell({
   // attribute is the one thing that was missing to make that claim do anything
   // (A11). `dir` sits on the same element as `lang` so the two cannot disagree.
   const direction = directionOf(locale);
+  const Body = landmark;
 
   return (
     <div data-surface="public" lang={locale} dir={direction} className="public">
@@ -80,7 +95,7 @@ export function PublicShell({
         {notice === undefined ? null : <SystemNotice notice={notice} />}
       </header>
 
-      <main className="public__main">{children}</main>
+      <Body className="public__main">{children}</Body>
 
       <footer className="public__footer">
         {generatedAt === undefined ? null : (
@@ -105,6 +120,14 @@ export function PublicShell({
         </nav>
         <p className="type-caption">
           <Link href={`/${citySlug}/honesty`}>{t(strings, "honesty.title")}</Link>
+        </p>
+        {/* The way back to the resident's door. These pages are the surface a
+            search engine lands somebody on — §16.3 wants a journalist to find a
+            ward page by searching for the ward — so this is, for a large share
+            of readers, the first NEMESIS page they have ever seen, and until
+            ADR-0059 it was also a dead end. */}
+        <p className="type-caption">
+          <Link href="/citizen">{t(strings, "portal.citizen.title")}</Link>
         </p>
       </footer>
     </div>

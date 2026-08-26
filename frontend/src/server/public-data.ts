@@ -223,8 +223,40 @@ export async function fetchPublishedLocales(slug: string): Promise<readonly stri
  * source of truth for something the platform holds.
  */
 export function cityNameFallback(slug: string): string {
+  // An id is not a name, and title-casing one produces a string that *looks*
+  // like a name and is not: "672c8898 6103 49d2 B45d C04932c03873" shipped in
+  // the console masthead and in the clay layer's caption. Returned unchanged
+  // instead, so it reads as the identifier it is — §E3.3 applied to a fallback,
+  // which is exactly where a small dishonesty is easiest to miss.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug)) return slug;
+
   return slug
     .split("-")
     .map((part) => (part === "" ? part : `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`))
     .join(" ");
+}
+
+/**
+ * The slug this deployment has published under, if it has published at all.
+ *
+ * **Not `resolveTenant()`, and the difference is the whole point.**
+ * `NEMESIS_TENANT_ID` is the trust boundary the BFF holds — a tenant *id*, an
+ * opaque UUID, never in a URL a person reads (ADR-0040). §E18's addresses are
+ * slugs, and a slug exists only because a city chose to publish under it
+ * (ADR-0046). Linking a resident at `/{id}` produced a page that answered, in
+ * the sense that it rendered *"this city does not publish"* about a tenant that
+ * does — which is the worst kind of working link.
+ *
+ * **The variable is named for the landing, and the concept is not.**
+ * `NEMESIS_STORY_TENANT` was introduced for §E16's film, whose own docstring
+ * gives the reasoning this function inherits: *"a deployment that has not
+ * published anything sets nothing"*, and nothing falls back to a demo city,
+ * because shipping somebody else's wards under your own address is the
+ * confidently wrong screen §E3.3 forbids. Three surfaces now ask the same
+ * question, so they ask it here rather than reading the variable three times —
+ * and a rename becomes one edit instead of a grep.
+ */
+export function publishedTenant(): string | undefined {
+  const slug = process.env["NEMESIS_STORY_TENANT"];
+  return slug === undefined || slug === "" ? undefined : slug;
 }

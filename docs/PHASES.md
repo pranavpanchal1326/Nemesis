@@ -2166,27 +2166,44 @@ newer document and it states its reasoning.
 
 [`docs/FRONTEND-EXECUTION-PLAN.md`](FRONTEND-EXECUTION-PLAN.md) is the build
 sequence for this track: milestones M0–M12, each with its entry condition, its
-deliverables, and the gate above that it closes. The blueprint governs direction;
-the execution plan governs order.
+deliverables, and the gate above that it closes.
+[`docs/FRONTEND-PHASE-PLAN.md`](FRONTEND-PHASE-PLAN.md) breaks M7–M12 and the
+outstanding register into eighteen phases, F1–F18. The blueprint governs
+direction; the execution plan governs order; the phase plan governs gates.
+
+> **Track E is closed — M0 through M12, F1 through F18 (2026-08-26).** The gate
+> rows below are amended in place where this build corrected them, which is
+> M12.4's own ship line. Nothing is deleted: a struck line and its replacement
+> are both the record, and a document that quietly rewrites its own history
+> teaches nobody. Two Phase 18 gate clauses **did not close**, and they are
+> marked here rather than in a report nobody opens. Full reconciliation:
+> [`reports/m12-reconciliation.md`](reports/m12-reconciliation.md).
 
 ## Phase 18 — Design system, application shell & i18n · PROD
 
 **Ships**
-- Next.js 15 App Router, TypeScript strict, on host Node 24 with Turbopack
-- **Design practice, not just components**: usability testing with real field staff and department users, task-success measurement, and a content/tone system for a government context
-- Tailwind + shadcn/ui with severity-semantic tokens shared by the 2D UI *and* the shader uniforms — one vocabulary defined once (§19.3)
-- **Full internationalisation**: locale-driven copy, Devanagari typography, RTL-ready layout primitives, and translation workflow tied to the Phase 5 locale registry
-- Accessibility program: WCAG 2.2 AA target, keyboard paths, screen-reader labels, contrast verified against the severity palette
+- ~~Next.js 15~~ — **Next.js 16** (ADR-0042), App Router, TypeScript strict, host Node 24, Turbopack. The TypeScript 7 native compiler waits on the tooling these gates need, and the ADR says why rather than the version drifting silently
+- **Design practice, not just components**: usability testing with real field staff and department users, task-success measurement, and a content/tone system for a government context — **the testing half did not happen; see the gate below and register row A16**
+- ~~Tailwind + shadcn/ui~~ — **Tailwind ships; shadcn/ui does not.** §E26 specifies ten component *contracts* with required props, and `Translated` is a branded type only `t()` and `plural()` can produce, so a literal in a component fails to compile. A vendored component library whose props are strings cannot express that, and the contracts are the gate. Severity-semantic tokens are shared by the 2D UI *and* the shader uniforms exactly as §19.3 asks — one source generates `tokens.css`, `tokens.ts` and the TSL uniforms, drift-checked in CI
+- **Full internationalisation**: locale-driven copy, Devanagari typography, RTL-ready layout primitives, and a translation workflow tied to the Phase 5 locale registry — **scoped by ADR-0058, and the scope is the honest half of this line.** The registry carries *tenant-authored* words: a ward's name, a taxonomy node's display name. **Product copy is authored by NEMESIS and reviewed like code**, which is the line `db/models/i18n.py` drew and which the frontend contradicted for three milestones by fetching namespaces the registry refuses to hold
+- Accessibility program: WCAG 2.2 AA target, keyboard paths, screen-reader labels, contrast verified against the severity palette — **the automated half is done and broad; the audit is a person and has not happened (A15)**
 - Generated TypeScript API client; drift fails CI
 - Zustand store fed by the WebSocket, with a subscription path bypassing React re-render for high-frequency updates
 - Storybook, `axe` gating, Lighthouse budgets
 
-**Gate**
-- Lighthouse ≥ 90 performance and accessibility on citizen and department routes
-- WCAG 2.2 AA verified by audit, not only by automated scan
-- Zero `any` in application source
-- A locale added in the control plane appears in the UI with no code change
-- Measured task-success rate from a usability session, with findings tracked
+**Gate** — three of five closed, two carried. Marked here, not only in the register.
+
+- ✅ **Lighthouse ≥ 90 performance and accessibility on citizen and department routes** — `lighthouserc.json` asserts both category scores on three routes, three runs and the median, against a **production** build on its own port, because a run that silently measured the dev server would report ~0.65 for reasons that have nothing to do with the product. Measured on the reference machine under mobile emulation for all three, which is the stricter reading since an officer's console is a desktop surface: `/console` 97–99 and 100, `/report` 93–99 and 100, `/pune-demo/honesty` 86–97 and 100 (A14)
+- ⛔ **WCAG 2.2 AA verified by audit, not only by automated scan** — **not closed (A15).** The scan half is clean at `wcag2a/2aa/21a/21aa/22aa` across three densities × two scripts on the console, all seven fixture screens, the citizen, public and story surfaces in both scripts, and the §E26 matrix at twelve combinations — roughly a third of the standard, by `axe`'s own account. **No person has audited this product.** The instrument is written and unbooked: all 56 AA criteria dispositioned, three expected failures flagged in advance including WCAG 2.2's new **2.5.7 Dragging Movements** against the clay camera — [`reports/wcag-audit-gap.md`](reports/wcag-audit-gap.md)
+- ✅ **Zero `any` in application source** — `@typescript-eslint/no-explicit-any` is an error under `strict`, and `check-guards.ts` adds nine bans on top of it, including *no hand-written type describing a backend contract*: if the type does not exist in `openapi.json` yet, the screen is not ready to build
+- ✅ **A locale added in the control plane appears in the UI with no code change** — asserted against a live stack by `nem gate-phase18-locale`, which adds Konkani to a running tenant over HTTP, imports its words, and reads them off the rendered page. Writing that gate found the clause was *unmeetable* rather than unmet — no route could add a locale to an existing tenant, and the language switch was a two-element array in a component (A2). **Scoped by ADR-0058:** this governs tenant-authored words, and product copy needs a release, which is the true statement and now the only one the code makes
+- ⛔ **Measured task-success rate from a usability session, with findings tracked** — **not closed (A16). Not run.** No participant has ever touched this product. Three ways to produce a number anyway were available and all three rejected with the reason written down. The protocol exists — ten tasks, binary criteria fixed in advance, field sessions outdoors on the participant's own phone, and no pass mark set — [`reports/usability-session-gap.md`](reports/usability-session-gap.md)
+
+> **Both open clauses were foreseen and neither was mitigated.**
+> `docs/FRONTEND-PHASE-PLAN.md` §5 named them lead-time items to start at F3 and
+> land at F18. They were not started. Recording that the foreseen risk was
+> foreseen and still landed is the honest close; §6 Principle #8 is the reason it
+> is written here rather than absorbed.
 
 ## Phase 19 — Geospatial 3D engine · PROD
 
@@ -2227,7 +2244,7 @@ Each scene is driven by a real pipeline event and has a fallback path.
 - **Cluster-merge (hero, §19.2)** — instance positions interpolated toward the merged centroid on a shared `uMergeProgress` uniform, height and colour tracking recomputed severity, driven by the live `cluster_match_found`. ~~custom GLSL~~ — **superseded by ADR-0037: authored in TSL**, compiled once to WGSL and GLSL. ~~*Fallback: CSS transform on Leaflet DOM markers*~~ — **superseded by §E15: Leaflet is not used**; the 2D and heavy-layer path is MapLibre GL + deck.gl, and §E16 Act 6 adds the beats §19.2 omitted — the second ink overprinting, the thumbprint, and the registration rings that say deduplication is not deletion.
 - **Severity field** — GPGPU ping-pong FBO simulation advecting a density field, so severity reads as terrain rather than scattered dots. *Fallback: precomputed heatmap texture.*
 - **Safety-flag pulse** — selective bloom via render layers on `safety_trigger_fired`, making the deterministic fail-safe visible the instant it bypasses the queue. *Fallback: CSS keyframe halo.*
-- **Closure dissolve** — a resolved incident dissolving on `citizen_confirmed`, closing the loop visually the way the system closes it operationally. *Fallback: opacity transition.*
+- **Closure dissolve** — a resolved incident dissolving on `citizen_confirmed`, closing the loop visually the way the system closes it operationally. *Fallback: opacity transition.* — **not built, and the reason is not the scene.** `citizen_confirmed` is registered, projected and shaped for the wire, and **nothing in this system appends it**: §E17.5's close-the-loop door is Phase 15 on both sides. F15 hit the same wall binding the character layer's `relief` input to it and published the finding rather than faking an envelope — [`reports/character-relief-gate.md`](reports/character-relief-gate.md). This line closes when Phase 15 does.
 - `EffectComposer` with SMAA and selective bloom, budgeted per frame
 - Shader uniforms bound to the Phase 18 design tokens — severity colour defined once
 
@@ -2236,6 +2253,16 @@ Each scene is driven by a real pipeline event and has a fallback path.
 - Every fallback is exercised in CI by forcing the flag
 - Golden-image regression passes per scene at fixed seed and camera
 - Frame budget held with all effects enabled
+
+> **Taken at F12–F16 / M8–M10, with two clauses published as unmet.** The
+> fallback line is closed by `frontend/tests/ladder.spec.ts`, which asserts each
+> rung against the same functions the scene builds itself from rather than
+> against a transcription of §E13's table. The frame budget is the one number
+> that failed and it is published rather than relaxed —
+> [`reports/clay-frame-rate.md`](reports/clay-frame-rate.md). The merge scene's
+> live case and the closure dissolve both wait on events this deployment cannot
+> produce: [`reports/story-merge-gate.md`](reports/story-merge-gate.md) and
+> [`reports/character-relief-gate.md`](reports/character-relief-gate.md).
 
 ## Phase 21 — Temporal replay: the event-log time machine · PROD · PLT
 
@@ -2263,13 +2290,22 @@ upload closure evidence have the worst connectivity in the system.
 - PWA with installability, service worker, and an **offline submission and evidence queue** that survives app restart
 - Conflict-free sync on reconnect, with server-side idempotency making replays safe
 - Camera-first capture flow with client-side compression and EXIF preservation
-- Low-bandwidth mode and degraded-map tiles
+- ~~Low-bandwidth mode and degraded-map tiles~~ — **superseded by §E21 and §E13.** This line predates the fallback ladder, which answers the same problem better and answers it *everywhere* rather than on one surface: Tier B is the low-bandwidth mode, it is chosen from measured frame rate and device memory rather than from a toggle nobody finds, and Tier C is the degraded map. §E21's own list does not carry this line, and the frontend blueprint governs Track E's gates. **Outdoor mode is what §E21 has instead**, and it solves the problem this line did not name — sunlight, not bandwidth.
 - Background upload with visible per-item state, so nothing fails silently
 
 **Gate**
 - A complaint and a closure photo captured fully offline sync correctly on reconnect
 - A killed app mid-upload resumes without duplicating or losing the submission
 - The flow is usable end to end on a throttled 2G profile
+- **New (§E25):** outdoor mode passes contrast at 7:1 for primary text
+
+> **Taken at F17 / M11.** `frontend/tests/field.spec.ts` runs the first three
+> clauses against the live stack; the fourth is arithmetic over the token layer
+> and is asserted in `tests/contrast.test.ts` and `tests/offline.test.ts`, where
+> a third role ground was added with every text floor at 7 rather than 4.5.
+> **ADR-0056** and **ADR-0057** record the two decisions it needed. §8.7 had cut
+> the PWA offline queue as out of scope for the demo; §44 now records the
+> reversal and its reason rather than rewriting the old row.
 
 ---
 

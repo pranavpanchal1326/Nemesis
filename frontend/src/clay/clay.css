@@ -108,6 +108,26 @@
   min-inline-size: 0;
 }
 
+/*
+ * **Caps are a label style, and this list had them on everything.**
+ *
+ * `type-micro` is uppercase, 600, +0.08em — the eyebrow. It was carrying the
+ * hint, both metadata fields on every row, and the two sentences under the
+ * list, which on thirteen places is thirty-odd runs of shouting type per
+ * screen, most of them the same three strings repeated. Two things follow from
+ * that, and both of them are what the map looked like beside the film: the
+ * hierarchy inverted — the heading was the quietest thing in its own panel —
+ * and the repetition stopped being information, because "ON THE MAP" printed
+ * thirteen times in a row is texture.
+ *
+ * So caps now mean what they mean everywhere else in the product: **one label
+ * per block, never a value and never a sentence.** The heading is the eyebrow,
+ * the hint and the notes are sentences in `type-caption`, and a row's state and
+ * count are values in `type-caption` at secondary ink. Nothing was removed —
+ * §E3.3's empty states still say "not yet scored" and "none filed" in full,
+ * which is the whole argument for printing them. They just stopped being the
+ * loudest thing on a screen whose subject is the model.
+ */
 .clay-peers__title {
   color: var(--role-text-secondary);
   margin-block-end: 0.25em;

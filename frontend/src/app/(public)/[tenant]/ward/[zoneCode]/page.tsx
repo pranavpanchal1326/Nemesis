@@ -112,7 +112,10 @@ export default async function Place({
 
       <ZonePanel zone={zone} strings={strings} />
 
-      <nav className="type-caption">
+      {/* A navigation row, not a sentence — so WCAG 2.2's 2.5.8 applies to it
+          in full and the interpuncts are separators rather than prose. The
+          class gives each link a 24 px box without touching §E10's type. */}
+      <nav className="public__place-nav type-caption">
         <Link href={`/${tenant}/budget/${zoneCode}`}>{t(strings, "place.budget")}</Link>
         {" · "}
         <Link href={`/${tenant}`}>{t(strings, "place.back")}</Link>

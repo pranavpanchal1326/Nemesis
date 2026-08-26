@@ -66,6 +66,21 @@ export interface PressPlan {
     readonly leadingEdgeBias: number;
   };
   readonly paper: { readonly amplitude: number; readonly deckleWidthPx: number };
+  /**
+   * §E6.1 stage 0 — the run's exposure, applied to the photograph before the
+   * plates are solved (ADR-0061).
+   *
+   * A gamma about the sheet's own white point: `graded = sheet · (sample /
+   * sheet)^gamma`. In absorbance space that is a pure scale on `needed`, which
+   * is why one number does the whole job and why 1.0 is exactly the identity —
+   * every run that does not state one is provably unchanged, bit for bit.
+   *
+   * It exists because §E9.2's story run has no black plate, so one plate
+   * carries the entire model and the clay body *is* that plate's ink (§E7.1).
+   * Ungraded, everything from the body tone down solved past full coverage and
+   * the film printed as a flat brown field with no city in it.
+   */
+  readonly gradeGamma: number;
   readonly seed: number;
 }
 
@@ -153,6 +168,7 @@ export function planPress(request: PressRequest): PressPlan {
   return {
     quality,
     plates,
+    gradeGamma: INK_SET[surface].gradeGamma,
     cellPx,
     dotSoftness: PRESS.halftone.dotSoftness,
     animated: tier.misregistration === "animated",

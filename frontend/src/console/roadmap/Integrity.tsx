@@ -1,3 +1,4 @@
+import { InkFigure } from "@/ink/InkFigure";
 import { t, type Strings, type Translated } from "@/lib/i18n/strings";
 
 import { ConsolePrint } from "../ConsoleShell";
@@ -77,7 +78,19 @@ export function Integrity({ strings }: { readonly strings: Strings; readonly loc
       <FixtureNotice phase="17" strings={strings} />
 
       <ConsolePrint title={t(strings, "integrity.signals")}>
-        <p className="roadmap__why type-caption">{t(strings, "integrity.disclaimer")}</p>
+        {/*
+          §E8.2 — the Auditor, and the register that table gives them: *"patient.
+          Never smug, never accusatory — §22.2 is a design constraint on the
+          character too."* So the figure stands at rest beside the disclaimer
+          rather than pointing at a signal, and it is **not** `live`: a figure
+          that reacted to events on this screen would be a character having an
+          opinion about a named commercial entity, which is precisely what
+          §E19.6 says this room must never do.
+        */}
+        <div className="roadmap__disclaimer">
+          <InkFigure strings={strings} figure="auditor" className="ink--inline" fill={0.9} />
+          <p className="roadmap__why type-caption">{t(strings, "integrity.disclaimer")}</p>
+        </div>
         <ul className="roadmap__signals">
           {signals.map((signal) => (
             <li key={signal.key} className="roadmap__signal" data-flag="signal">

@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ClayEntity } from "@/clay/entities";
 import { ClayScene } from "@/clay/ClayScene";
 import type { GeoPoint } from "@/clay/projection";
-import type { ClayScene as SceneHandle } from "@/clay/scene";
+import type { ClayScene as SceneHandle, SceneStage } from "@/clay/scene";
 import type { SeasonalWeather } from "@/clay/sun";
 import {
   forcedTier,
@@ -18,7 +19,9 @@ import {
 import type { InkSetName } from "@/design/generated/tokens";
 import { t, type Strings } from "@/lib/i18n/strings";
 import { steppedClock } from "@/lib/stepped-clock";
+import { SoundControl } from "@/sound/SoundControl";
 
+import type { ActId } from "./acts";
 import { ColdOpen, TheSilence, TheStop, TheWalk } from "./acts/opening";
 import { TheReceipts } from "./acts/receipts";
 import { TheMerge, TheCityAwake, TheTable, type StoryZone } from "./acts/close";
@@ -27,6 +30,7 @@ import { openStudio, poseAt } from "./camera";
 import { followTheBus } from "./live-story";
 import { bindLenis } from "./lenis-proxy";
 import { Storyboard } from "./Storyboard";
+import { StoryFigure } from "./StoryFigure";
 import { StorySpine, type SpineState } from "./spine";
 import "./story.css";
 
@@ -88,6 +92,7 @@ export function Walk({
   pinnedT,
   step = null,
   at = null,
+  stage,
 }: {
   readonly strings: Strings;
   readonly locale: string;
@@ -100,6 +105,20 @@ export function Walk({
   readonly zones: readonly StoryZone[];
   readonly publicApiBase: string | null;
   readonly seed?: number;
+  /**
+   * Which of §E7's three stages the clay renders — dev-only, and it exists
+   * because of what it found.
+   *
+   * The clay proof route has had `?stage=model|photograph|print` since M8: a
+   * reviewer can see what the camera saw, what the lens did to it, and what the
+   * press printed, *separately*, which is the only way to tell which of the
+   * three is wrong. The film had no such control, so a frame that arrived as a
+   * flat wash could not be attributed to the model, the lens or the press
+   * without editing the source. `/developers/proof/story?stage=model` is that
+   * control, on the surface whose ink set (§E9.2: brown, sunflower, aqua — no
+   * black plate) is the one under suspicion.
+   */
+  readonly stage?: SceneStage;
   /**
    * Hold the film at a fixed point on the spine.
    *
@@ -130,6 +149,18 @@ export function Walk({
   const scene = useRef<SceneHandle | null>(null);
 
   const [ceiling, setCeiling] = useState<Rung | null>(null);
+
+  /**
+   * The act the spine is on, in React state — the only thing on this surface
+   * that is.
+   *
+   * Everything else the spine publishes goes straight to the DOM, sixty times a
+   * second, for the reason the module note gives. The act is different: it
+   * changes nine times in a whole film and §E8.1's character inputs are a
+   * *declaration* per act rather than a value per frame, so the figure is
+   * driven by props like any other component and the clock stays out of React.
+   */
+  const [act, setAct] = useState<ActId>("cold-open");
 
   const onReady = useCallback((handle: SceneHandle | null) => {
     scene.current = handle;
@@ -210,6 +241,9 @@ export function Walk({
         for (const section of element.querySelectorAll<HTMLElement>("[data-act]")) {
           section.dataset["current"] = String(section.dataset["act"] === state.act.id);
         }
+        // The one React write in this loop, and it happens nine times in a
+        // film rather than sixty times a second. See `act` above.
+        setAct(state.act.id);
       }
       // Theatre interpolates, the rig places, the lens racks. One call, once a
       // frame, and no React render anywhere in it.
@@ -302,36 +336,72 @@ export function Walk({
           because §E16 Act 9 is where a reader who does not want a film finds
           the evidence. A nine-viewport scroll with no way past it would be the
           one accessibility failure this surface could not argue away. */}
-      <a className="type-micro" href="#act-receipts">
+      <a className="walk__skip type-micro" href="#act-receipts">
         {t(strings, "story.skip")}
       </a>
 
-      {origin === null ? null : (
-        <div className="walk__stage" aria-hidden={false}>
-          <ClayScene
-            entities={entities}
-            strings={strings}
-            city={city}
-            origin={origin}
-            weather={weather}
-            surface={surface}
-            onReady={onReady}
-            {...(seed === undefined ? {} : { seed })}
-            {...(now === undefined ? {} : { now })}
-          />
-        </div>
-      )}
+      {/* The two front doors, first in the document after the skip link.
+          §E16's film is an argument, not a menu — and until ADR-0059 that was the
+          whole problem: the landing argued beautifully and then left a visitor
+          to guess a URL. These are the two ways in, in the tab order ahead of
+          nine acts of scroll, for the same reason the skip link is. */}
+      <nav className="walk__ways type-micro" aria-label={t(strings, "story.ways")}>
+        <Link href="/citizen">{t(strings, "portal.citizen.title")}</Link>
+        <Link href="/staff">{t(strings, "portal.staff.title")}</Link>
+      </nav>
 
-      <div className="walk__reel" ref={reel}>
-        <ColdOpen strings={strings} />
-        <TheWalk strings={strings} />
-        <TheStop strings={strings} />
-        <TheSilence strings={strings} />
-        <TheReport strings={strings} locale={locale} />
-        <ThePipeline strings={strings} />
-        <TheMerge strings={strings} />
-        <TheCityAwake strings={strings} city={city} citySlug={citySlug} zones={zones} />
-        <TheTable strings={strings} />
+      {/*
+        §E12's unmute, beside the skip link and before the film. *"Designed
+        rather than hidden"* means a reader decides about sound **before** it
+        could have happened to them, which on this surface means above the
+        fold and in the tab order ahead of nine acts of scroll.
+      */}
+      <div className="walk__sound">
+        <SoundControl strings={strings} />
+      </div>
+
+      {/* The film — the stage, the figure and the reel. A box of its own, so the
+          sticky stage releases when the film ends rather than riding over Act 9's
+          receipts, which are a printed page and not part of the shot. */}
+      <div className="walk__film">
+        {origin === null ? null : (
+          <div className="walk__stage" aria-hidden={false}>
+            <ClayScene
+              entities={entities}
+              strings={strings}
+              city={city}
+              origin={origin}
+              weather={weather}
+              surface={surface}
+              {...(stage === undefined ? {} : { stage })}
+              onReady={onReady}
+              {...(seed === undefined ? {} : { seed })}
+              {...(now === undefined ? {} : { now })}
+            />
+          </div>
+        )}
+
+        {/*
+        The Reporter — §E8.2, F15. Above the clay and below the reel: the figure
+        is ink and the city is clay, and §E5's three-material law is a
+        compositing order as much as an art direction. Outside the reel, because
+        the reel scrolls and the figure is on the stage.
+      */}
+        <div className="walk__figure" aria-hidden={false}>
+          <StoryFigure strings={strings} act={act} />
+        </div>
+
+        <div className="walk__reel" ref={reel}>
+          <ColdOpen strings={strings} />
+          <TheWalk strings={strings} />
+          <TheStop strings={strings} />
+          <TheSilence strings={strings} />
+          <TheReport strings={strings} locale={locale} />
+          <ThePipeline strings={strings} />
+          <TheMerge strings={strings} />
+          <TheCityAwake strings={strings} city={city} citySlug={citySlug} zones={zones} />
+          <TheTable strings={strings} />
+        </div>
       </div>
 
       <TheReceipts

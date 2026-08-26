@@ -86,6 +86,8 @@ interface Tokens {
   readonly role: {
     readonly light: RoleTheme;
     readonly dark: RoleTheme;
+    /** §E21's outdoor mode. A third ground, with a 7:1 floor. */
+    readonly outdoor: RoleTheme;
     readonly severity: {
       readonly light: { readonly text: string; readonly field: string; readonly min: number };
       readonly dark: { readonly text: string; readonly field: string; readonly min: number };
@@ -93,7 +95,7 @@ interface Tokens {
   };
   readonly inkSet: Record<
     string,
-    { stock: string; sheet?: string; inks: readonly string[] } | string
+    { stock: string; sheet?: string; inks: readonly string[]; gradeGamma?: number } | string
   >;
   readonly press: {
     readonly screenAngles: { readonly value: readonly number[] };
@@ -111,6 +113,25 @@ interface Tokens {
     readonly easing: Record<string, Swatch | string>;
     readonly duration: Record<string, { readonly ms: number; readonly steps: number } | string>;
     readonly reducedMotion: { readonly ms: number };
+  };
+  /**
+   * §E12 — the sound layer's numbers (ADR-0050).
+   *
+   * Flat groups of numbers, like `clay` and `lens`, because none of them is a
+   * colour and none of them reaches a stylesheet: sound is authored in the
+   * synthesiser, not in CSS.
+   */
+  readonly sound: {
+    readonly gain: Record<string, number | string>;
+    readonly duck: Record<string, number | string>;
+    readonly crossfade: Record<string, number | string>;
+    readonly ambient: Record<string, number | string>;
+    readonly foley: Record<string, number | string>;
+    readonly merge: Record<string, number | string>;
+    readonly note: Record<string, number | string>;
+    readonly positional: Record<string, number | string>;
+    readonly sampleRate: number;
+    readonly seed: number;
   };
   readonly type: {
     readonly family: Record<string, FamilyDef | string>;
@@ -153,6 +174,8 @@ interface Tokens {
     readonly barrel: Record<string, number | string>;
     readonly bloom: Record<string, number | string>;
   };
+  readonly render: Record<string, number | string>;
+  readonly story: Record<string, number | string>;
   readonly world: {
     readonly kit: Record<string, number | string>;
     readonly pin: Record<string, number | string>;
@@ -245,7 +268,12 @@ interface ResolvedRole {
   readonly derivation: string;
 }
 
-export function resolveRoles(t: Tokens, theme: "light" | "dark"): Record<string, ResolvedRole> {
+/** The three grounds this product renders on: a sheet, a light table, and
+ *  a phone in the sun (§E9.1, §E9.3, §E21). */
+export const GROUNDS = ["light", "dark", "outdoor"] as const;
+export type GroundName = (typeof GROUNDS)[number];
+
+export function resolveRoles(t: Tokens, theme: GroundName): Record<string, ResolvedRole> {
   const out: Record<string, ResolvedRole> = {};
   for (const [role, def] of Object.entries(t.role[theme])) {
     if (role.startsWith("$") || def === undefined || Array.isArray(def)) continue;
@@ -321,6 +349,12 @@ function buildCss(t: Tokens): string {
   for (const [role, resolved] of Object.entries(resolveRoles(t, "dark"))) {
     lines.push(`  --color-role-dark-${role}: ${resolved.value};`);
   }
+  // §E21's outdoor mode. A third set of the same role names, so a component
+  // asks for `--role-text-primary` and is correct in sunlight without knowing
+  // it is in sunlight — exactly as it is correct on the light table.
+  for (const [role, resolved] of Object.entries(resolveRoles(t, "outdoor"))) {
+    lines.push(`  --color-role-outdoor-${role}: ${resolved.value};`);
+  }
 
   lines.push("", "  /* Faces (§E10) — self-hosted, no CDN (§6 Principle #6) */");
   for (const [name, def] of entries<FamilyDef>(t.type.family)) {
@@ -351,6 +385,17 @@ function buildCss(t: Tokens): string {
   for (const [k, v] of numbers(t.press.inkDensity)) lines.push(`  --press-${k}: ${String(v)};`);
   for (const [k, v] of numbers(t.press.paperGrain)) lines.push(`  --press-${k}: ${String(v)};`);
   for (const [k, v] of numbers(t.layer)) lines.push(`  --layer-${k}: ${String(v)};`);
+  // §E16's film, as height. `story.css` multiplies an act's share of the spine
+  // by this to size its section, so scroll position and `t` stay linear in each
+  // other — see the note in `tokens.json` for why the number came down.
+  lines.push(`  --story-viewports: ${String(t.story["viewports"] ?? 10)};`);
+  lines.push(`  --story-panel-top: ${String(t.story["panelTopVh"] ?? 18)}dvh;`);
+  // Where the film's reading ground has finished handing the frame back to the
+  // model. The acts are set in paper inks and the stage is a clay render, so
+  // without this the secondary ones print at about 1.5:1 on it; see the note in
+  // `tokens.json` for why the answer is the press's own ground rather than a
+  // veil, and why the number is this one.
+  lines.push(`  --story-scrim-reach: ${String(t.story["scrimReachPct"] ?? 58)}%;`);
   lines.push("}", "");
 
   // §E9.3 — the console at night is a light table, not an inverted palette, so
@@ -366,6 +411,15 @@ function buildCss(t: Tokens): string {
   lines.push('[data-surface="console"], [data-ground="light-table"] {');
   for (const role of Object.keys(resolveRoles(t, "dark"))) {
     lines.push(`  --role-${role}: var(--color-role-dark-${role});`);
+  }
+  lines.push("}", "");
+
+  // §E21 — outdoor mode. Last, so it wins over the console's own ground: a
+  // field hand who opens the console on a phone in the sun is outdoors first
+  // and on a light table second.
+  lines.push('[data-ground="outdoor"] {');
+  for (const role of Object.keys(resolveRoles(t, "outdoor"))) {
+    lines.push(`  --role-${role}: var(--color-role-outdoor-${role});`);
   }
   lines.push("}", "");
 
@@ -483,6 +537,7 @@ function buildTs(t: Tokens): string {
     `export const ROLE = ${j({
       light: resolveRoles(t, "light"),
       dark: resolveRoles(t, "dark"),
+      outdoor: resolveRoles(t, "outdoor"),
     })} as const;`,
     "export type Ground = keyof typeof ROLE;",
     'export type RoleName = keyof (typeof ROLE)["light"];',
@@ -491,6 +546,7 @@ function buildTs(t: Tokens): string {
     `export const ROLE_GROUNDS = ${j({
       light: t.role.light.$grounds,
       dark: t.role.dark.$grounds,
+      outdoor: t.role.outdoor.$grounds,
     })} as const;`,
     "",
     "/**",
@@ -507,15 +563,25 @@ function buildTs(t: Tokens): string {
     " * differ on exactly one surface — §E9.3's light table, where the ground is",
     " * the room and the print on it is backlit — and `sheet` is filled in here",
     " * so no consumer has to remember which case it is in.",
+    " *",
+    " * `gradeGamma` is the run's exposure (ADR-0061), applied to the photograph",
+    " * about the sheet's white point before the plates are solved. Filled in at",
+    " * 1.0 — the identity — wherever the source does not state one, so a reader",
+    " * of this file can see that only one run is graded and every other is not.",
     " */",
     `export const INK_SET = ${j(
       Object.fromEntries(
-        entries<{ stock: string; sheet?: string; inks: readonly string[] }>(t.inkSet).map(
-          ([name, set]) => [
-            name,
-            { stock: set.stock, sheet: set.sheet ?? set.stock, inks: set.inks },
-          ],
-        ),
+        entries<{ stock: string; sheet?: string; inks: readonly string[]; gradeGamma?: number }>(
+          t.inkSet,
+        ).map(([name, set]) => [
+          name,
+          {
+            stock: set.stock,
+            sheet: set.sheet ?? set.stock,
+            inks: set.inks,
+            gradeGamma: set.gradeGamma ?? 1,
+          },
+        ]),
       ),
     )} as const;`,
     "export type InkSetName = keyof typeof INK_SET;",
@@ -591,6 +657,45 @@ function buildTs(t: Tokens): string {
       bloom: Object.fromEntries(numbers(t.lens.bloom)),
     })} as const;`,
     "",
+    "/**",
+    " * §E12 — the sound design, as numbers (ADR-0050).",
+    " *",
+    " * Nothing here is a file. `src/sound/synth.ts` renders every cue from these",
+    " * at runtime, deterministically from `seed`, so what a reviewer hears is",
+    " * what CI hears. The two durations that accompany a motion are multiples of",
+    " * the 12 fps step, because §E11's coherence argument applies to a thud",
+    " * exactly as it applies to the stamp the thud belongs to.",
+    " */",
+    `export const SOUND = ${j({
+      gain: Object.fromEntries(numbers(t.sound.gain)),
+      duckMs: Object.fromEntries(numbers(t.sound.duck))["ms"],
+      crossfadeMs: Object.fromEntries(numbers(t.sound.crossfade))["ms"],
+      ambient: Object.fromEntries(numbers(t.sound.ambient)),
+      foley: Object.fromEntries(numbers(t.sound.foley)),
+      merge: Object.fromEntries(numbers(t.sound.merge)),
+      note: Object.fromEntries(numbers(t.sound.note)),
+      positional: Object.fromEntries(numbers(t.sound.positional)),
+      sampleRate: t.sound.sampleRate,
+      seed: t.sound.seed,
+    })} as const;`,
+    "",
+    "/**",
+    " * How the frame leaves the renderer, before §E6's press reads it.",
+    " *",
+    " * Phase 19's ship line asks for `SRGBColorSpace` and ACES Filmic tone",
+    " * mapping. Neither was set, and the symptom was not a colour cast: on the",
+    " * story run — brown, sunflower and aqua, no black plate (§E9.2) — an",
+    " * unmapped linear frame solved past full coverage on the one plate that",
+    " * carries the clay, and the film printed as a flat wash with the model",
+    " * invisible inside it.",
+    " */",
+    `export const RENDER = ${j(Object.fromEntries(numbers(t.render)))} as const;`,
+    "",
+    "/** §E16's film, as height. See the note in `tokens.json`: the reel was",
+    " *  twenty screens because the shortest act needed one, which let the",
+    " *  shortest act set the length of the whole film. */",
+    `export const STORY = ${j(Object.fromEntries(numbers(t.story)))} as const;`,
+    "",
     "/** The clay city, in real ground metres — never in scene units (M8.2). */",
     `export const WORLD = ${j({
       kit: Object.fromEntries(numbers(t.world.kit)),
@@ -621,6 +726,45 @@ function buildTs(t: Tokens): string {
   return out.join("\n");
 }
 
+/**
+ * The installed app's icon — §E21's PWA, F17.
+ *
+ * Generated rather than committed, for the third time in this repository and
+ * for the same reason ADR-0047 and ADR-0050 give: the artefact is the source. A
+ * committed PNG set is four binaries nobody can regenerate, that drift from the
+ * palette the moment somebody re-mixes an ink.
+ *
+ * **One SVG, `"any maskable"`.** A maskable icon is cropped to a circle or a
+ * squircle by the platform, and the safe zone is the middle 80% — so the mark
+ * sits inside a 40% radius and the ground fills the whole square. What it draws
+ * is the product's own stamp: a struck rectangle, off-register, on chalk.
+ */
+function buildIcon(t: Tokens): string {
+  // A newline as a named constant, because the generator writes files and its
+  // own source must not contain the character it is joining with.
+  const NEWLINE = String.fromCharCode(10);
+  const ground = lookup(t, "paper.chalk");
+  const line = lookup(t, "ink.riso-black");
+  const warm = lookup(t, "ink.riso-brown");
+  const misregistration = numbers(t.press.misregistration).find(([k]) => k === "maxPx")?.[1] ?? 1;
+  const offset = round(misregistration * 3);
+
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img"',
+    '     aria-label="NEMESIS">',
+    "  <!-- GENERATED by scripts/generate-tokens.ts. Do not edit. -->",
+    `  <rect width="512" height="512" fill="${ground}"/>`,
+    `  <rect x="${String(136 + offset)}" y="${String(176 + offset)}" width="240" height="160"`,
+    `        fill="${warm}" opacity="0.55"/>`,
+    `  <rect x="136" y="176" width="240" height="160" fill="none" stroke="${line}"`,
+    '        stroke-width="18"/>',
+    `  <path d="M188 300 L188 212 L324 300 L324 212" fill="none" stroke="${line}"`,
+    '        stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>',
+    "</svg>",
+    "",
+  ].join(NEWLINE);
+}
+
 // --------------------------------------------------------------------------
 
 async function main(): Promise<void> {
@@ -630,6 +774,9 @@ async function main(): Promise<void> {
   const artefacts = [
     { path: join(OUT_DIR, "tokens.css"), body: buildCss(tokens), parser: "css" as const },
     { path: join(OUT_DIR, "tokens.ts"), body: buildTs(tokens), parser: "typescript" as const },
+    // The PWA icon lands in `public/` because that is where a manifest can
+    // reach it, and it is drift-checked exactly like the other two.
+    { path: join(ROOT, "public", "icon.svg"), body: buildIcon(tokens), parser: "html" as const },
   ];
 
   mkdirSync(OUT_DIR, { recursive: true });

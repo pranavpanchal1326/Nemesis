@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { DensityControl } from "@/components/DensityControl";
+import { SoundControl } from "@/sound/SoundControl";
 import { NotWired } from "@/components/NotWired";
 import { formatLedgerTime } from "@/lib/i18n/datetime";
 import { notTranslatable, t, type Strings } from "@/lib/i18n/strings";
@@ -77,10 +78,22 @@ export function ConsoleShell({
 
       <ConsoleRuntime strings={strings}>
         <header className="console__masthead" aria-label={t(strings, "console.chrome")}>
-          <p className="console__wordmark type-micro">{t(strings, "console.masthead")}</p>
+          {/* The wordmark is the way out. An officer working a shift moves
+              between the console and the field app, and before ADR-0059 the only
+              route between them was the address bar — so the masthead, which
+              every console screen already carries, is where the staff door
+              belongs. */}
+          <p className="console__wordmark type-micro">
+            <Link href="/staff">{t(strings, "console.masthead")}</Link>
+          </p>
           <p className="console__city type-caption">{notTranslatable(city)}</p>
           <div className="console__masthead-end">
             <DensityControl strings={strings} className="console__density" />
+            {/* §E12's unmute, *designed rather than hidden* — in the masthead
+                beside the density control, because both are the same kind of
+                thing: a preference about how this tool behaves for the person
+                using it for nine hours. */}
+            <SoundControl strings={strings} />
             <CommandPalette strings={strings} />
           </div>
         </header>

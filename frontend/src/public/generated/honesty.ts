@@ -257,17 +257,17 @@ export const SYSTEM_CLAIMS: readonly SystemClaim[] = [
   },
   {
     capability: "Public read-only transparency API",
-    status: "ROADMAP",
-    note: "schema described",
+    status: "REAL",
+    note: "M6, ADR-0021, ADR-0046",
     section: "16.3, 26.4",
-    why: "No live-demo audience for this endpoint",
+    why: "This row was ROADMAP and the work had already shipped, which is the direction nobody audits for and the reason §E27 and §44 are now executed rather than read (F18/M12.1). All three endpoints §26.4 described answer today, tenant-scoped: /{tenant}/zones, /ward/{code}/summary, /contractor/{id}/profile, /budget/{code}. Read-only, unauthenticated, rate-limited, k-anonymous with suppression rendered rather than blanked, and publication is an act somebody takes with a justification on the chain rather than a flag a template sets",
   },
   {
     capability: "Underreporting-zone equity flag",
-    status: "REAL",
-    note: "",
+    status: "ROADMAP",
+    note: "was REAL",
     section: "23.2",
-    why: "High strategic value, cheap GIS overlay",
+    why: "Corrected at F18/M12.5, and this is the finding that gate exists to catch: a REAL row whose only rendering is a fixture. Nothing ingests OSM road tags, nothing computes complaint density against them, and no endpoint serves a flag. The signal appears exactly once in this product — in console/roadmap/AreaView.tsx, behind the §E24 chip and a <ContractGap> naming what is missing — which is the screen behaving correctly and the status label being wrong. §E28 has said component REAL, data ROADMAP · Phase 12 · Phase 23 since M7; this row had not been reconciled to it. A few hours of GIS work may still be true and is not the same claim as built",
   },
   {
     capability: "Resolution-streak retention mechanic",
@@ -284,11 +284,18 @@ export const SYSTEM_CLAIMS: readonly SystemClaim[] = [
     why: "Real cost, deferred pending pilot usage data",
   },
   {
-    capability: "Native mobile app / PWA offline queue",
+    capability: "Native mobile app",
     status: "ROADMAP",
     note: "",
     section: "8.7",
-    why: "Out of scope for laptop-only demo",
+    why: "Laptop-only demo constraint; the browser client covers every need, and the PWA below is what a phone installs",
+  },
+  {
+    capability: "PWA offline queue / service workers",
+    status: "REAL",
+    note: "M11/F17",
+    section: "8.7, §E21",
+    why: 'This row was ROADMAP and is now built, and the change of mind is recorded rather than the row quietly rewritten. §8.7 cut it as "a field-connectivity problem out of scope for judging", which was right for a demo and wrong for a pilot: the people expected to upload closure evidence have the worst connectivity in the system. /field installs, captures with the network switched off, survives a restart and files exactly once on reconnect — made safe by the server-side idempotency §26.1 already shipped (ADR-0056)',
   },
   {
     capability: "Security threat model",
@@ -606,45 +613,78 @@ export const SURFACE_CLAIMS: readonly SurfaceClaim[] = [
   },
   {
     capability: "PWA, offline queue, outdoor mode",
-    component: "ROADMAP",
-    componentNote: "",
+    component: "REAL",
+    componentNote:
+      "M11/F17; /field installs, captures with the network switched off, survives a restart and files exactly once on reconnect (ADR-0056), and outdoor mode is a third role ground whose every text floor is checked at 7:1. The job list is the exception and carries the §E24 chip: openapi.json has no work-order schema, and this screen draws no fixture jobs at all — three invented jobs on a do this next surface is where a fixture stops being a fixture",
     data: "REAL",
     dataNote: "server-side idempotency is what makes the queue safe, and it ships",
     closesAt: "M11 · Phase 22",
   },
   {
     capability: "Sound design",
-    component: "ROADMAP",
-    componentNote: "the library is unauthored",
-    data: null,
-    dataNote: "",
+    component: "REAL",
+    componentNote:
+      "M10/F16; §E12's graph, six interaction cues each at one call site, the merge cue and the struck note bound to real events, muted by default with the unmute designed rather than hidden. ADR-0050: synthesised at runtime, so the library is source rather than files — and the cost is stated, synthesised paper is not paper",
+    data: "REAL",
+    dataNote:
+      "the two cues the system plays are cluster_match_found and safety_trigger_fired, both shipped and shaped",
     closesAt: "M10",
   },
   {
-    capability: "Tiers S / A / B / C / D fallback ladder",
+    capability: "Positional foley — hear where the problems are",
     component: "ROADMAP",
-    componentNote: "the press's quality dial is REAL; the tier ladder above it is not",
+    componentNote: "the mechanism is built and asserted, and is wired to nothing",
+    data: "ROADMAP",
+    dataNote:
+      "the published read carries wards, not categorised positioned defects; choosing a loop from a ward's name would assert a fault nobody detected (report)",
+    closesAt: "M10 · a categorised positioned read",
+  },
+  {
+    capability: "The character layer — the four figures of §E8.2",
+    component: "REAL",
+    componentNote:
+      "M9.6/F15; §E8.1's eight inputs and eight states by their exact names, no timeline anywhere in src/ink/ (enforced by a guard), and the figure is drawn rather than played. ADR-0048: the contract is the state machine, not .riv — and the cost is stated, the drawing is cruder than an illustrator's",
+    data: "REAL",
+    dataNote:
+      "for the two bindings this system emits (exif_check_completed, pipeline_stage_degraded); ROADMAP for citizen_confirmed, which nothing appends (report)",
+    closesAt: "M9 · Phase 15",
+  },
+  {
+    capability: "Tiers S / A / B / C / D fallback ladder",
+    component: "REAL",
+    componentNote:
+      "M8–M10/F16; every rung asserted to render what §E13's table says, against the same capabilitiesFor() and pressQualityFor() the scene builds itself from rather than a transcription of the table. S and A are one forced trigger, because ADR-0037 makes the backend the renderer's choice",
     data: null,
     dataNote: "",
     closesAt: "M8–M10",
   },
   {
-    capability: "Golden images, Storybook diffs, Lighthouse, WCAG audit, usability session",
-    component: "ROADMAP",
-    componentNote: "see the outstanding register, group A",
+    capability: "Golden images, Storybook diffs, Lighthouse budgets",
+    component: "REAL",
+    componentNote:
+      "M7/F1 and F3. Baselines for every surface at fixed seed, camera and scale, each verified to fail against a deliberately perturbed render; storybook:diff compares against the base ref and fails on an unreviewed visual change; lighthouserc.json asserts ≥ 90 performance and accessibility on three routes, three runs and the median, against a production build. This half of the row read ROADMAP for five milestones after it shipped — F1 closed A8, A9 and A14 and the row was never split",
     data: null,
     dataNote: "",
-    closesAt: "M5–M12",
+    closesAt: "done",
+  },
+  {
+    capability: "WCAG 2.2 AA verified by a person; measured task-success from a usability session",
+    component: "ROADMAP",
+    componentNote:
+      "A15 and A16, and the two clauses in this document that no amount of code closes. The automated half is done and clean: axe across three densities × two scripts on the console, both scripts on the citizen, public and story surfaces, and all seven fixture screens. The half that is a person has not happened. The instruments are written and the sessions are unbooked — docs/reports/wcag-audit-gap.md, docs/reports/usability-session-gap.md",
+    data: null,
+    dataNote: "",
+    closesAt: "M12 — booked by nobody",
   },
 ];
 
 /** Counted here so a surface can state the shape of the table without walking
  *  it twice, and so a test can assert the table is not silently empty. */
 export const HONESTY_COUNTS = {
-  system: 39,
-  surface: 38,
-  systemReal: 22,
-  surfaceFinished: 16,
+  system: 40,
+  surface: 41,
+  systemReal: 23,
+  surfaceFinished: 19,
 } as const;
 
 /** When the source documents were last read. Published beside the table because

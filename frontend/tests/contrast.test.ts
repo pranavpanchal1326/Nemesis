@@ -24,6 +24,13 @@ import {
  * direction (§E4) — but to derive text-safe values by **overprint** (§E6.3),
  * which is an operation the press already performs. The role layer in
  * `tokens.json` records each derivation; this file is what keeps it honest.
+ *
+ * **F17 added a third ground and a higher floor.** §E25's Phase 22 gate is
+ * *"outdoor mode passes contrast at 7:1 for primary text"*, and §E21's reason is
+ * that sunlight on a phone at noon defeats a palette that only clears AA. Every
+ * `min` in the `outdoor` theme is 7 rather than 4.5, so that gate clause is not
+ * a separate assertion somebody has to remember to write — it is this loop,
+ * running over one more theme, failing the build if a value drifts.
  */
 
 const GROUND_HEX: Record<string, string> = PAPER;
@@ -44,7 +51,7 @@ interface ResolvedRole {
 }
 
 describe("§E22 — semantic roles clear their floor on every ground", () => {
-  for (const theme of ["light", "dark"] as const) {
+  for (const theme of ["light", "dark", "outdoor"] as const) {
     const roles: Record<string, ResolvedRole> = ROLE[theme];
     for (const [role, def] of Object.entries(roles)) {
       // The ground is not a foreground. Asserting it against itself would be a

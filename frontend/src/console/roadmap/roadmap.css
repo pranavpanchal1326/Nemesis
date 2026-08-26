@@ -226,3 +226,42 @@
     color: var(--color-riso-black);
   }
 }
+
+/* §E8.2 — the Auditor beside the method disclaimer. Aligned to the first line
+   of the sentence rather than centred on the block, because the figure is
+   standing next to the words, not presenting them. */
+.roadmap__disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5ch;
+}
+
+/*
+ * How a roadmap screen ends — §E24.
+ *
+ * `margin-block-start: auto` is the load-bearing line: the screen is a flex
+ * column, so this pins the footer to the bottom of the viewport rather than
+ * leaving it floating under two cards with six hundred pixels of nothing after
+ * it. A page with a bottom edge reads as a page; a page that stops in the
+ * middle reads as a page that failed to load.
+ */
+.roadmap-footer {
+  margin-block-start: auto;
+  padding-block-start: var(--density-gutter);
+  border-block-start: 1px solid var(--role-rule);
+  display: grid;
+  gap: 0.25rem;
+  color: var(--role-text-secondary);
+  max-inline-size: var(--measure);
+}
+
+.roadmap-footer__title {
+  margin: 0;
+  color: var(--role-text-primary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.roadmap-footer__traces {
+  font-family: var(--font-data);
+}

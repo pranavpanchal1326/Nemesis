@@ -86,6 +86,20 @@
   letter-spacing: 0.14em;
 }
 
+/* The wordmark links to the staff door and does not announce it with an
+   underline: §E19's masthead is a working strip, and a rule under the product
+   name would read as a heading somebody had emphasised. Focus is a different
+   question — the ring is the surface's own, and it is not suppressed. */
+.console__wordmark a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.console__wordmark a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
 .console__city {
   color: var(--role-text-secondary);
 }
@@ -129,10 +143,18 @@
 }
 
 .console__link {
+  /* Wrapping, with the chip allowed to fall to its own line. The rail is a
+     fixed 11 rem and a chip reading *NOT WIRED 14, 23* is most of it, so a
+     single non-wrapping row broke five of the twelve labels across two lines —
+     "Area / view", "Work / orders" — and left the chips at five different
+     inline positions. The label wins the first line; the chip takes the second
+     when it needs one. */
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: calc(var(--density-gutter) / 2);
   min-block-size: var(--density-row);
+  padding-block: calc(var(--density-gutter) / 4);
   padding-inline: calc(var(--density-gutter) / 2);
   color: var(--role-text-primary);
   text-decoration: none;
@@ -172,6 +194,13 @@
 
 .console__link-roadmap {
   margin-inline-start: auto;
+}
+
+/* The chip's own margin is for the inline case; on the wrapped line it would
+   push the chip to the far edge under a short label, which reads as a chip
+   belonging to the row below. */
+.console__link {
+  align-content: center;
 }
 
 /* ------------------------------------------------------------------ *
@@ -476,6 +505,15 @@
   gap: var(--density-gutter);
 }
 
+/* §E8.2 — the Officer, in the one empty state that is good news. Beside the
+   sentence rather than above it: an empty state that centres a large drawing
+   reads as an error page, and this one is not. */
+.command__quiet {
+  display: flex;
+  align-items: center;
+  gap: 1.5ch;
+}
+
 .command__reason {
   display: inline-flex;
   align-items: baseline;
@@ -492,4 +530,89 @@
   align-items: baseline;
   gap: var(--density-gutter);
   color: var(--role-text-secondary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Narrow screens — §E19, §E22, §E23
+ * ------------------------------------------------------------------ */
+
+/*
+ * The console is a desktop surface and this is not a phone port of it.
+ *
+ * §E19 is explicit about the posture — *"dark-first, keyboard-first, dense,
+ * printable"* — and an officer works it on a light table, not a handset. What
+ * this block fixes is narrower and not optional: **the page scrolled sideways.**
+ * At 390 px the masthead alone was 504 px wide, so every one of the twelve
+ * screens had a horizontal scrollbar, the rail and the screen fought over a
+ * two-column grid neither could satisfy, and the queue wrapped to roughly one
+ * word per line. A document that scrolls horizontally is a defect on any
+ * surface, whatever posture it was designed for — the content is simply not
+ * reachable, and no amount of "it is a desktop tool" makes a cut-off column
+ * readable.
+ *
+ * So, at narrow widths: the grid stacks, the rail becomes a band above the
+ * screen rather than a column beside it, the masthead wraps instead of
+ * overflowing, and anything genuinely wide — a data table — scrolls **inside
+ * its own box** instead of dragging the page with it.
+ *
+ * `@media screen` and a `max-width`, not a container query: the thing being
+ * responded to is the viewport, and the print block above must not inherit any
+ * of it. Scoped to `screen` for the reason the provenance rule above records —
+ * order-independence, so reorganising this file cannot break paper.
+ */
+@media screen and (max-width: 48rem) {
+  .console {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: max-content max-content minmax(0, 1fr);
+    grid-template-areas:
+      "masthead"
+      "rail"
+      "screen";
+  }
+
+  /* Wrapping rather than shrinking: the density control, the unmute and the
+     palette are three separate decisions, and squeezing them onto one line at
+     this width is how the palette button ended up 114 px past the edge. */
+  .console__masthead {
+    flex-wrap: wrap;
+  }
+
+  .console__masthead-end {
+    margin-inline-start: 0;
+    flex-wrap: wrap;
+  }
+
+  /* A band, not a column. The rail keeps its full list — §E24's argument for
+     showing roadmap screens with their chip applies at every width — and gets a
+     bounded height so twelve items cannot push the screen off the bottom. */
+  .console__rail {
+    inline-size: auto;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--role-rule);
+    max-block-size: 40dvh;
+  }
+
+  /* The sections sit side by side while they fit, which turns five stacked
+     headings into two or three rows and keeps the band shallow. */
+  .console__rail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--density-gutter);
+    align-content: flex-start;
+  }
+
+  .console__section {
+    margin-block-end: 0;
+  }
+
+  /* The one rule that stops the page scrolling sideways: a table wider than the
+     viewport scrolls inside its own box. `display: block` is what makes
+     `overflow` apply to a table at all — the layout inside it is unchanged, and
+     on a screen this narrow a data table was never going to reflow into
+     something readable. */
+  .console__screen table {
+    display: block;
+    max-inline-size: 100%;
+    overflow-x: auto;
+  }
 }

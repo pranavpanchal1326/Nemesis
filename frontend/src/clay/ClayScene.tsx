@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DegradedBanner } from "@/components/DegradedBanner";
 import { notTranslatable, t, type Strings } from "@/lib/i18n/strings";
+import { bedForSun, CUES } from "@/sound/cues";
+import { sound } from "@/sound/graph";
+import { startBed } from "@/sound/world-sound";
 import { subscribeToEvents } from "@/lib/realtime/store";
 import { steppedClock } from "@/lib/stepped-clock";
 import { INK_SET, type InkSetName } from "@/design/generated/tokens";
@@ -14,11 +17,12 @@ import { applyEnvelope, liveEntities, seedLive, type LiveClay } from "./live";
 import { PeerList } from "./PeerList";
 import type { GeoPoint } from "./projection";
 import type { ClayScene as SceneHandle, SceneSample, SceneStage } from "./scene";
-import type { SeasonalWeather } from "./sun";
+import { sunAt, type SeasonalWeather } from "./sun";
 import {
   capabilitiesFor,
   forcedTier,
   ladderRung,
+  pressQualityFor,
   readSignals,
   rungOf,
   rungRendersClay,
@@ -61,6 +65,13 @@ import "./clay.css";
  * where an event becomes a state, and the honest gap about cluster severity is
  * documented there rather than papered over here.
  */
+/**
+ * How often the ambient bed asks the sun where it is, in frames of the 12 fps
+ * clock. 720 is one minute — three orders of magnitude more often than the bed
+ * can actually change, and still nothing next to a frame budget.
+ */
+const BED_CHECK_STEPS = 720;
+
 export function ClayScene({
   entities,
   strings,
@@ -370,9 +381,78 @@ export function ClayScene({
     };
   }, [wantsCanvas]);
 
+  /**
+   * §E12's ambient bed, cross-faded on the model's own time of day.
+   *
+   * The bed is chosen from the **same solar position the scene is lit by**
+   * (`bedForSun`), so the city cannot sound like morning while it looks like
+   * dusk — §E7.4's "the same fact, not two correlated ones", applied to the
+   * hour.
+   *
+   * Re-evaluated on the stepped clock rather than on a timer: the bed changes
+   * three times a day, so it is checked once every `BED_CHECK_STEPS` frames of
+   * the 12 fps clock, which is the clock this whole world already runs on. A
+   * `setInterval` here would be a second clock keeping worse time.
+   *
+   * The cross-fade is *start then stop*: both ramps are `SOUND.crossfadeMs`, so
+   * the two sum to a constant and the city does not dip at the seam.
+   */
+  useEffect(() => {
+    if (origin === null) return;
+    let stop: (() => void) | null = null;
+    let current: string | null = null;
+
+    const evaluate = (): void => {
+      const sun = sunAt(origin, now?.() ?? new Date());
+      const wanted = bedForSun(sun.altitudeDeg, sun.azimuthDeg);
+      if (wanted === current) return;
+      const previous = stop;
+      stop = startBed(wanted);
+      current = wanted;
+      previous?.();
+    };
+
+    evaluate();
+    const unsubscribe = steppedClock.subscribe((step) => {
+      if (step % BED_CHECK_STEPS === 0) evaluate();
+    });
+
+    return () => {
+      unsubscribe();
+      stop?.();
+    };
+  }, [origin, now]);
+
+  /**
+   * §E12's *"roller pass on print transitions"*.
+   *
+   * A print transition in this product is the press's quality dial changing —
+   * §E6.4's dial is the ladder's first move, and when it turns, the picture is
+   * genuinely re-printed at a different ink count and screen. Bound to that
+   * rather than to a page change, which is what the page turn is for (§E3.4:
+   * two cues that both meant "something changed" would mean nothing).
+   *
+   * The first quality is not a transition: a scene that rolled the press on
+   * mount would make the sound every time somebody opened the console.
+   */
+  const printedAt = useRef<string | null>(null);
+  useEffect(() => {
+    if (tier === null) return;
+    const quality = pressQualityFor(tier);
+    const previous = printedAt.current;
+    printedAt.current = quality;
+    if (previous === null || previous === quality) return;
+    sound.play("rollerPass", CUES.rollerPass.bus, CUES.rollerPass.recipe);
+  }, [tier]);
+
   const select = useCallback((id: string | null) => {
     setSelected(id);
     sceneRef.current?.select(id);
+    // §E12: *"pin push on select"*. Fired on selection rather than on
+    // deselection — pushing a pin in is the act; taking one out is undoing it,
+    // and a cue that fired for both would mean "something was clicked", which
+    // is the §E3.4 failure.
+    if (id !== null) sound.play("pinPush", CUES.pinPush.bus, CUES.pinPush.recipe);
   }, []);
 
   const onSelect = useCallback(
@@ -398,7 +478,37 @@ export function ClayScene({
   const capabilities = capabilitiesFor(shownTier);
 
   return (
-    <div className="clay" data-tier={tier ?? "pending"} data-clay-origin={originKey ?? "none"}>
+    <div
+      className="clay"
+      data-tier={tier ?? "pending"}
+      data-clay-origin={originKey ?? "none"}
+      /*
+       * §E13's *renders* column, published where a test can read it — F16's
+       * gate clause *"every tier S/A/B/C/D produces its documented rendering
+       * when its trigger is forced"*.
+       *
+       * Derived here from `capabilitiesFor` and `pressQualityFor` rather than
+       * re-stated, so the attribute cannot drift from the behaviour: if the
+       * scene stops building a bloom node, this attribute stops saying it has
+       * one, and `tests/ladder.spec.ts` fails on the tier whose row changed.
+       * A seam, in the pattern of `data-clay-digest`.
+       */
+      data-clay-press={tier === null ? "pending" : pressQualityFor(tier)}
+      data-clay-effects={
+        tier === null
+          ? "pending"
+          : [
+              capabilities.clay ? "clay" : null,
+              capabilities.depthOfField ? "dof" : null,
+              capabilities.bloom ? "bloom" : null,
+              capabilities.gateWeave ? "weave" : null,
+              capabilities.movingSun ? "sun" : null,
+              capabilities.weather ? "weather" : null,
+            ]
+              .filter((flag) => flag !== null)
+              .join(" ")
+      }
+    >
       {wantsCanvas ? (
         <div className="clay__stage">
           <canvas
@@ -452,8 +562,8 @@ export function ClayScene({
           </p>
         ) : null}
 
-        <p className="clay__note type-micro">{t(strings, "clay.weather.note")}</p>
-        <p className="clay__note type-micro">{t(strings, "clay.canvasLabel", { city })}</p>
+        <p className="clay__note type-caption">{t(strings, "clay.weather.note")}</p>
+        <p className="clay__note type-caption">{t(strings, "clay.canvasLabel", { city })}</p>
       </div>
     </div>
   );

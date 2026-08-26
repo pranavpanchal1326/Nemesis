@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { createContext, useContext } from "react";
 import { useStore } from "zustand/react";
 
@@ -7,6 +8,7 @@ import { DegradedBanner } from "@/components/DegradedBanner";
 import { t, type Strings } from "@/lib/i18n/strings";
 import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
 import { realtimeStore } from "@/lib/realtime/store";
+import { SoundProvider } from "@/sound/SoundControl";
 
 import "./citizen.css";
 
@@ -34,7 +36,20 @@ export function CitizenShell({
 }) {
   return (
     <RealtimeProvider>
+      {/* §E12's sound layer. One per surface: it follows the bus, so the merge
+          cue plays when this citizen's report is deduplicated — which is the
+          one place in the product where that event is *about the person
+          looking at it*. There is no unmute control on this surface, and that
+          is deliberate: a citizen filing a report in thirty seconds is not who
+          §E12's affordance is for, and the preference persists across surfaces
+          for anybody who has set it. */}
+      <SoundProvider />
       <TransportBanner strings={strings} />
+      {/* The way back to the resident's door — §E17's surfaces are a camera and
+          a ledger, and neither of them is a place to *start*. */}
+      <nav className="citizen__ways type-micro" aria-label={t(strings, "story.ways")}>
+        <Link href="/citizen">{t(strings, "portal.citizen.title")}</Link>
+      </nav>
       <StringsContext.Provider value={strings}>{children}</StringsContext.Provider>
     </RealtimeProvider>
   );

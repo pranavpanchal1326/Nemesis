@@ -36,8 +36,10 @@ import {
   AmbientLight,
   Color,
   DirectionalLight,
-  InstancedBufferAttribute,
+  DynamicDrawUsage,
+  InstancedInterleavedBuffer,
   InstancedMesh,
+  InterleavedBufferAttribute,
   Layers,
   Mesh,
   MeshBasicNodeMaterial,
@@ -49,8 +51,8 @@ import {
   Vector2,
   Vector3,
 } from "three/webgpu";
-import type { BufferGeometry } from "three/webgpu";
-import { pass, screenUV, uniform } from "three/tsl";
+import type { BufferGeometry, Node } from "three/webgpu";
+import { acesFilmicToneMapping, float, pass, screenUV, uniform, vec4 } from "three/tsl";
 
 import {
   BUDGET,
@@ -60,6 +62,7 @@ import {
   PAPER_LINEAR,
   WEATHER,
   WORLD,
+  RENDER,
 } from "@/design/generated/tokens";
 import type { InkSetName } from "@/design/generated/tokens";
 import { steppedClock } from "@/lib/stepped-clock";
@@ -92,6 +95,23 @@ import {
 } from "./renderer";
 import { keyIntensity, lightingSun, type SeasonalWeather } from "./sun";
 import type { Backend, Rung, Tier } from "./tier";
+
+/**
+ * The four per-instance floats, in the order they sit inside one interleaved
+ * vertex buffer.
+ *
+ * The shader reads them by name, so this order is an upload detail rather than
+ * a contract — but it is written once, here, because the pack loop and the
+ * attribute offsets have to agree and two lists that must match are one list.
+ */
+const PACKED_ORDER = [
+  CLAY_ATTRIBUTES.severity,
+  CLAY_ATTRIBUTES.grain,
+  CLAY_ATTRIBUTES.occlusion,
+  CLAY_ATTRIBUTES.height,
+] as const;
+
+const PACKED_STRIDE = PACKED_ORDER.length;
 
 export interface ClaySceneOptions {
   readonly canvas: HTMLCanvasElement;
@@ -413,9 +433,38 @@ export async function createClayScene(options: ClaySceneOptions): Promise<ClaySc
     // `setRenderTarget` between two render pipelines costs far more on this
     // backend than the taps it saves. `docs/reports/clay-frame-rate.md` has the
     // run; the arrangement stays inlined until a measurement says otherwise.
+    /*
+     * **Tone-mapped here, before the press reads it — Phase 19's ACES clause.**
+     *
+     * The press's separation asks *how much light must this sheet lose to reach
+     * the photographed colour*, and it asks it of whatever it is handed. Handed
+     * raw linear radiance it was asking an unanswerable question: on the story
+     * run — brown, sunflower and aqua, and no black plate (§E9.2) — every clay
+     * mid-tone solved past 1.0 coverage on the one plate that carries the clay,
+     * clamped, and printed solid. The film was a flat brown field with the
+     * model invisible in it, at every camera position in the track.
+     *
+     * A renderer-level `toneMapping` cannot fix that, because it runs on the
+     * way *out* of the pipeline and the press is inside it. So the map is a
+     * node, applied once to the photograph, and everything downstream — the
+     * press, and the `photograph` stage a reviewer inspects — sees the same
+     * display-referred frame. `RENDER.exposure` is authored in
+     * `design/tokens.json`: an exposure is an art-direction decision, and it
+     * belongs beside the inks it has to land inside.
+     */
+    const exposure = float(RENDER.exposure);
+    // `as Node<"vec3">`: three's TSL functions are typed as the general `Node`
+    // and the composers want a typed one. The same narrowing `lens.ts` and
+    // `press-tsl.ts` do at their own boundaries, for the same reason — this is
+    // the one place the graph's types are looser than the code around it.
+    const photograph = (
+      uvNode: Parameters<typeof lens.sampleAt>[0],
+    ): ReturnType<typeof lens.sampleAt> =>
+      vec4(acesFilmicToneMapping(lens.sampleAt(uvNode).rgb, exposure) as Node<"vec3">, 1);
+
     const plan = planPress({ surface: options.surface, quality: currentPlan().press, seed });
     const press: PressPassHandles = createPressPass(
-      { sample: lens.sampleAt, uv: screenUV, resolution },
+      { sample: photograph, uv: screenUV, resolution },
       plan,
       sheet,
     );
@@ -424,7 +473,7 @@ export async function createClayScene(options: ClaySceneOptions): Promise<ClaySc
       stage === "model"
         ? scenePass.getTextureNode()
         : stage === "photograph"
-          ? lens.sampleAt(screenUV)
+          ? photograph(screenUV)
           : lens.overlay(press.node);
 
     const pipeline = new RenderPipeline(renderer.renderer, output);
@@ -567,7 +616,7 @@ export async function createClayScene(options: ClaySceneOptions): Promise<ClaySc
       built.pins.count = count;
       built.pins.instanceMatrix.set(pinBuffers.matrix);
       built.pins.instanceMatrix.needsUpdate = true;
-      markUpdated(built.pins.geometry);
+      markUpdated(built.pins.geometry, pinBuffers);
       pinsDirty = false;
     }
 
@@ -696,9 +745,36 @@ export async function createClayScene(options: ClaySceneOptions): Promise<ClaySc
 
   // ------------------------------------------------------------------ utils
 
-  /** Bind the per-instance attributes `clay-tsl.ts` reads, by the names it
-   *  reads them under — the buffer and the shader are in different files and a
-   *  typo between them is a black material rather than an error. */
+  /**
+   * The four per-instance floats, interleaved into **one** vertex buffer.
+   *
+   * Bound by the names `clay-tsl.ts` reads them under — the buffer and the
+   * shader are in different files and a typo between them is a black material
+   * rather than an error. What changed is the packing, and the reason is a
+   * hard device limit rather than a performance preference.
+   *
+   * **WebGPU allows a pipeline eight vertex buffers, and this mesh wanted
+   * nine:** `position`, `normal`, `uv`, `color`, `instanceMatrix`, and four
+   * separate `InstancedBufferAttribute`s. Chromium refused the pipeline —
+   * *"Vertex buffer count (9) exceeds the maximum number of vertex buffers
+   * (8)"* — and the clay rendered nothing at all on the tier §E13 calls S.
+   *
+   * **CI could not see it, and that is the part worth recording.** The
+   * headless harness runs on SwiftShader, which advertises no WebGPU adapter,
+   * so `WebGPURenderer` selects its WebGL 2 backend (ADR-0037) — where the
+   * limit is sixteen attributes and nine buffers is unremarkable. Every golden
+   * image, every tier assertion and every frame-rate figure in
+   * `docs/reports/clay-frame-rate.md` was measured on the backend that does not
+   * have this limit. The scene was broken on real hardware for as long as it
+   * has existed, and it was found by opening the page in a browser with a GPU.
+   *
+   * `three` groups attributes that share an `InterleavedBuffer` into a single
+   * `arrayStride` entry (`WebGPUAttributeUtils.createShaderVertexBuffers`), so
+   * four attributes over one buffer cost one slot instead of four: nine
+   * becomes six, with two to spare. The CPU-side arrays in `pins.ts` and
+   * `geometry.ts` are unchanged and stay the source of truth — this is the
+   * upload layout, and `markUpdated` is where the two are reconciled.
+   */
   function attach(
     geometry: BufferGeometry,
     buffers: {
@@ -708,22 +784,65 @@ export async function createClayScene(options: ClaySceneOptions): Promise<ClaySc
       height: Float32Array;
     },
   ): void {
-    geometry.setAttribute(
-      CLAY_ATTRIBUTES.severity,
-      new InstancedBufferAttribute(buffers.severity, 1),
+    const interleaved = new InstancedInterleavedBuffer(
+      new Float32Array(buffers.severity.length * PACKED_STRIDE),
+      PACKED_STRIDE,
+      1,
     );
-    geometry.setAttribute(CLAY_ATTRIBUTES.grain, new InstancedBufferAttribute(buffers.grain, 1));
-    geometry.setAttribute(
-      CLAY_ATTRIBUTES.occlusion,
-      new InstancedBufferAttribute(buffers.occlusion, 1),
-    );
-    geometry.setAttribute(CLAY_ATTRIBUTES.height, new InstancedBufferAttribute(buffers.height, 1));
+    // `setUsage(DynamicDrawUsage)`: the pins half of this buffer is rewritten
+    // whenever a report arrives or a settle animation is mid-flight, which is
+    // the definition the flag exists for. The city half never changes and pays
+    // nothing for the hint.
+    interleaved.setUsage(DynamicDrawUsage);
+
+    for (const [offset, name] of PACKED_ORDER.entries()) {
+      geometry.setAttribute(name, new InterleavedBufferAttribute(interleaved, 1, offset));
+    }
+    pack(geometry, buffers);
   }
 
-  function markUpdated(geometry: BufferGeometry): void {
-    for (const name of Object.values(CLAY_ATTRIBUTES)) {
-      geometry.getAttribute(name).needsUpdate = true;
+  /**
+   * Copy the CPU arrays into the interleaved upload buffer.
+   *
+   * Derived state, refreshed at exactly the moments the old code flagged
+   * `needsUpdate` — so a pin whose height changed on this step reaches the GPU
+   * on this step, and nothing else is touched. `count` rather than `capacity`
+   * is not available here and is not wanted: the buffers are allocated to
+   * `BUDGET.pins` and the instances past `count` are not drawn, so packing all
+   * of them writes zeroes nobody reads rather than branching per frame.
+   */
+  function pack(
+    geometry: BufferGeometry,
+    buffers: {
+      severity: Float32Array;
+      grain: Float32Array;
+      occlusion: Float32Array;
+      height: Float32Array;
+    },
+  ): void {
+    const target = geometry.getAttribute(CLAY_ATTRIBUTES.severity) as InterleavedBufferAttribute;
+    const packed = target.data.array as Float32Array;
+    const sources = [buffers.severity, buffers.grain, buffers.occlusion, buffers.height];
+
+    for (let i = 0; i < buffers.severity.length; i += 1) {
+      const at = i * PACKED_STRIDE;
+      for (let slot = 0; slot < PACKED_STRIDE; slot += 1) {
+        packed[at + slot] = sources[slot]?.[i] ?? 0;
+      }
     }
+    target.data.needsUpdate = true;
+  }
+
+  function markUpdated(
+    geometry: BufferGeometry,
+    buffers: {
+      severity: Float32Array;
+      grain: Float32Array;
+      occlusion: Float32Array;
+      height: Float32Array;
+    },
+  ): void {
+    pack(geometry, buffers);
   }
 
   /**

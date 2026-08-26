@@ -59,3 +59,44 @@
     }
   }
 }
+
+/*
+ * The proof index — §E24.
+ *
+ * In `globals.css` rather than a module of its own: the `(dev)` group has no
+ * stylesheet, deliberately, because a proof surface that carried its own design
+ * system would be proving that system rather than the thing under it. These
+ * four rules are a list and a hit area, and nothing else.
+ */
+.dev-index {
+  padding: 2rem clamp(1rem, 5vw, 4rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  max-inline-size: 60rem;
+}
+
+.dev-index__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 0.75rem;
+}
+
+.dev-index__link {
+  display: grid;
+  gap: 0.25rem;
+  block-size: 100%;
+  padding: 1rem;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid var(--color-role-rule);
+  border-inline-start-width: 3px;
+}
+
+.dev-index__link:hover,
+.dev-index__link:focus-visible {
+  border-color: var(--color-role-text-signal);
+}

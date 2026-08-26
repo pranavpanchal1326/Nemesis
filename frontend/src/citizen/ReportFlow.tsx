@@ -136,6 +136,15 @@ export function ReportFlow({
   if (phase.kind === "capture") {
     return (
       <Frame className="report" data-phase="capture">
+        {/* Every screen names itself, and only one of them says so out loud.
+          §E17.1's rule is that *the app opens in the viewfinder, not on a
+          form*, so a visible title on the capture screen would be the first
+          thing this product does wrong. A screen reader still needs to be told
+          which of the three screens it is on, and a page with no `<h1>` at all
+          — which is what this was — is a page whose first landmark announcement
+          is "main" and nothing else. `sr-only`, therefore: present in the
+          document, absent from the frame. */}
+        <h1 className="sr-only">{t(strings, "report.title.capture")}</h1>
         <Viewfinder
           strings={strings}
           onCapture={(capture) => {
@@ -150,6 +159,7 @@ export function ReportFlow({
     const capture = phase.capture;
     return (
       <Frame className="report" data-phase="place">
+        <h1 className="sr-only">{t(strings, "report.title.place")}</h1>
         <PlaceCard strings={strings} value={at} onChange={setAt} />
         <button
           type="button"

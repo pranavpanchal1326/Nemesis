@@ -82,7 +82,7 @@ export function TheReport({
           />
         </div>
 
-        <p className="report-act__note type-micro">{t(strings, "story.report.note")}</p>
+        <p className="report-act__note type-caption">{t(strings, "story.report.note")}</p>
 
         {/*
          * The peel — clay to paper. Rendered only once there is a real report
@@ -96,7 +96,7 @@ export function TheReport({
           </div>
         )}
 
-        <p className="type-micro">{t(strings, "story.report.described")}</p>
+        <p className="type-caption">{t(strings, "story.report.described")}</p>
       </div>
     </section>
   );
@@ -130,7 +130,7 @@ export function ThePipeline({ strings }: { readonly strings: Strings }) {
           <PipelineTheatre complaintId={complaintId} strings={strings} />
         )}
 
-        <p className="gates__note type-micro">{t(strings, "story.pipeline.note")}</p>
+        <p className="gates__note type-caption">{t(strings, "story.pipeline.note")}</p>
       </div>
     </section>
   );
