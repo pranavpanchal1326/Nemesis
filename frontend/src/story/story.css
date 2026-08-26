@@ -1,0 +1,569 @@
+/*
+ * §E16 — "The Walk".
+ *
+ * No colour, duration, curve or type size is declared here. Every one arrives
+ * as a custom property generated from src/design/tokens.json, and
+ * scripts/check-guards.ts fails the build on a literal (§E24). The five
+ * signature motions of §E11.1 are the only motions in this file, and
+ * tests/story-motions.test.ts reads it to prove that.
+ *
+ * **The film's layout is one idea.** A fixed stage carrying the clay world, and
+ * a scrolling reel of nine acts over it. The reel gives the page its height —
+ * and therefore the spine its `t` — while the stage never moves, so the camera
+ * is the only thing that travels. An act's height is proportional to the share
+ * of the film §E16 gives it, which is what makes scroll position and `t`
+ * linear in each other: a reader who has scrolled a third of the film is a
+ * third of the way through it, and a golden image taken at t = 0.74 can be
+ * re-opened by hand.
+ *
+ * **Logical properties only.** No left, no right (§E22, A11).
+ */
+
+/* --------------------------------------------------------------------------
+ * The film
+ * ------------------------------------------------------------------------ */
+
+.walk {
+  position: relative;
+  background: var(--color-role-ground);
+  color: var(--color-role-text-primary);
+}
+
+/* The stage is fixed rather than sticky: sticky is relative to a scroll
+   container and the film's container is the document, so a sticky stage
+   detaches the moment the receipts (act 9, below the fold) push past it. */
+.walk__stage {
+  position: fixed;
+  inset: 0;
+  z-index: var(--layer-world);
+  pointer-events: none;
+}
+
+.walk__stage > * {
+  block-size: 100%;
+}
+
+.walk__reel {
+  position: relative;
+  z-index: var(--layer-paper);
+  /* §E16: "Scroll-snap per act, so every beat lands." Proximity rather than
+     mandatory: mandatory snapping steals a reader's ability to stop halfway
+     through an act and look, which on a film whose whole claim is that the
+     reader is walking it would be the wrong instruction entirely. */
+  scroll-snap-type: y proximity;
+}
+
+/* See <Walk>: a pinned film is a still frame and has no beats to land. */
+.walk[data-pinned="true"] .walk__reel,
+.walk[data-pinned="true"] .act {
+  scroll-snap-type: none;
+  scroll-snap-align: none;
+}
+
+.act {
+  position: relative;
+  scroll-snap-align: start;
+  display: grid;
+  align-content: center;
+  gap: var(--density-gutter);
+  padding: 2rem clamp(1rem, 5vw, 5rem);
+  /* Set per act from the §E16 table by <Walk>; see acts.ts. The film is
+     twenty viewports tall so that the shortest act — the cold open, five per
+     cent of the spine — still clears a full screen and can be snapped to. */
+  block-size: calc(var(--act-span) * 20 * 100dvh);
+  pointer-events: none;
+}
+
+/* Everything in an act is inert except what an act deliberately turns on:
+   the report capture, the ward field, the three entrances. A reel that
+   captured pointer events over the whole viewport would make the canvas
+   unpickable for the whole film. */
+.act :is(a, button, input, select, textarea, [data-interactive="true"]) {
+  pointer-events: auto;
+}
+
+.act__panel {
+  max-inline-size: var(--measure);
+  display: grid;
+  gap: var(--density-gutter);
+  /* §E11.1 motion 4 — the Lift. The entire chrome vocabulary. */
+  animation: story-lift var(--duration-base) var(--ease-out) both;
+}
+
+@keyframes story-lift {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* §E11.1 motion 3 — the Rule-Draw. Borders draw left to right rather than
+   fading. Written as a scale on a pseudo-element so it draws in the inline
+   direction, which is the correct direction in both scripts. */
+.rule-draw {
+  position: relative;
+  border: 0;
+  block-size: 1px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.rule-draw::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--color-role-rule);
+  transform-origin: left center;
+  animation: story-rule-draw var(--duration-fast) var(--ease-out) both;
+}
+
+[dir="rtl"] .rule-draw::after {
+  transform-origin: right center;
+}
+
+@keyframes story-rule-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Act 0 — the cold open
+ * ------------------------------------------------------------------------ */
+
+.cold-open {
+  align-content: end;
+  justify-items: start;
+}
+
+.cold-open__name {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Glyph by glyph at a 24 ms stagger — §E16's own number, expressed as a
+   fraction of the step so it stays on the product's clock. The delay per
+   glyph is set inline by the component, which is the one thing a stylesheet
+   cannot know. */
+.cold-open__glyph {
+  display: inline-block;
+  animation: story-glyph var(--duration-snap) var(--ease-out) both;
+  animation-delay: var(--glyph-delay);
+}
+
+@keyframes story-glyph {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cold-open__expand {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+.cold-open__motto {
+  margin: 0;
+}
+
+.cold-open__cue {
+  display: grid;
+  gap: var(--density-gutter);
+  justify-items: start;
+  color: var(--color-role-text-secondary);
+}
+
+/* The scroll cue is a hairline rule that draws *down*, which is the one place
+   in the product a rule is allowed to run in the block direction: it is
+   pointing, not dividing. */
+.cold-open__cue-rule {
+  inline-size: 1px;
+  block-size: 4rem;
+  background: var(--color-role-rule);
+  transform-origin: top center;
+  animation: story-cue var(--duration-slow) var(--ease-out) both;
+}
+
+@keyframes story-cue {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Act 1 — the walk
+ * ------------------------------------------------------------------------ */
+
+.walk-lines {
+  display: grid;
+  gap: 40dvh;
+  align-content: space-between;
+  block-size: 100%;
+}
+
+.walk-lines__line {
+  margin: 0;
+  max-inline-size: var(--measure);
+}
+
+/* --------------------------------------------------------------------------
+ * Act 3 — the silence
+ * ------------------------------------------------------------------------ */
+
+.ghost-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--density-gutter);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ghost-flags__flag {
+  font-family: var(--font-hand);
+  color: var(--color-role-text-secondary);
+  border-inline-start: 1px solid var(--color-role-rule);
+  padding-inline-start: 0.5rem;
+  /* All nine dim at once (§E16). One animation, one duration, no stagger —
+     the simultaneity is the point of the beat. */
+  animation: story-lift var(--duration-base) var(--ease-out) both;
+}
+
+.silence__quote {
+  margin: 0;
+  max-inline-size: var(--measure);
+}
+
+/* --------------------------------------------------------------------------
+ * Act 4 — the report, and the peel
+ * ------------------------------------------------------------------------ */
+
+.report-act {
+  align-content: center;
+  justify-items: center;
+}
+
+/* The phone, as a frame the camera has pushed into. The real capture surface
+   renders inside it — §E16 Act 4 is explicit that this is the component and
+   not a picture of one, and tests/story.spec.ts asserts the shutter is the
+   citizen loop's own. */
+.report-act__phone {
+  inline-size: min(24rem, 88vw);
+  max-block-size: 78dvh;
+  /* Scrollable, not clipped. The capture flow is the real component and it is
+     as tall as it is; a phone frame that hid its own shutter would be a film
+     that cannot be used — which is precisely §E3.5, the tool outranking the
+     show. Found by the gate: Playwright could see the Send button and never
+     reach it. */
+  overflow-y: auto;
+  border: 1px solid var(--color-role-rule);
+  border-radius: 12px;
+  background: var(--color-role-ground);
+  /* No drop shadow. §E6 is a print process and a print has no cast light in
+     it; the phone reads as held because the lens has focused on it and the
+     city behind it has gone soft, which is a photographic answer rather than a
+     CSS one. */
+}
+
+.report-act__note {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+  text-align: center;
+}
+
+/* The photograph peels off the world into a paper card — the transition the
+   whole direction rests on (§E16 Act 4). A rotation about an inline-start
+   edge, on the clay curve, because a sheet lifting off a surface is a heavy
+   object: slow in, fast out. */
+.peel {
+  perspective: 1200px;
+}
+
+.peel__card {
+  transform-origin: left center;
+  animation: story-peel var(--duration-cine) var(--ease-clay) both;
+}
+
+[dir="rtl"] .peel__card {
+  transform-origin: right center;
+}
+
+@keyframes story-peel {
+  from {
+    transform: rotateY(-88deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Act 5 — the gates
+ * ------------------------------------------------------------------------ */
+
+.gates {
+  display: grid;
+  gap: var(--density-gutter);
+  max-inline-size: var(--measure);
+}
+
+.gates__note {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+ * Act 6 — the merge
+ * ------------------------------------------------------------------------ */
+
+.merge {
+  display: grid;
+  gap: var(--density-gutter);
+  max-inline-size: var(--measure);
+}
+
+/* §E11.1 motion 1 — the Stamp. Confirmations land; they do not fade. */
+.merge__stamp {
+  justify-self: start;
+  animation: story-stamp var(--duration-fast) var(--ease-stamp) both;
+  /* The hold before the count stamps is the merge's own 168 ms (§E11.1),
+     applied as a delay so the two motions read as cause and effect. */
+  animation-delay: var(--duration-fast);
+}
+
+@keyframes story-stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.18) rotate(-1.5deg) translate(3px, 3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(-1.5deg) translate(0, 0);
+  }
+}
+
+/* §E11.1 motion 2 — the Merge, in the paper layer. The 3D half of this lives
+   on `uMergeProgress` in the clay material; this is the flags leaning on the
+   sheet, on the same curve and the same 900 ms so the two halves are one
+   movement. */
+.merge__flags {
+  display: flex;
+  gap: var(--density-gutter);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.merge__flag {
+  animation: story-merge var(--duration-cine) var(--ease-cine) both;
+  transform-origin: bottom center;
+}
+
+@keyframes story-merge {
+  from {
+    transform: translateX(var(--flag-offset)) rotate(0deg);
+  }
+  to {
+    transform: translateX(0) rotate(var(--flag-lean));
+  }
+}
+
+/* The rings the absorbed reports leave behind. Not decoration: §E11.1 —
+   "deduplication is not deletion and the visual must say so." */
+.merge__rings {
+  display: flex;
+  gap: var(--density-gutter);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.merge__ring {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  border: 1px solid var(--color-role-rule);
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.merge__live,
+.merge__at,
+.merge__waiting {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+ * Act 7 — the survey frame
+ * ------------------------------------------------------------------------ */
+
+.survey {
+  display: grid;
+  gap: var(--density-gutter);
+  max-inline-size: var(--measure);
+}
+
+.survey__entrances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--density-gutter);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.survey__entrance {
+  display: inline-block;
+  padding: 0.75rem 1rem;
+  min-block-size: 44px;
+  border: 1px solid var(--color-role-rule);
+  color: var(--color-role-text-primary);
+  text-decoration: none;
+}
+
+.survey__ward {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--density-gutter);
+  align-items: end;
+}
+
+.survey__field {
+  min-block-size: 44px;
+  padding: 0.5rem;
+  border: 1px solid var(--color-role-rule);
+  background: var(--color-role-ground);
+  color: var(--color-role-text-primary);
+}
+
+.survey__marks {
+  display: flex;
+  gap: var(--density-gutter);
+  color: var(--color-role-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+ * Act 8 — the workbench
+ * ------------------------------------------------------------------------ */
+
+.bench {
+  display: grid;
+  gap: var(--density-gutter);
+  max-inline-size: var(--measure);
+  align-content: end;
+}
+
+/* --------------------------------------------------------------------------
+ * Act 9 — the receipts, below the fold
+ * ------------------------------------------------------------------------ */
+
+.receipts {
+  position: relative;
+  z-index: var(--layer-paper);
+  display: grid;
+  gap: 2rem;
+  padding: 3rem clamp(1rem, 5vw, 5rem);
+  background: var(--color-role-ground);
+}
+
+.receipts__note {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+  max-inline-size: var(--measure);
+}
+
+/* --------------------------------------------------------------------------
+ * Tier C — the storyboard, nine riso prints (§E13)
+ *
+ * Not a fallback: a design deliverable with its own review (§E3.2). It is
+ * visually continuous with Tier S because it is the same process — the same
+ * press, the same inks, the same words — with the motion taken out.
+ * ------------------------------------------------------------------------ */
+
+.storyboard {
+  display: grid;
+  gap: 2rem;
+  padding: 2rem clamp(1rem, 5vw, 5rem);
+  scroll-snap-type: y proximity;
+}
+
+.storyboard__prints {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.storyboard__print {
+  scroll-snap-align: start;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--color-role-rule);
+  background: var(--color-role-ground);
+}
+
+.storyboard__frame {
+  aspect-ratio: 4 / 3;
+  inline-size: 100%;
+  display: block;
+}
+
+.storyboard__index {
+  color: var(--color-role-text-secondary);
+}
+
+.storyboard__copy {
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+ * prefers-reduced-motion — §E11.1's own instruction, applied here rather than
+ * inferred: "collapses all five to opacity at 84 ms and switches the landing
+ * to the storyboard edit."
+ *
+ * The switch itself is `tier.ts`'s job and happens before any of this renders;
+ * this is the second half, for every surface that is still on screen.
+ * ------------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .act__panel,
+  .cold-open__glyph,
+  .cold-open__cue-rule,
+  .ghost-flags__flag,
+  .peel__card,
+  .merge__stamp,
+  .merge__flag,
+  .rule-draw::after {
+    animation-duration: var(--duration-snap);
+    animation-delay: 0ms;
+    animation-name: story-appear;
+  }
+}
+
+@keyframes story-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

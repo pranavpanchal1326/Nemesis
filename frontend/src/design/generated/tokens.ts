@@ -121,6 +121,26 @@ export const INK_LINEAR = {
 } as const;
 
 /**
+ * Every stock as linear-sRGB — §E6.1 stage 6, the sheet every plate
+ * multiplies onto.
+ *
+ * The 2D press gets the stock as a CSS colour and the 3D press needs the
+ * same stock as a linear triple. Converting it at the call site would be
+ * the one hand-written colour conversion in the product, which is the
+ * same failure as a hand-written colour with an extra step.
+ */
+export const PAPER_LINEAR = {
+  "paper-50": [0.90466, 0.84687, 0.75294],
+  "kraft-100": [0.82279, 0.71569, 0.57112],
+  "kraft-200": [0.71569, 0.5972, 0.45641],
+  "mitti-300": [0.521, 0.42327, 0.32778],
+  "mitti-500": [0.25415, 0.17465, 0.12214],
+  "mitti-950": [0.00857, 0.00605, 0.00439],
+  "bone-200": [0.77582, 0.71569, 0.61721],
+  chalk: [0.96469, 0.93869, 0.89627],
+} as const satisfies Record<PaperName, readonly [number, number, number]>;
+
+/**
  * Semantic roles, per ground (§E22).
  *
  * `derivation` is carried into the generated output on purpose: a reviewer
@@ -177,18 +197,37 @@ export const SEVERITY_ROLE = {
   dark: { text: "tint", field: "ground", mark: "glaze", min: 4.5, markMin: 3 },
 } as const;
 
-/** Two or three inks per run — the real risograph constraint (§E9.2). */
+/**
+ * Two or three inks per run — the real risograph constraint (§E9.2).
+ *
+ * `stock` is the page ground; `sheet` is what the press prints on. They
+ * differ on exactly one surface — §E9.3's light table, where the ground is
+ * the room and the print on it is backlit — and `sheet` is filled in here
+ * so no consumer has to remember which case it is in.
+ */
 export const INK_SET = {
-  story: { stock: "paper-50", inks: ["riso-brown", "riso-sunflower", "riso-aqua"] },
-  public: { stock: "paper-50", inks: ["riso-black", "riso-aqua", "severity"] },
-  citizen: { stock: "kraft-100", inks: ["riso-black", "riso-brown", "severity"] },
-  "console-day": { stock: "kraft-100", inks: ["riso-black", "riso-fed-blue", "severity"] },
+  story: {
+    stock: "paper-50",
+    sheet: "paper-50",
+    inks: ["riso-brown", "riso-sunflower", "riso-aqua"],
+  },
+  public: { stock: "paper-50", sheet: "paper-50", inks: ["riso-black", "riso-aqua", "severity"] },
+  citizen: {
+    stock: "kraft-100",
+    sheet: "kraft-100",
+    inks: ["riso-black", "riso-brown", "severity"],
+  },
+  "console-day": {
+    stock: "kraft-100",
+    sheet: "kraft-100",
+    inks: ["riso-black", "riso-fed-blue", "severity"],
+  },
   "console-night": {
     stock: "mitti-950",
+    sheet: "bone-200",
     inks: ["riso-black", "riso-fed-blue", "severity"],
-    note: "the light table (§E9.3) — the same prints, backlit on glass. Not an inverted palette; inverting would break the premise the direction rests on.",
   },
-  document: { stock: "chalk", inks: ["riso-black", "riso-flu-pink"] },
+  document: { stock: "chalk", sheet: "chalk", inks: ["riso-black", "riso-flu-pink"] },
 } as const;
 export type InkSetName = keyof typeof INK_SET;
 
@@ -249,3 +288,87 @@ export const TYPE_STEPS = [
   "hand",
 ] as const;
 export type TypeStep = (typeof TYPE_STEPS)[number];
+
+/**
+ * The clay material recipe (§E7.1).
+ *
+ * `bodyLinear`, `warmLinear` and `coolLinear` are the three inks §E9.2
+ * already assigned to clay, converted once — the same conversion the
+ * glaze above goes through, so the clay body in a shader and the brown ink
+ * in a badge are one number by construction rather than by agreement.
+ */
+export const CLAY = {
+  body: "#925F52",
+  bodyLinear: [0.28744, 0.11444, 0.08438],
+  warmLinear: [1, 0.46208, 0.00561],
+  coolLinear: [0.04667, 0.09084, 0.2462],
+  surface: { roughness: 0.92, metalness: 0 },
+  thumbprint: { amplitude: 0.06, tilePx: 512, rotationSteps: 16 },
+  ao: { floor: 0.42 },
+  rim: { power: 2.4, warmth: 0.34, coolness: 0.26 },
+  edge: { bevelMetres: 0.45, darkening: 0.24 },
+  glaze: { sheen: 0.36, rimDarkening: 0.3, coat: 0.85 },
+} as const;
+
+/** The lens stack (§E7.3). Applied to the frame before the press prints it. */
+export const LENS = {
+  tiltShift: { focusMetres: 0, apertureMetres: 44, maxBlurPx: 3.2 },
+  gateWeave: { amplitudePx: 0.4, hz: 12 },
+  vignette: { amount: 0.28, radius: 0.78 },
+  barrel: { amount: 0.035 },
+  bloom: { threshold: 0.72, strength: 0.9, radiusPx: 18, holdSteps: 24 },
+} as const;
+
+/** The clay city, in real ground metres — never in scene units (M8.2). */
+export const WORLD = {
+  kit: {
+    blockMetres: 68,
+    roadMetres: 9,
+    storeyMetres: 3.2,
+    minStoreys: 1,
+    maxStoreys: 7,
+    setbackMetres: 2.5,
+  },
+  pin: { radiusMetres: 3.6, minHeightMetres: 7, maxHeightMetres: 34, settleSteps: 6 },
+  camera: { heightMetres: 900, pitchDegrees: 52, fovDegrees: 28, dampingPerSecond: 6.5 },
+  extent: { halfMetres: 6000 },
+} as const;
+
+/**
+ * §E7.4 — how a seasonal SLA multiplier becomes wet clay, and how a solar
+ * altitude becomes a key light.
+ *
+ * Nothing here decides *whether* it is raining. That is the SLA engine's
+ * own answer (`clay/sun.ts`), and these are the numbers that render it.
+ */
+export const WEATHER = {
+  soakedMultiplier: 1.5,
+  monsoonWetness: 0.6,
+  wetDarkening: 0.35,
+  wetGloss: 0.4,
+  minSunUp: 0.09,
+  twilightDeg: -6,
+  fullLightDeg: 12,
+  keyFloor: 0.12,
+  fillFraction: 0.45,
+} as const;
+
+/**
+ * §E23's budgets, and §E13's two Tier B thresholds.
+ *
+ * The adaptive quality manager reads these and so does the CI assertion.
+ * A budget written in a table and re-typed in a test is two budgets, and
+ * the one that gets relaxed is always the one nobody is looking at.
+ */
+export const BUDGET = {
+  vramMb: 512,
+  pins: 5000,
+  fps: 60,
+  drawCalls: 32,
+  fpsSampleMs: 3000,
+  liteMemoryGb: 4,
+  liteFps: 40,
+  degradeBelowFraction: 0.9,
+  recoverAboveFraction: 0.98,
+  recoverWindows: 4,
+} as const;

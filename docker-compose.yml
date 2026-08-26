@@ -9,9 +9,14 @@
 #               Next.js project into WSL2 makes file-watching HMR crawl on
 #               Windows, and keeps ~1.5GB out of the WSL memory budget.
 #
-# Memory limits are explicit and sum to ~6GB, inside the 8GB WSL2 cap set in
-# docs/HARDWARE.md. Without them, worker-ml will happily consume everything and
-# take Postgres down with it.
+# Memory limits are explicit, and the arithmetic is a gate rather than a
+# comment: `scripts/check_memory_budget.py` reads every `mem_limit` below and
+# fails the build when the declared total leaves the WSL2 VM in docs/HARDWARE.md
+# without its stated headroom. Two of these limits were absent from that
+# document's table until ADR-0051, which is how the observability profile came
+# to over-subscribe the VM by 124 MB — and why worker-ml's fork child was the
+# process the kernel reached for first. Without limits at all, worker-ml will
+# happily consume everything and take Postgres down with it.
 
 # Container-internal service addresses. These MUST override the values in .env,
 # which are host-oriented (localhost) for host-side tooling such as pytest and
@@ -231,7 +236,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
-    mem_limit: 192m
+    mem_limit: 128m
 
 
   # The transactional outbox relay (Phase 3). Its own process on purpose:
@@ -260,7 +265,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
-    mem_limit: 192m
+    mem_limit: 128m
 
   # Phase 4. Its own process for the reasons the relay's docstring gives — one
   # job, a container healthcheck for liveness, a lag metric — plus one specific
@@ -290,7 +295,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
-    mem_limit: 192m
+    mem_limit: 128m
 
   # ------------------------------------------------------------------------
   # Observability (Phase 1a) — opt-in via the `obs` profile.
@@ -323,7 +328,7 @@ services:
     # `docker exec`. Liveness is covered instead by Prometheus scraping its
     # self-telemetry on :8888, which NemesisTargetDown alerts on — a stronger
     # signal than a local probe, because it also proves the scrape path works.
-    mem_limit: 128m
+    mem_limit: 96m
     restart: unless-stopped
 
   tempo:
@@ -336,7 +341,7 @@ services:
     # 3200 is published so `nem obs-verify` and a browser can query traces
     # directly without going through Grafana.
     ports: ["3200:3200"]
-    mem_limit: 256m
+    mem_limit: 192m
     restart: unless-stopped
 
   prometheus:
@@ -362,7 +367,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    mem_limit: 256m
+    mem_limit: 192m
     restart: unless-stopped
 
   alertmanager:
@@ -381,7 +386,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
-    mem_limit: 96m
+    mem_limit: 64m
     restart: unless-stopped
 
   grafana:
@@ -416,7 +421,7 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
-    mem_limit: 256m
+    mem_limit: 192m
     restart: unless-stopped
 
 volumes:

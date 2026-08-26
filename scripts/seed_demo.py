@@ -37,9 +37,9 @@ import json
 import os
 import random
 import sys
-import uuid
 import urllib.error
 import urllib.request
+import uuid
 from typing import Any, Final
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -52,6 +52,11 @@ CONTROL_PLANE: Final = f"{BASE}/api/v1/control-plane"
 TOKEN_HEADER: Final = "X-Control-Plane-Token"
 TENANT_HEADER: Final = "X-Tenant-ID"
 DEFAULT_TOKEN: Final = "dev-only-insecure-control-plane-token-change-me"
+
+#: The evaluation set that turns the activation guardrail on for the demo city.
+#: Named rather than inlined because `_gate_severity_rubric` references it four
+#: times and a typo in one of them would open a second, unpublished draft.
+DEMO_EVALUATION_SET: Final = "demo-severity-exam"
 
 #: Half-extent of a ward box, in degrees. ~1.3 km each way at this latitude.
 #:
@@ -111,19 +116,95 @@ DEPARTMENTS: Final[list[dict[str, Any]]] = [
 
 #: A taxonomy the platform has never seen, which is the Phase 5 claim. Keys are
 #: immutable contracts (ADR-0019); the display names are translated below.
+#: Every node carries its Marathi and Arabic display names — ADR-0052, A11.
+#:
+#: **Marathi** because the public breakdown table renders `category_name` in the
+#: locale the page asked for, and a tenant with a taxonomy and no translations
+#: publishes a Marathi page with English category rows in it. Seeding the
+#: translation is what makes `?locale=mr` a claim the demo can be held to rather
+#: than a query parameter that changes the chrome.
+#:
+#: **Arabic** for A11. §E22 claims *"RTL-ready layout primitives"*, and every
+#: stylesheet in `src/` does use logical properties — zero physical `left` or
+#: `margin-left` anywhere. That is preparation, not proof: ready is a claim until
+#: a locale renders and something checks which way it went. `ar` is the smallest
+#: honest way to seed one, and it is seeded as *data* rather than shipped as a
+#: product language: NEMESIS publishes no Arabic UI copy, so the surface falls
+#: back to English words in a right-to-left frame, which is exactly the condition
+#: the assertion needs and no more than the demo can honestly claim.
 TAXONOMY: Final[list[dict[str, Any]]] = [
-    {"key": "roads", "display_name": "Roads and footpaths", "is_selectable": False},
-    {"key": "roads.pothole", "display_name": "Pothole", "parent_key": "roads"},
-    {"key": "roads.footpath", "display_name": "Broken footpath", "parent_key": "roads"},
-    {"key": "water", "display_name": "Water", "is_selectable": False},
-    {"key": "water.leak", "display_name": "Pipeline leak", "parent_key": "water"},
-    {"key": "water.drain", "display_name": "Blocked or open drain", "parent_key": "water"},
-    {"key": "light", "display_name": "Street lighting", "is_selectable": False},
-    {"key": "light.out", "display_name": "Street light out", "parent_key": "light"},
-    {"key": "light.exposed", "display_name": "Exposed wiring", "parent_key": "light"},
-    {"key": "waste", "display_name": "Waste", "is_selectable": False},
-    {"key": "waste.dumping", "display_name": "Illegal dumping", "parent_key": "waste"},
-    {"key": "waste.uncollected", "display_name": "Uncollected bin", "parent_key": "waste"},
+    {
+        "key": "roads",
+        "display_name": "Roads and footpaths",
+        "is_selectable": False,
+        "translations": {"mr": "रस्ते आणि फूटपाथ", "ar": "الطرق والأرصفة"},
+    },
+    {
+        "key": "roads.pothole",
+        "display_name": "Pothole",
+        "parent_key": "roads",
+        "translations": {"mr": "खड्डा", "ar": "حفرة"},
+    },
+    {
+        "key": "roads.footpath",
+        "display_name": "Broken footpath",
+        "parent_key": "roads",
+        "translations": {"mr": "तुटलेला फूटपाथ", "ar": "رصيف مكسور"},
+    },
+    {
+        "key": "water",
+        "display_name": "Water",
+        "is_selectable": False,
+        "translations": {"mr": "पाणी", "ar": "المياه"},
+    },
+    {
+        "key": "water.leak",
+        "display_name": "Pipeline leak",
+        "parent_key": "water",
+        "translations": {"mr": "जलवाहिनी गळती", "ar": "تسرب في الأنابيب"},
+    },
+    {
+        "key": "water.drain",
+        "display_name": "Blocked or open drain",
+        "parent_key": "water",
+        "translations": {"mr": "तुंबलेली किंवा उघडी गटार", "ar": "مصرف مسدود أو مكشوف"},
+    },
+    {
+        "key": "light",
+        "display_name": "Street lighting",
+        "is_selectable": False,
+        "translations": {"mr": "पथदिवे", "ar": "إنارة الشوارع"},
+    },
+    {
+        "key": "light.out",
+        "display_name": "Street light out",
+        "parent_key": "light",
+        "translations": {"mr": "बंद पथदिवा", "ar": "إنارة مطفأة"},
+    },
+    {
+        "key": "light.exposed",
+        "display_name": "Exposed wiring",
+        "parent_key": "light",
+        "translations": {"mr": "उघडी वायरिंग", "ar": "أسلاك مكشوفة"},
+    },
+    {
+        "key": "waste",
+        "display_name": "Waste",
+        "is_selectable": False,
+        "translations": {"mr": "कचरा", "ar": "النفايات"},
+    },
+    {
+        "key": "waste.dumping",
+        "display_name": "Illegal dumping",
+        "parent_key": "waste",
+        "translations": {"mr": "बेकायदेशीर कचरा", "ar": "إلقاء مخالف"},
+    },
+    {
+        "key": "waste.uncollected",
+        "display_name": "Uncollected bin",
+        "parent_key": "waste",
+        "translations": {"mr": "न उचललेला कचराकुंडी", "ar": "حاوية لم تُفرغ"},
+    },
 ]
 
 #: What each selectable category *looks* and *reads* like — Phase 9's gate is
@@ -675,6 +756,117 @@ def _attach_prompt_sets(slug: str, admin: dict[str, str], supplied_id: str | Non
     return 0
 
 
+#: One contractor on the demo register, with two certifications.
+#:
+#: **Why the demo needs one at all.** §E18 ships a contractor's public record —
+#: §16.1's ledger, never a rating — and a city with no contractor has a route
+#: nobody can open. The figures on that page are honest zeros until Phase 14
+#: raises a work order against them, which is the point: a ledger with nothing
+#: in it is what a new contractor's record actually looks like, and it is a
+#: state worth having somebody see.
+#:
+#: Registered rather than invented: `POST /control-plane/contractors` is the
+#: only way this repository creates one, and the certifications go through
+#: `POST /control-plane/certifications` so the grant lands in the log — which is
+#: what makes "was this contractor certified for this category at the time?"
+#: answerable at all (§17).
+DEMO_CONTRACTOR: Final[dict[str, Any]] = {
+    "registration_id": "MH-PMC-2019-00417",
+    "name": "Sahyadri Infra Works",
+    "registered_address": "Plot 14, Erandwane Industrial Estate, Pune 411004",
+    "active_since": "2019-06-01",
+}
+
+DEMO_CERTIFICATIONS: Final[list[str]] = ["roads.pothole", "roads.footpath"]
+
+
+def _print_public_urls(slug: str, contractor_id: str | None) -> None:
+    """Where to look, now that there is something to look at.
+
+    §E18's pages are keyed on identifiers — a zone code, a contractor UUID — and
+    a seeding script that creates them and does not say what they are leaves the
+    operator to go and find them. Printed rather than logged because this is the
+    last thing the command does and the first thing somebody wants.
+    """
+    web = os.environ.get("NEMESIS_WEB_BASE", "http://localhost:3000")
+    lines = [
+        f"{OK} the transparency surface (§E18):",
+        f"     {web}/{slug}",
+        f"     {web}/{slug}/ward/{WARDS[0][0]}",
+        f"     {web}/{slug}/budget/{WARDS[0][0]}",
+        f"     {web}/{slug}/honesty",
+    ]
+    if contractor_id is not None:
+        lines.append(f"     {web}/{slug}/contractor/{contractor_id}")
+    sys.stdout.write("\n".join(lines) + "\n")
+
+
+def _register_contractor(admin: dict[str, str], tenant_id: str) -> str | None:
+    """Put one contractor on the register, and return the id its page is keyed on.
+
+    Returns ``None`` on any failure rather than aborting the seed: a demo city
+    without a contractor is still a demo city, and the reports, the wards and
+    the transparency pages are the parts somebody came to look at.
+    """
+    headers = {**admin, TENANT_HEADER: tenant_id}
+    status, body = _request(
+        "POST", f"{CONTROL_PLANE}/contractors", headers=headers, body=DEMO_CONTRACTOR
+    )
+    if status == 409:
+        sys.stdout.write(f"{OK} contractor '{DEMO_CONTRACTOR['name']}' already registered.\n")
+        return None
+    if status != 201 or not isinstance(body, dict):
+        sys.stderr.write(f"{FAIL} contractor registration refused - {status}: {body}\n")
+        return None
+
+    for key in DEMO_CERTIFICATIONS:
+        _request(
+            "POST",
+            f"{CONTROL_PLANE}/certifications",
+            headers=headers,
+            body={"contractor_registration_id": DEMO_CONTRACTOR["registration_id"], "taxonomy_key": key},
+        )
+
+    contractor_id = body.get("contractor_id")
+    return contractor_id if isinstance(contractor_id, str) else None
+
+
+#: The demo city's languages. Declared here as well as in the provisioning body
+#: because a tenant seeded before `ar` was added keeps whatever it was born
+#: with — `POST /tenants` answers 409 on a re-run and changes nothing — and
+#: `tests/rtl.spec.ts` needs the locale to actually be declared.
+DEMO_LOCALES: Final[list[str]] = ["en", "mr", "ar"]
+
+
+def _declare_locales(slug: str, admin: dict[str, str]) -> int:
+    """Re-declare the demo city's languages — A2, A11.
+
+    Idempotent: the route answers ``changed: false`` when the list already
+    matches, and appends nothing to the chain when it does. It exists at all
+    because provisioning declares locales once and this script's whole design
+    is that a second run brings an existing tenant up to date rather than
+    failing at the 409.
+    """
+    status, body = _request(
+        "PUT",
+        f"{CONTROL_PLANE}/tenants/{slug}/locales",
+        headers=admin,
+        body={
+            "locales": DEMO_LOCALES,
+            "primary_locale": "en",
+            "justification": (
+                "Demo tenant seeded by `nem seed-demo`. `ar` is declared for A11's "
+                "right-to-left assertion, as data rather than as product copy."
+            ),
+        },
+    )
+    if status != 200 or not isinstance(body, dict):
+        sys.stderr.write(f"{FAIL} locales could not be declared - status {status}: {body}\n")
+        return 1
+    sys.stdout.write(f"{OK} locales: {' + '.join(DEMO_LOCALES)}\n")
+    return 0
+
+
 def _publish(slug: str, admin: dict[str, str], *, enabled: bool) -> int:
     """Opt the demo city into §26.4's public surface — ADR-0046.
 
@@ -715,6 +907,103 @@ def _publish(slug: str, admin: dict[str, str], *, enabled: bool) -> int:
     return 0
 
 
+def _gate_severity_rubric(admin: dict[str, str], tenant_id: str) -> int:
+    """Publish an evaluation set, so the activation guardrail is a real one.
+
+    §E19.8's sharpest claim is that **the activate control is disabled without a
+    backtest**, and §E19.4's rule is that the *server* enforces it while the UI
+    only renders it legibly. Neither is checkable on a tenant where nothing is
+    gated: with no published evaluation set for a kind, `_require_certification`
+    has nothing to require, every activation succeeds, and the console's refusal
+    path is a branch nobody has ever seen run. F5's gate — *"a policy cannot be
+    activated without a backtest and the refusal states why, asserted in the
+    browser against the live guardrail"* — is therefore a gate the demo city has
+    to make exercisable, which is why it lives here rather than in the test.
+
+    `severity_rubric` is the kind chosen, because it is the one an operator is
+    most likely to want to change and the one whose mistakes are least visible:
+    a rubric that quietly scores every pothole `low` looks like a calm city.
+
+    **Every step is idempotent by 409.** A draft that already exists, a label
+    already recorded, a set already published — each is the state this function
+    is trying to reach, and treating "it is already so" as a failure would make
+    a second `nem seed-demo` fail on a healthy tenant.
+    """
+    headers = {**admin, TENANT_HEADER: tenant_id}
+    simulations = f"{CONTROL_PLANE}/simulations"
+
+    # One real complaint to label. Read back over HTTP rather than remembered
+    # from a seeding run: this function has to work on a tenant that was
+    # provisioned an hour ago by somebody else.
+    status, queue = _request("GET", f"{BASE}/api/v1/review/queue?limit=1", headers=headers)
+    complaint_id: str | None = None
+    if status == 200 and isinstance(queue, dict):
+        items = queue.get("items")
+        if isinstance(items, list) and items:
+            first = items[0]
+            if isinstance(first, dict):
+                candidate = first.get("complaint_id")
+                complaint_id = candidate if isinstance(candidate, str) else None
+    if complaint_id is None:
+        sys.stdout.write(
+            f"{OK} no complaint to label yet, so no evaluation set was published. "
+            f"Run with --reports to give the guardrail something to grade.\n"
+        )
+        return 0
+
+    status, _ = _request(
+        "POST",
+        f"{simulations}/evaluation-sets",
+        headers=headers,
+        body={
+            "code": DEMO_EVALUATION_SET,
+            "name": "Severity rubric — demo exam",
+            "kind": "severity_rubric",
+            "description": (
+                "A labelled set seeded by `nem seed-demo` so that activating a "
+                "severity rubric requires a passing certificate. Its judgements are "
+                "synthetic and it exists to make the guardrail real on a "
+                "development tenant, not to be right about severity."
+            ),
+            "pass_ratio": 1.0,
+        },
+    )
+    if status not in (201, 409):
+        sys.stderr.write(f"{FAIL} evaluation set could not be opened - status {status}\n")
+        return 1
+
+    status, _ = _request(
+        "POST",
+        f"{simulations}/evaluation-sets/{DEMO_EVALUATION_SET}/labels",
+        headers=headers,
+        body={
+            "complaint_id": complaint_id,
+            "rationale": (
+                "Seeded judgement. Recorded so the set has something to grade against; "
+                "a set with no labels cannot be published and cannot gate anything."
+            ),
+            "expected_severity_tier": "medium",
+        },
+    )
+    if status not in (201, 409):
+        sys.stderr.write(f"{FAIL} evaluation label could not be recorded - status {status}\n")
+        return 1
+
+    status, published = _request(
+        "POST", f"{simulations}/evaluation-sets/{DEMO_EVALUATION_SET}/publish", headers=headers
+    )
+    if status not in (200, 409):
+        sys.stderr.write(f"{FAIL} evaluation set could not be published - status {status}\n")
+        return 1
+
+    note = "" if status == 200 and isinstance(published, dict) else " (already so)"
+    sys.stdout.write(
+        f"{OK} '{DEMO_EVALUATION_SET}' gates severity_rubric{note}; "
+        f"activating a revision now needs a passing certificate.\n"
+    )
+    return 0
+
+
 def _tenant_id(slug: str, supplied: str | None = None) -> str | None:
     """A tenant's id, over HTTP — or supplied, when HTTP cannot answer.
 
@@ -724,23 +1013,38 @@ def _tenant_id(slug: str, supplied: str | None = None) -> str | None:
     makes it a demonstration of Phase 5 rather than a fixture loader wearing
     one's clothes.
 
-    The public zone index *does* publish `tenant`, and it is tried first — but
-    only for a tenant that has opted into the public API, which ADR-0021 makes
-    a deliberate per-customer decision defaulting to off. Since ADR-0046 that
-    opt-in is reachable over HTTP and `_publish` takes it, so for a demo city
-    seeded by this script the index answers. It does not answer under
-    `--no-publish`, or for a tenant seeded before ADR-0046 landed, and the
-    fallback is `--tenant-id` with the message below saying where to find it.
+    The public zone index is tried first, and an earlier version of this
+    function trusted its `tenant` field. **That field is the slug, and it always
+    was** — `ZoneIndexResponse` is built with `tenant=tenant.slug` — so a re-run
+    against an already-provisioned city resolved "pune-demo" as an id, sent it
+    as `X-Tenant-ID`, and every prompt set came back *"X-Tenant-ID must be a
+    UUID"*. Sixteen 400s that read like a broken control plane, from one field
+    read for something it does not carry. So the shape is checked: no public
+    response publishes a tenant id, which is a deliberate property of the
+    surface rather than an oversight, and the honest answer here is that HTTP
+    cannot resolve this and the caller should say which tenant it means.
     """
     if supplied is not None and supplied != "":
         return supplied
 
+    # Every published response names the tenant by slug. Kept as a lookup rather
+    # than deleted because it also answers "does this slug exist and publish",
+    # which is worth knowing before the message below sends somebody to psql.
     status, body = _request("GET", f"{BASE}/api/v1/public/{slug}/zones")
     if status == 200 and isinstance(body, dict):
         tenant = body.get("tenant")
-        if isinstance(tenant, str) and tenant:
+        if isinstance(tenant, str) and _is_uuid(tenant):
             return tenant
     return None
+
+
+def _is_uuid(value: str) -> bool:
+    """A tenant id is a UUID, and anything else is a different field."""
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        return False
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -793,11 +1097,18 @@ def main(argv: list[str] | None = None) -> int:
             "tenant": {
                 "slug": args.slug,
                 "name": args.name,
-                # Two scripts, because §E10.1 makes Devanagari a design partner
-                # rather than a fallback — and a per-script type scale nobody
-                # has rendered real Marathi through is a scale nobody has
-                # actually looked at.
-                "locales": ["en", "mr"],
+                # Two scripts and one direction, because §E10.1 makes
+                # Devanagari a design partner rather than a fallback — and a
+                # per-script type scale nobody has rendered real Marathi through
+                # is a scale nobody has actually looked at.
+                #
+                # `ar` is the third, and it is here for A11 rather than for a
+                # customer. §E22 claims RTL-ready primitives; every stylesheet
+                # uses logical properties and nothing had ever rendered a
+                # right-to-left locale to find out. Declaring the locale is what
+                # lets `tests/rtl.spec.ts` ask the browser which way the frame
+                # went, which is the difference between prepared and proven.
+                "locales": ["en", "mr", "ar"],
                 "primary_locale": "en",
                 "timezone": "Asia/Kolkata",
             },
@@ -819,13 +1130,23 @@ def main(argv: list[str] | None = None) -> int:
         rc = _attach_prompt_sets(args.slug, admin, args.tenant_id)
         if rc != 0:
             return rc
+        rc = _declare_locales(args.slug, admin)
+        if rc != 0:
+            return rc
         # Before `_tenant_id`, deliberately: publication is what makes the
         # public zone index answer, which is the HTTP route by which this script
         # learns a tenant's id at all.
         rc = _publish(args.slug, admin, enabled=not args.no_publish)
-        if rc != 0 or args.reports <= 0:
+        if rc != 0:
             return rc
         existing = _tenant_id(args.slug, args.tenant_id)
+        if existing is not None:
+            rc = _gate_severity_rubric(admin, existing)
+            if rc != 0:
+                return rc
+            _print_public_urls(args.slug, _register_contractor(admin, existing))
+        if args.reports <= 0:
+            return 0
         if existing is None:
             return 1
         return _seed_reports(existing, args.reports, args.report_seed)
@@ -839,7 +1160,7 @@ def main(argv: list[str] | None = None) -> int:
         f"{OK} '{args.slug}' provisioned.\n"
         f"     tenant id: {tenant_id}\n"
         f"     {len(WARDS)} wards with approximate boundaries, "
-        f"{len(TAXONOMY)} taxonomy nodes, locales en + mr.\n\n"
+        f"{len(TAXONOMY)} taxonomy nodes, locales en + mr + ar.\n\n"
         f"     Point the frontend at it - frontend/.env.local:\n"
         f"       NEMESIS_TENANT_ID={tenant_id}\n"
     )
@@ -847,6 +1168,17 @@ def main(argv: list[str] | None = None) -> int:
     rc = _publish(args.slug, admin, enabled=not args.no_publish)
     if rc != 0:
         return rc
+
+    if isinstance(tenant_id, str):
+        # After the reports below would be the better order — the set needs a
+        # complaint to label — but a freshly provisioned tenant has none either
+        # way, and the function says so rather than failing. A second run, which
+        # is how a demo city actually reaches a useful state, publishes it.
+        rc = _gate_severity_rubric(admin, tenant_id)
+        if rc != 0:
+            return rc
+        contractor_id = _register_contractor(admin, tenant_id)
+        _print_public_urls(args.slug, contractor_id)
 
     if args.reports > 0 and isinstance(tenant_id, str):
         return _seed_reports(tenant_id, args.reports, args.report_seed)

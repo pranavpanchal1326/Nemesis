@@ -271,9 +271,9 @@ async def test_stage_one_eliminates_at_least_ninety_percent_by_index(
         ),
     )
     types = node_types(plan)
-    assert "complaint_clusters" not in sequential_scans(
-        plan
-    ), f"Stage 1 sequential-scanned complaint_clusters; plan nodes were {types}"
+    assert "complaint_clusters" not in sequential_scans(plan), (
+        f"Stage 1 sequential-scanned complaint_clusters; plan nodes were {types}"
+    )
     # Named, not merely "some index". The GiST index on the centroid is the one
     # that makes ST_DWithin bounded; satisfying this clause with the tenant_id
     # B-tree while still reading every cluster in the tenant would pass a

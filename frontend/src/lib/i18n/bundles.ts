@@ -1,5 +1,7 @@
 import commonBase from "@/i18n/base/common.json";
 import commonMarathi from "@/i18n/base/common.mr.json";
+import consoleBase from "@/i18n/base/console.json";
+import consoleMarathi from "@/i18n/base/console.mr.json";
 import publicBase from "@/i18n/base/public.json";
 import publicMarathi from "@/i18n/base/public.mr.json";
 import { makeStrings, mergeBundles, type Namespace, type Strings } from "./strings";
@@ -31,7 +33,7 @@ function strip(bundle: Record<string, string>): Readonly<Record<string, string>>
 export const BASE: Record<Namespace, Readonly<Record<string, string>>> = {
   common: strip(commonBase),
   citizen: {},
-  console: {},
+  console: strip(consoleBase),
   public: strip(publicBase),
 };
 
@@ -54,7 +56,32 @@ export const BASE: Record<Namespace, Readonly<Record<string, string>>> = {
  * why `mergeBundles` overrides rather than replaces.
  */
 const SEED: Record<string, Partial<Record<Namespace, Readonly<Record<string, string>>>>> = {
-  mr: { common: strip(commonMarathi), public: strip(publicMarathi) },
+  mr: {
+    common: strip(commonMarathi),
+    console: strip(consoleMarathi),
+    public: strip(publicMarathi),
+  },
+  /**
+   * **`ar` is declared and deliberately empty — A11, §E22.**
+   *
+   * Not an oversight and not a placeholder. This entry says one thing
+   * precisely: *this application can render this locale's frame, and ships
+   * none of its words.* Direction, digit shaping and date formatting all
+   * follow the tag; every string falls through to the source language, which
+   * is what `mergeBundles` does for a partially-translated locale anyway.
+   *
+   * It is here because §E22 claims *"RTL-ready layout primitives"* and nothing
+   * had ever rendered a right-to-left locale to find out. `nem seed-demo`
+   * declares the same locale on the demo tenant, as *data* — ward and category
+   * names — for the same reason. Shipping invented Arabic civic copy to make
+   * the screenshot look finished would claim more than this deployment can
+   * support, and §E3.3 is a rule about exactly that.
+   *
+   * The locale an Indian deployment is most likely to actually need is `ur`,
+   * and it will arrive the way every other locale does: through the control
+   * plane, with no code change (Phase 18's gate).
+   */
+  ar: {},
 };
 
 /** Locales the application can render before the control plane says anything. */

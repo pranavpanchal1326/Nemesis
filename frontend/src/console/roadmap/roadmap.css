@@ -1,0 +1,228 @@
+/*
+ * §E19.0–§E19.7 — the console screens whose data has not landed.
+ *
+ * No colour, duration or type size is declared here; every one arrives as a
+ * custom property generated from src/design/tokens.json.
+ *
+ * One rule governs this file and it is not a visual one: **a fixture screen
+ * must not look more finished than a wired one.** These screens exist so the
+ * design of Phases 12–23 is settled before the data arrives, and the failure
+ * mode is that they become a demo — polished, screenshotted, and quietly
+ * treated as shipped. So they are plain: the same sheets, the same rules, the
+ * same type. The only thing they carry that a real screen does not is the
+ * notice saying what they are.
+ */
+
+.roadmap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--density-gutter);
+}
+
+/*
+ * The notice. Secondary ink and a rule, never an error colour — the same
+ * argument `<DegradedBanner>` makes: this is the system working as designed,
+ * and painting it as a fault would teach an officer that an honest disclosure
+ * is a bug.
+ */
+.fixture {
+  border: 1px solid var(--role-rule);
+  padding: var(--density-gutter);
+  color: var(--role-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 3);
+}
+
+.fixture__title {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--density-gutter) / 2);
+  color: var(--role-text-primary);
+}
+
+.fixture__gap {
+  color: var(--role-text-secondary);
+  border-inline-start: 2px solid var(--role-rule);
+  padding-inline-start: var(--density-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 4);
+}
+
+.roadmap__table {
+  border-collapse: collapse;
+  inline-size: 100%;
+}
+
+.roadmap__table th,
+.roadmap__table td {
+  text-align: start;
+  padding-block: calc(var(--density-gutter) / 3);
+  padding-inline-end: var(--density-gutter);
+  border-block-end: 1px solid var(--role-rule);
+  vertical-align: baseline;
+}
+
+.roadmap__table thead th {
+  color: var(--role-text-secondary);
+}
+
+.roadmap__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--density-gutter);
+  margin: 0;
+}
+
+.roadmap__facts dt {
+  color: var(--role-text-secondary);
+}
+
+.roadmap__facts dd {
+  margin: 0;
+}
+
+.roadmap__chips,
+.roadmap__conditions,
+.roadmap__signals,
+.roadmap__gates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.roadmap__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--density-gutter) / 2);
+}
+
+.roadmap__chip {
+  border: 1px solid var(--role-rule);
+  padding-inline: calc(var(--density-gutter) / 2);
+  color: var(--role-text-secondary);
+}
+
+/*
+ * §15.5's gate strip. A locked stage is drawn as a closed edge rather than as a
+ * dimmed row: "you cannot drag a milestone open" is a statement about a
+ * physical object, and a dimmed row reads as a permission problem instead.
+ */
+.roadmap__gate {
+  display: flex;
+  align-items: baseline;
+  gap: var(--density-gutter);
+  min-block-size: var(--density-row);
+  border-inline-start: 3px solid var(--role-rule);
+  padding-inline-start: var(--density-gutter);
+  color: var(--role-text-secondary);
+}
+
+.roadmap__gate[data-open="true"] {
+  border-inline-start-color: var(--color-riso-aqua);
+  color: var(--role-text-primary);
+}
+
+.roadmap__condition {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--density-gutter) / 2);
+  min-block-size: calc(var(--density-row) * 0.8);
+  flex-wrap: wrap;
+}
+
+/* Met-ness is a mark plus a weight, never a colour alone (§E9.4 rule 2). These
+   lists are printed onto the disabled control they explain. */
+.roadmap__condition[data-met="false"] {
+  color: var(--role-text-secondary);
+}
+
+.roadmap__condition-mark {
+  inline-size: 2ch;
+}
+
+.roadmap__condition-detail {
+  color: var(--role-text-secondary);
+}
+
+/*
+ * A flagged finding. §E9.4 rule 1: the flag hatch, never severity ink — a
+ * concentration or a cost variance is not an incident, and painting it in the
+ * severity ramp would be the second meaning §E3.4's audit exists to find.
+ */
+.roadmap__warning,
+.roadmap__signal {
+  border-inline-start: 3px solid var(--role-flag-hatch);
+  padding-inline-start: var(--density-gutter);
+}
+
+.roadmap__signal {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 3);
+  padding-block: calc(var(--density-gutter) / 2);
+}
+
+.roadmap__method {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--density-gutter);
+  margin: 0;
+}
+
+.roadmap__method dt {
+  color: var(--role-text-secondary);
+}
+
+.roadmap__method dd {
+  margin: 0;
+}
+
+.roadmap__why {
+  color: var(--role-text-secondary);
+}
+
+.roadmap__hash {
+  overflow-wrap: anywhere;
+  color: var(--role-text-secondary);
+}
+
+/*
+ * The disabled action, and it stays legible.
+ *
+ * §E19.4: *"Making an integrity rule visible in its disabled state is what
+ * teaches an organisation the rule."* A control faded to 40% opacity teaches
+ * nothing — it reads as chrome. Secondary ink and a `not-allowed` cursor say
+ * "this exists, it is not available, and the reason is next to it".
+ */
+.roadmap__action {
+  align-self: start;
+  background: none;
+  border: 1px solid var(--role-rule);
+  color: var(--role-text-primary);
+  padding-inline: var(--density-gutter);
+  min-block-size: calc(var(--density-row) * 0.8);
+}
+
+.roadmap__action[disabled] {
+  color: var(--role-text-secondary);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+@media print {
+  .roadmap__table th,
+  .roadmap__table td,
+  .roadmap__chip,
+  .fixture {
+    border-color: var(--color-riso-black);
+  }
+
+  .fixture,
+  .fixture__gap,
+  .roadmap__why,
+  .roadmap__condition[data-met="false"] {
+    color: var(--color-riso-black);
+  }
+}

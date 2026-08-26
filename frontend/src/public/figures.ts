@@ -73,7 +73,13 @@ export interface PublishedZone {
   readonly resolutionRate: PublishedFigure;
   readonly medianResolutionHours: PublishedFigure;
 
-  readonly byCategory: readonly { readonly category: string; readonly count: PublishedFigure }[];
+  readonly byCategory: readonly {
+    /** The tenant's taxonomy key. Stable in every language; never rendered. */
+    readonly category: string;
+    /** The tenant's own display name for that key, in the requested locale. */
+    readonly categoryName: string;
+    readonly count: PublishedFigure;
+  }[];
 
   /** True when the whole place is below the floor. */
   readonly suppressed: boolean;
@@ -88,6 +94,20 @@ export interface PublishedZone {
 
   /** §22.2, required on every figure this system computed rather than observed. */
   readonly notice: string;
+  /**
+   * The locale the notice above is actually in — C7, ADR-0052.
+   *
+   * Not always the locale the page asked for. A deployment that has the Marathi
+   * wording serves it; one that does not serves the canonical English and says
+   * so here, which is the honest outcome and the one a reader can act on. The
+   * surface renders it as `lang` on the notice element so a screen reader
+   * switches voice rather than reading English with a Marathi pronunciation.
+   */
+  readonly noticeLocale: string;
+  /** Who approved that wording, or that nobody has. See `public.notices`. */
+  readonly noticeReview: string;
+  /** C8: the organisation's own name for itself, as published. */
+  readonly cityName: string;
   readonly generatedAt: string;
 }
 
@@ -122,6 +142,7 @@ export function readZone(summary: ZoneSummary): PublishedZone {
     // buckets at all.
     byCategory: summary.by_category.map((row: CategoryCount) => ({
       category: row.category,
+      categoryName: row.category_name,
       count: { kind: "known", value: row.count } as const,
     })),
 
@@ -130,6 +151,9 @@ export function readZone(summary: ZoneSummary): PublishedZone {
     suppressedBuckets: summary.count_suppressed_buckets,
 
     notice: summary.notice,
+    noticeLocale: summary.notice_locale,
+    noticeReview: summary.notice_review,
+    cityName: summary.tenant_name,
     generatedAt: summary.generated_at,
   };
 }
@@ -158,7 +182,12 @@ export interface PublishedContractor {
 
   /** §22.2 and §16.1, both required fields upstream. Never a tooltip (§E18). */
   readonly notice: string;
+  readonly noticeLocale: string;
+  readonly noticeReview: string;
   readonly ratingDisclaimer: string;
+  readonly ratingDisclaimerLocale: string;
+  readonly ratingDisclaimerReview: string;
+  readonly cityName: string;
   readonly generatedAt: string;
 }
 
@@ -183,7 +212,12 @@ export function readContractor(profile: ContractorProfile): PublishedContractor 
     suppressionThreshold: threshold,
 
     notice: profile.notice,
+    noticeLocale: profile.notice_locale,
+    noticeReview: profile.notice_review,
     ratingDisclaimer: profile.rating_disclaimer,
+    ratingDisclaimerLocale: profile.rating_disclaimer_locale,
+    ratingDisclaimerReview: profile.rating_disclaimer_review,
+    cityName: profile.tenant_name,
     generatedAt: profile.generated_at,
   };
 }
@@ -213,6 +247,9 @@ export interface PublishedBudget {
     readonly utilisation: PublishedFigure;
   }[];
   readonly notice: string;
+  readonly noticeLocale: string;
+  readonly noticeReview: string;
+  readonly cityName: string;
   readonly generatedAt: string;
 }
 
@@ -228,6 +265,9 @@ export function readBudget(summary: BudgetSummary): PublishedBudget {
       utilisation: figure(line.utilisation_rate, false, 0),
     })),
     notice: summary.notice,
+    noticeLocale: summary.notice_locale,
+    noticeReview: summary.notice_review,
+    cityName: summary.tenant_name,
     generatedAt: summary.generated_at,
   };
 }

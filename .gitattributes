@@ -1,0 +1,49 @@
+# Line endings, pinned — and the reason is a gate, not a preference.
+#
+# M0's gate is "`nem web-check` passes on a clean checkout". Three of the checks
+# it runs are *drift* checks: the token pipeline, the generated API client and
+# the honesty table each regenerate their artefact and compare it byte for byte
+# against the committed file. Each generator writes LF, because Prettier does.
+#
+# Without this file, a clone on a machine with `core.autocrlf=true` — the
+# Windows default, and what this repository is developed on — checks those
+# artefacts out with CRLF. The generator then produces LF, the comparison fails,
+# and `nem web-check` reports drift on a checkout nobody has touched. The gate
+# fails for a reason that has nothing to do with the thing it was written to
+# protect, which is the worst kind of failing gate: it teaches people to ignore
+# it.
+#
+# So text is normalised to LF in the index and checked out as LF everywhere.
+
+* text=auto eol=lf
+
+# Generated artefacts, named explicitly. They are the files whose byte-identity
+# is load-bearing, and naming them means the rule survives somebody relaxing the
+# wildcard above.
+frontend/src/design/generated/** text eol=lf
+frontend/src/generated/**        text eol=lf
+frontend/src/public/generated/** text eol=lf
+backend/nemesis/api/openapi.json           text eol=lf
+backend/nemesis/api/api_contract_lock.json text eol=lf
+backend/nemesis/events/schema_lock.json    text eol=lf
+
+# Windows entry points. `nem.cmd` is run by cmd.exe, which is the one consumer
+# in this repository that genuinely wants CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary — never normalised, never diffed as text.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.otf    binary
+*.wasm   binary
+*.zip    binary
+*.onnx   binary
+*.safetensors binary

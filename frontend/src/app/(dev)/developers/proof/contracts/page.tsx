@@ -1,3 +1,4 @@
+import { directionOf } from "@/lib/i18n/direction";
 import { ContractMatrix } from "@/components/ContractMatrix";
 import type { DensityMode } from "@/design/generated/tokens";
 import { devOnly } from "@/lib/dev-only";
@@ -39,6 +40,7 @@ export default async function ContractsProof({
     // rather than metadata.
     <div
       lang={locale}
+      dir={directionOf(locale)}
       data-density={density}
       data-ground={ground}
       data-proof="contracts"

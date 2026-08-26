@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -275,6 +277,17 @@ def _check(_: list[str]) -> int:
             # self-tests its own rules before it scans, rather than relying on a
             # pytest that would be skipped in exactly this environment.
             ("media redaction", [sys.executable, "scripts/check_media_redaction.py"]),
+            # ADR-0051. The budget in docs/HARDWARE.md drifted 384 MB from the
+            # compose file and the stack over-subscribed the VM, whose symptom
+            # was worker-ml's fork child being SIGKILLed at model load — a
+            # spreadsheet failure that reads as a model failure. Host-side, and
+            # deliberately runnable on a machine where the stack will not start
+            # because of what it is measuring.
+            ("memory budget", [sys.executable, "scripts/check_memory_budget.py"]),
+            # F1. The phase plan is only allowed to exist as a second planning
+            # document because every ship line and every open register row is
+            # claimed by exactly one phase in it. This is that rule, executed.
+            ("plan coverage", [sys.executable, "scripts/check_phase_coverage.py"]),
         ]
     )
 
@@ -456,6 +469,25 @@ def _gate_phase5(_: list[str]) -> int:
     of it.
     """
     return run([sys.executable, "scripts/gate_phase5.py"])
+
+
+@task(
+    "gate-phase18-locale",
+    "Phase 18 gate: add a locale over HTTP, see it in the rendered UI",
+)
+def _gate_phase18_locale(args: list[str]) -> int:
+    """A2. Runs against the live stack **and the live frontend**.
+
+    The only gate in this repository that needs both, and it needs both because
+    the claim spans them: *"a locale added in the control plane appears in the
+    UI with no code change."* Half of that sentence is a control-plane write and
+    half is a rendered page, and asserting either alone is what let the clause
+    be assumed true for two milestones.
+
+    Needs `NEMESIS_TENANT_ID` — the tenant the frontend is configured for, which
+    is the one the locale has to be added to. `nem seed-demo` prints it.
+    """
+    return run([sys.executable, "scripts/gate_phase18_locale.py", *args])
 
 
 @task("gate-phase4", "Phase 4 gate: public API, versioning, and webhook delivery")
@@ -753,6 +785,87 @@ def _web_fonts(args: list[str]) -> int:
     return run([sys.executable, "scripts/fetch_fonts.py", *args], cwd=WEB)
 
 
+@task("web-lighthouse", "A14: Lighthouse budgets on the citizen and public routes (§E23)")
+def _web_lighthouse(_: list[str]) -> int:
+    """Needs a production build — `lighthouserc.json` starts `next start` itself.
+
+    Not folded into `nem web-check`, and the reason is stated rather than
+    implied: three Lighthouse runs per route against a production build take
+    minutes, and a local gate that takes minutes is a local gate people stop
+    running. CI runs it as its own job; this is the same command.
+    """
+    if _npm(["run", "build"]) != 0:
+        return 1
+    return _npm(["run", "lighthouse"])
+
+
+@task(
+    "web-golden",
+    "Capture or update the §E24 golden images, on Linux, the way CI sees them",
+)
+def _web_golden(args: list[str]) -> int:
+    """A8. Baselines are captured in CI's own container image, never on the host.
+
+    A PNG rendered by a Windows font stack and one rendered by Ubuntu's differ
+    in every antialiased pixel, and `playwright.config.ts` compares at zero
+    tolerance because §E6.2's claim is byte identity rather than similarity.
+    Capturing on the host would produce baselines that only pass on the host —
+    a gate somebody turns off within a fortnight.
+
+    So the capture runs in `mcr.microsoft.com/playwright`, pinned to the
+    version in `frontend/package.json`, with:
+
+    * the frontend bind-mounted, so the baselines land in the working tree;
+    * `node_modules` and `.next` in **named volumes**, because a Windows
+      install and a Linux one cannot share a directory — @next/swc alone is a
+      platform-specific binary — and clobbering the host's install to capture a
+      screenshot is not a trade anybody agreed to;
+    * `host.docker.internal` for the API, so the citizen screens are captured
+      against the real stack rather than against a fixture.
+
+        nem web-golden                 capture what is missing, compare the rest
+        nem web-golden --update-snapshots   re-baseline after a reviewed change
+    """
+    playwright_version = json.loads((WEB / "package.json").read_text(encoding="utf-8"))[
+        "devDependencies"
+    ]["@playwright/test"].lstrip("^~")
+    image = f"mcr.microsoft.com/playwright:v{playwright_version}-noble"
+
+    return run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{WEB}:/work",
+            # Named, not anonymous: the second run should not reinstall.
+            "-v",
+            "nemesis-golden-node-modules:/work/node_modules",
+            "-v",
+            "nemesis-golden-next:/work/.next",
+            "-w",
+            "/work",
+            "--add-host=host.docker.internal:host-gateway",
+            "-e",
+            "NEMESIS_API_URL=http://host.docker.internal:8000",
+            # `CI` turns off `reuseExistingServer`, so the capture drives a dev
+            # server it started itself rather than whichever one happens to be
+            # listening on the host.
+            "-e",
+            "CI=1",
+            image,
+            "bash",
+            "-lc",
+            "[ -x node_modules/.bin/playwright ] || npm ci --no-audit --no-fund; "
+            # Quoted for the *container's* shell, not this one: `-g "citizen's
+            # four"` is an ordinary thing to type and an unquoted apostrophe
+            # ends the command mid-word.
+            "npx playwright test tests/golden.spec.ts "
+            + " ".join(shlex.quote(argument) for argument in args),
+        ]
+    )
+
+
 @task("seed-demo", "Provision the local demo tenant — a city with ward geometry and two scripts")
 def _seed_demo(args: list[str]) -> int:
     """Host-side Python against the running stack, like the gate scripts.
@@ -780,6 +893,41 @@ def _web_openapi(_: list[str]) -> int:
 # --------------------------------------------------------------------------
 
 
+def _memory_headroom() -> list[str]:
+    """Compare the Docker VM against the budget in docs/HARDWARE.md (ADR-0051).
+
+    `scripts/check_memory_budget.py` asserts the *declared* limits fit the VM
+    that document says exists. This is the other half: whether the VM on this
+    machine is that big. A laptop with a smaller `.wslconfig` passes every
+    static check and then OOM-kills worker-ml's fork child two minutes into a
+    demo, and the two checks together are what make that impossible to meet by
+    surprise.
+    """
+    marker = re.search(
+        r"<!--\s*budget:usable-vm-mb\s*=\s*(\d+)\s*-->",
+        (ROOT / "docs" / "HARDWARE.md").read_text(encoding="utf-8"),
+    )
+    if marker is None:
+        return ["docs/HARDWARE.md has no budget:usable-vm-mb marker (ADR-0051)"]
+    documented = int(marker.group(1))
+
+    probe = subprocess.run(
+        ["docker", "info", "--format", "{{.MemTotal}}"], capture_output=True, text=True
+    )
+    if probe.returncode != 0 or not probe.stdout.strip().isdigit():
+        return ["docker did not report a VM size — cannot check the memory budget"]
+
+    actual = int(probe.stdout.strip()) // (1024 * 1024)
+    if actual < documented:
+        return [
+            f"the Docker VM is {actual} MB; docs/HARDWARE.md budgets against "
+            f"{documented} MB. Raise `memory=` in .wslconfig and `wsl --shutdown`, "
+            f"or the stack over-subscribes it (ADR-0051)"
+        ]
+    print(f"\033[32m{OK}\033[0m docker memory — {actual} MB, budget assumes {documented} MB")
+    return []
+
+
 @task("doctor", "Check the local toolchain and stack prerequisites")
 def _doctor(_: list[str]) -> int:
     problems: list[str] = []
@@ -794,6 +942,7 @@ def _doctor(_: list[str]) -> int:
         problems.append("docker daemon unreachable — start Docker Desktop")
     else:
         print(f"\033[32m{OK}\033[0m docker daemon")
+        problems += _memory_headroom()
 
     if not (ROOT / ".env").exists():
         problems.append(".env missing — copy it from .env.example")

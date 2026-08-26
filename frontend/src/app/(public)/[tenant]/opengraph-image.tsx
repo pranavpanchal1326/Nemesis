@@ -3,7 +3,7 @@ import { ImageResponse } from "next/og";
 import { shippedStrings } from "@/lib/i18n/bundles";
 import { t } from "@/lib/i18n/strings";
 import { SHARE_CONTENT_TYPE, SHARE_SIZE, ShareCard, shareFonts } from "@/public/share-card";
-import { cityName, fetchCity } from "@/server/public-data";
+import { cityNameFallback, fetchCity } from "@/server/public-data";
 
 /**
  * The city's share card — §E18.
@@ -21,21 +21,22 @@ export const contentType = SHARE_CONTENT_TYPE;
 
 export default async function Image({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
-  const city = cityName(tenant);
+  // "en", matching the strings below and for the same reason: a crawler's
+  // headers describe the crawler, not the person who pasted the link. See the
+  // note in the ward card.
   const strings = shippedStrings(["common", "public"], "en");
-  const read = await fetchCity(tenant);
+  const read = await fetchCity(tenant, strings.locale);
+  const city = read.ok ? read.value.cityName : cityNameFallback(tenant);
 
   if (!read.ok) {
     return new ImageResponse(
-      (
-        <ShareCard
-          city={city}
-          kicker={tenant}
-          title={t(strings, "city.notPublishing")}
-          figures={[]}
-          notice={t(strings, "city.notPublishingWhy")}
-        />
-      ),
+      <ShareCard
+        city={city}
+        kicker={tenant}
+        title={t(strings, "city.notPublishing")}
+        figures={[]}
+        notice={t(strings, "city.notPublishingWhy")}
+      />,
       { ...size, fonts: await shareFonts() },
     );
   }
@@ -43,21 +44,19 @@ export default async function Image({ params }: { params: Promise<{ tenant: stri
   const places = read.value.zones.length;
 
   return new ImageResponse(
-    (
-      <ShareCard
-        city={t(strings, "share.city")}
-        kicker={tenant}
-        title={city}
-        notice={read.value.notice}
-        figures={[
-          {
-            label: t(strings, "city.places"),
-            value: new Intl.NumberFormat(strings.locale).format(places),
-            withheld: false,
-          },
-        ]}
-      />
-    ),
+    <ShareCard
+      city={t(strings, "share.city")}
+      kicker={tenant}
+      title={city}
+      notice={read.value.notice}
+      figures={[
+        {
+          label: t(strings, "city.places"),
+          value: new Intl.NumberFormat(strings.locale).format(places),
+          withheld: false,
+        },
+      ]}
+    />,
     { ...size, fonts: await shareFonts() },
   );
 }

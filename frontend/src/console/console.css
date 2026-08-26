@@ -1,0 +1,495 @@
+/*
+ * §E19 — the municipal console, "The Light Table".
+ *
+ * No colour, duration or type size is declared here. Every one arrives as a
+ * custom property generated from src/design/tokens.json, and
+ * scripts/check-guards.ts fails the build on a literal.
+ *
+ * Three rules this file exists to hold, each of them a decision that was
+ * argued rather than a preference:
+ *
+ *   · **The light table is backlit ink, not a tinted field** (§E9.3, and the
+ *     blueprint's own correction at §0). An earlier reading of "the glaze
+ *     fills the field, the tint carries the type" measured 2.63–4.37:1 and
+ *     failed `axe` in all twelve matrix combinations. What §E9.3 actually says
+ *     is that the prints are backlit on glass and *"the page ground is
+ *     mitti-950 because that is the room, not the paper"*. So the room stays
+ *     dark, the ink glows on it at 13.48–15.04:1, and the glaze draws marks
+ *     and printed edges at 3.09–5.72:1 — which clears 3:1 for a meaningful
+ *     graphic and not 4.5:1 for text, **which is exactly why it never carries
+ *     a word**. There is no rule in this file that puts type on a glaze.
+ *
+ *   · **Density is a measurement, not a scale factor.** Rows are
+ *     `var(--density-row)` and gutters are `var(--density-gutter)`; nothing
+ *     here multiplies a font size by hand. Three modes have to be legible, and
+ *     the way that stays true is that the three modes change two numbers.
+ *
+ *   · **Print is a target, not an afterthought** (§E19, §E19.7). The print
+ *     block at the bottom of this file is written against the same markup, not
+ *     against a separate "printable view", because a printable view is a second
+ *     implementation of every screen and it drifts on the first busy week.
+ */
+
+/* ------------------------------------------------------------------ *
+ * The frame
+ * ------------------------------------------------------------------ */
+
+.console {
+  background: var(--role-ground);
+  color: var(--role-text-primary);
+  min-block-size: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  grid-template-rows: max-content minmax(0, 1fr);
+  grid-template-areas:
+    "masthead masthead"
+    "rail     screen";
+}
+
+/*
+ * The skip link, and it is a real one.
+ *
+ * §E22's keyboard path starts at the top of the document, and the console's
+ * chrome is a masthead plus a twelve-item rail — thirty-odd tab stops before
+ * the screen an officer came for. Visible on focus only, and it moves the
+ * document rather than only the scroll position, so the next Tab lands inside
+ * the screen and not back at the top of the rail.
+ */
+.console__skip {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  padding: var(--density-gutter);
+  background: var(--color-mitti-950);
+  color: var(--color-riso-aqua);
+  transform: translateY(-100%);
+  z-index: var(--layer-overlay);
+}
+
+.console__skip:focus-visible {
+  transform: translateY(0);
+}
+
+.console__masthead {
+  grid-area: masthead;
+  display: flex;
+  align-items: center;
+  gap: var(--density-gutter);
+  padding-inline: var(--density-gutter);
+  padding-block: calc(var(--density-gutter) / 2);
+  border-block-end: 1px solid var(--role-rule);
+  min-block-size: var(--density-row);
+}
+
+.console__wordmark {
+  color: var(--role-text-primary);
+  letter-spacing: 0.14em;
+}
+
+.console__city {
+  color: var(--role-text-secondary);
+}
+
+/* Everything after this point in the masthead sits at the far end, whichever
+   end that is — logical, so an RTL locale mirrors without a second rule. */
+.console__masthead-end {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--density-gutter);
+}
+
+/* ------------------------------------------------------------------ *
+ * The rail
+ * ------------------------------------------------------------------ */
+
+.console__rail {
+  grid-area: rail;
+  border-inline-end: 1px solid var(--role-rule);
+  padding-block: var(--density-gutter);
+  padding-inline: calc(var(--density-gutter) / 2);
+  overflow-y: auto;
+  inline-size: max(11rem, 14vw);
+}
+
+.console__section {
+  margin-block-end: var(--density-gutter);
+}
+
+.console__section-title {
+  color: var(--role-text-secondary);
+  padding-inline: calc(var(--density-gutter) / 2);
+  padding-block-end: calc(var(--density-gutter) / 3);
+}
+
+.console__links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.console__link {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--density-gutter) / 2);
+  min-block-size: var(--density-row);
+  padding-inline: calc(var(--density-gutter) / 2);
+  color: var(--role-text-primary);
+  text-decoration: none;
+}
+
+/*
+ * Hover raises the ink; it does not light the field.
+ *
+ * **This rule was `background: var(--color-mitti-500)` and `axe` failed it at
+ * 1.51:1.** Which is §E9.3's correction happening again, in miniature and in a
+ * place nobody would think to look: `mitti-500` is a *mid* brown, and putting
+ * secondary or signal ink on it is exactly the "the glaze fills the field, the
+ * tint carries the type" reading the blueprint threw out at §0. The room stays
+ * dark. A pointer passing over a print does not turn the print into a lamp.
+ *
+ * So the state is carried by the ink and by an inline edge — both of which
+ * survive grayscale and print, and neither of which moves the type.
+ */
+.console__link:hover {
+  color: var(--color-chalk);
+  box-shadow: inset 2px 0 0 0 var(--role-rule);
+}
+
+/*
+ * The current screen.
+ *
+ * Marked three ways because one of them fails in each of the three situations
+ * this product ships into: `aria-current` for the screen reader, the inline
+ * edge for the printed page and the grayscale monitor, and the signal ink for
+ * everyone else. §E9.4 rule 2 is about severity, and the same argument holds
+ * for state.
+ */
+.console__link[aria-current="page"] {
+  color: var(--role-text-signal);
+  box-shadow: inset 2px 0 0 0 var(--color-riso-aqua);
+}
+
+.console__link-roadmap {
+  margin-inline-start: auto;
+}
+
+/* ------------------------------------------------------------------ *
+ * The screen
+ * ------------------------------------------------------------------ */
+
+.console__screen {
+  grid-area: screen;
+  padding: var(--density-gutter);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--density-gutter);
+}
+
+.console__heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--density-gutter);
+  flex-wrap: wrap;
+}
+
+.console__hint {
+  color: var(--role-text-secondary);
+}
+
+/*
+ * A print on the light table.
+ *
+ * The card *is* the print: a sheet lifted off the room by one hairline rule and
+ * a slightly lighter ground, never by a shadow. Riso ink is opaque and paper is
+ * flat; a drop shadow would be the one material in this product that is
+ * pretending to be something it is not.
+ */
+.console__print {
+  border: 1px solid var(--role-rule);
+  background: var(--color-mitti-950);
+  padding: var(--density-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 2);
+}
+
+.console__print-title {
+  color: var(--role-text-primary);
+}
+
+.console__note {
+  color: var(--role-text-secondary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Keys and the palette
+ * ------------------------------------------------------------------ */
+
+.console__kbd {
+  border: 1px solid var(--role-rule);
+  padding-inline: 0.35em;
+  padding-block: 0.1em;
+  color: var(--role-text-secondary);
+}
+
+.console__palette-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5ch;
+  background: none;
+  border: 1px solid var(--role-rule);
+  color: var(--role-text-primary);
+  padding-inline: var(--density-gutter);
+  min-block-size: calc(var(--density-row) * 0.7);
+  cursor: pointer;
+}
+
+.palette {
+  border: 1px solid var(--role-rule);
+  background: var(--color-mitti-950);
+  color: var(--color-bone-200);
+  inline-size: min(42rem, 92vw);
+  padding: 0;
+  margin-block-start: 12vh;
+}
+
+.palette::backdrop {
+  /* The room dimming behind the sheet. The only place in the console where
+     anything is laid over anything. */
+  background: var(--color-mitti-950);
+  opacity: 0.8;
+}
+
+.palette__frame {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 2);
+  padding: var(--density-gutter);
+}
+
+.palette__label {
+  color: var(--role-text-secondary);
+}
+
+.palette__field {
+  background: none;
+  border: 0;
+  border-block-end: 1px solid var(--role-rule);
+  color: var(--color-chalk);
+  padding-block: calc(var(--density-gutter) / 2);
+  inline-size: 100%;
+}
+
+.palette__hint {
+  color: var(--role-text-secondary);
+}
+
+.palette__results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-block-size: 46vh;
+  overflow-y: auto;
+}
+
+.palette__result {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr) max-content;
+  align-items: baseline;
+  gap: var(--density-gutter);
+  inline-size: 100%;
+  text-align: start;
+  background: none;
+  border: 0;
+  color: inherit;
+  min-block-size: var(--density-row);
+  padding-inline: calc(var(--density-gutter) / 2);
+  cursor: pointer;
+}
+
+/* Selected: the signal ink and an inline edge, never a lit field — see the
+   note on `.console__link:hover`. */
+.palette__result[aria-selected="true"] {
+  color: var(--color-chalk);
+  box-shadow: inset 2px 0 0 0 var(--color-riso-aqua);
+}
+
+.palette__result[aria-selected="true"] .palette__result-hint,
+.palette__result[aria-selected="true"] .palette__result-roadmap {
+  color: var(--color-bone-200);
+}
+
+.palette__result-hint,
+.palette__result-roadmap,
+.palette__empty {
+  color: var(--role-text-secondary);
+}
+
+.palette__keys {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: calc(var(--density-gutter) / 2) var(--density-gutter);
+  margin: 0;
+}
+
+.palette__key {
+  display: contents;
+}
+
+.palette__key dd {
+  margin: 0;
+  color: var(--role-text-secondary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Print — a first-class target (§E19)
+ * ------------------------------------------------------------------ */
+
+/*
+ * What an officer takes to a meeting.
+ *
+ * The gate is *"a usable A4 document in grayscale, with severity legible by
+ * shape"*, and every rule below serves one of those three words:
+ *
+ *   · **A4** — the page box is declared, so the browser stops guessing from a
+ *     locale that may not be the reader's, and the margins leave a binding
+ *     edge on the inline-start side.
+ *   · **Grayscale** — the whole surface inverts to paper and black ink. This is
+ *     not "dark mode printed"; a mitti-950 ground would empty a toner cartridge
+ *     and arrive as a grey rectangle. It also means nothing on the page depends
+ *     on a colour the printer will not reproduce, which is the same argument
+ *     §E9.4 rule 2 makes about severity.
+ *   · **Usable** — the chrome goes. A rail, a palette button and a density
+ *     control are affordances, and an affordance on paper is furniture that
+ *     cost a tree. What replaces them is provenance: which city, which screen,
+ *     when it was printed. A printout with no date is a printout somebody will
+ *     read next year as if it were today.
+ */
+@media print {
+  .console {
+    display: block;
+    background: var(--color-paper-50);
+    color: var(--color-riso-black);
+    min-block-size: auto;
+  }
+
+  /* The affordances. Every one of them is a thing you cannot do to paper. */
+  .console__rail,
+  .console__skip,
+  .console__palette-open,
+  .console__density,
+  .palette {
+    display: none;
+  }
+
+  .console__masthead {
+    border-block-end: 1px solid var(--color-riso-black);
+  }
+
+  .console__screen {
+    padding: 0;
+    overflow: visible;
+    display: block;
+  }
+
+  .console__print {
+    background: none;
+    border: 1px solid var(--color-riso-black);
+    /* A print that straddles a page break is two half-tables, and the second
+       one has no heading. */
+    break-inside: avoid;
+    margin-block-end: 8mm;
+  }
+
+  .console__note,
+  .console__hint,
+  .console__section-title {
+    color: var(--color-riso-black);
+  }
+
+  /*
+   * The provenance block, hidden on screen and printed on paper.
+   *
+   * `position: fixed` inside a print context repeats it on every sheet, which
+   * is the behaviour a multi-page queue needs: page four of a printed backlog
+   * has to say what it is as loudly as page one, because page four is the one
+   * that ends up photocopied on its own.
+   */
+  .console__provenance {
+    display: block;
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    border-block-start: 1px solid var(--color-riso-black);
+    color: var(--color-riso-black);
+    padding-block-start: 2mm;
+  }
+
+  /* A URL a reader can type back in. The screen already shows it in the
+     address bar; paper has no address bar. */
+  .console__screen a[href]::after {
+    content: " (" attr(href) ")";
+  }
+}
+
+@page {
+  size: A4;
+  /* Wider on the inside for a binder, and mirrored on facing pages so a
+     double-sided print binds correctly. */
+  margin: 16mm 14mm 18mm 20mm;
+}
+
+/*
+ * Hidden on screen; the print block above turns it on.
+ *
+ * Scoped to `screen` rather than left unqualified. Unqualified it is a rule of
+ * equal specificity that comes *after* `@media print`, so the cascade resolves
+ * it last and the provenance never reaches paper — which is how a footer that
+ * is written, styled and tested still printed as nothing. Order-independence is
+ * the fix rather than moving the block, because the next person to reorganise
+ * this file must not be able to break it by moving a section.
+ */
+@media screen {
+  .console__provenance {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Command (§E19.1)
+ * ------------------------------------------------------------------ */
+
+.command {
+  display: flex;
+  flex-direction: column;
+  gap: var(--density-gutter);
+}
+
+.command__reasons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--density-gutter);
+}
+
+.command__reason {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5ch;
+  color: var(--role-text-secondary);
+}
+
+.command__reason-count {
+  color: var(--role-text-primary);
+}
+
+.command__breach {
+  display: flex;
+  align-items: baseline;
+  gap: var(--density-gutter);
+  color: var(--role-text-secondary);
+}

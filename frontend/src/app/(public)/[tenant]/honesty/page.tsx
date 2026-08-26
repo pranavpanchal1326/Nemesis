@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notTranslatable, t } from "@/lib/i18n/strings";
 import { HonestyTable } from "@/public/HonestyTable";
 import { PublicShell } from "@/public/PublicShell";
-import { cityName } from "@/server/public-data";
+import { cityNameFallback } from "@/server/public-data";
 import { publicLocale } from "../locale";
 
 /**
@@ -46,10 +46,16 @@ export default async function Honesty({
   searchParams: Search;
 }) {
   const { tenant } = await params;
-  const { locale, strings } = await publicLocale(await searchParams);
+  const { locale, locales, strings } = await publicLocale(tenant, await searchParams);
 
   return (
-    <PublicShell city={cityName(tenant)} citySlug={tenant} strings={strings} locale={locale}>
+    <PublicShell
+      city={cityNameFallback(tenant)}
+      citySlug={tenant}
+      strings={strings}
+      locale={locale}
+      locales={locales}
+    >
       <h1 className="type-display-1">{t(strings, "honesty.title")}</h1>
       <HonestyTable strings={strings} />
       <p className="type-caption">
@@ -67,7 +73,7 @@ export default async function Honesty({
           {t(strings, "honesty.download")}
         </a>
         {" · "}
-        <Link href={`/${tenant}`}>{notTranslatable(cityName(tenant))}</Link>
+        <Link href={`/${tenant}`}>{notTranslatable(cityNameFallback(tenant))}</Link>
       </p>
     </PublicShell>
   );

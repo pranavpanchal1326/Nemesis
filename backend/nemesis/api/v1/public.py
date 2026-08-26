@@ -35,11 +35,17 @@ from pydantic import BaseModel, ConfigDict
 
 from nemesis.api.deps import ConfigDep, SessionDep
 from nemesis.api.errors import HTTP_404_NOT_FOUND, PROBLEM_BASE, ProblemDetailError
-from nemesis.api.public_deps import PublicRateLimit, PublicTenant, PublicTenantDep
+from nemesis.api.public_deps import (
+    PublicLocaleDep,
+    PublicRateLimit,
+    PublicTenant,
+    PublicTenantDep,
+)
 from nemesis.api.versioning import get_version, version_headers
 from nemesis.config import Settings
 from nemesis.observability import metrics
-from nemesis.public import aggregates
+from nemesis.public import aggregates, notices
+from nemesis.public.localisation import PublicStrings, public_strings
 
 router = APIRouter(prefix="/public", tags=["public"], dependencies=[PublicRateLimit])
 
@@ -67,10 +73,43 @@ class Centroid(PublicModel):
 
 class CategoryCountResponse(PublicModel):
     category: str
+    #: The tenant's own display name for that key, in the requested locale.
+    #: Additive beside `category` rather than replacing it: the key is what a
+    #: consumer joins on and it must stay stable in every language.
+    category_name: str
     count: int
 
 
-class ZoneSummaryResponse(PublicModel):
+class LocalisedEnvelope(PublicModel):
+    """The four fields ADR-0052 added to every public body.
+
+    `tenant_name` is C8: only the slug was published, and the frontend was
+    reduced to title-casing it — a lookup table of cities we happen to know
+    about would have been a second source of truth for a fact the platform
+    already holds.
+
+    `notice_locale` and `notice_review` are C7's honesty half. The notice is
+    served in the locale asked for when this deployment has that wording, and in
+    English when it does not; `notice_locale` says which happened, and
+    `notice_review` names who signed the wording off — or reports that nobody
+    has. A legal sentence published without saying who is accountable for its
+    translation is the thing §22.2 exists to prevent, one language over.
+    """
+
+    tenant_name: str
+    locale: str
+    #: Every locale this tenant declares, primary first — A2, A11.
+    #:
+    #: The field that makes *"a locale added in the control plane appears in the
+    #: UI with no code change"* checkable. A reader's language switch is built
+    #: from this list, so a locale added upstream is offered downstream without
+    #: anybody editing a constant.
+    locales: list[str]
+    notice_locale: str
+    notice_review: str
+
+
+class ZoneSummaryResponse(LocalisedEnvelope):
     api_version: str
     generated_at: str
     tenant: str
@@ -94,14 +133,26 @@ class ZoneSummaryResponse(PublicModel):
     count_suppressed_buckets: int
 
     @classmethod
-    def of(cls, summary: aggregates.ZoneSummary, *, tenant: PublicTenant) -> ZoneSummaryResponse:
+    def of(
+        cls,
+        summary: aggregates.ZoneSummary,
+        *,
+        tenant: PublicTenant,
+        strings: PublicStrings,
+    ) -> ZoneSummaryResponse:
+        notice_locale, catalogue = notices.resolve(strings.locale)
         return cls(
             api_version=API_VERSION,
             generated_at=aggregates.utc_now().isoformat(),
             tenant=tenant.slug,
-            notice=aggregates.SYSTEM_FLAGGED_NOTICE,
+            tenant_name=tenant.name,
+            locales=list(tenant.locales),
+            locale=strings.locale,
+            notice=catalogue.system_flagged.text,
+            notice_locale=notice_locale,
+            notice_review=catalogue.system_flagged.review,
             zone_code=summary.zone_code,
-            zone_name=summary.zone_name,
+            zone_name=strings.zone(summary.zone_code, summary.zone_name),
             zone_kind=summary.zone_kind,
             centroid=(
                 None
@@ -115,7 +166,11 @@ class ZoneSummaryResponse(PublicModel):
             resolution_rate=aggregates.rate(summary.resolved_reports, summary.total_reports),
             median_resolution_hours=summary.median_resolution_hours,
             by_category=[
-                CategoryCountResponse(category=item.category, count=item.count)
+                CategoryCountResponse(
+                    category=item.category,
+                    category_name=strings.category(item.category),
+                    count=item.count,
+                )
                 for item in summary.by_category
             ],
             suppressed=summary.suppressed,
@@ -124,7 +179,7 @@ class ZoneSummaryResponse(PublicModel):
         )
 
 
-class ZoneIndexResponse(PublicModel):
+class ZoneIndexResponse(LocalisedEnvelope):
     api_version: str
     generated_at: str
     tenant: str
@@ -133,12 +188,17 @@ class ZoneIndexResponse(PublicModel):
     count: int
 
 
-class ContractorProfileResponse(PublicModel):
+class ContractorProfileResponse(LocalisedEnvelope):
     api_version: str
     generated_at: str
     tenant: str
     notice: str
     rating_disclaimer: str
+    #: Which locale `rating_disclaimer` is actually in, and who approved that
+    #: wording. Separate from `notice_*` because the two sentences are reviewed
+    #: separately and a deployment can legitimately have one and not the other.
+    rating_disclaimer_locale: str
+    rating_disclaimer_review: str
 
     contractor_id: str
     contractor_name: str
@@ -161,7 +221,7 @@ class BudgetLineResponse(PublicModel):
     utilisation_rate: float | None
 
 
-class BudgetSummaryResponse(PublicModel):
+class BudgetSummaryResponse(LocalisedEnvelope):
     api_version: str
     generated_at: str
     tenant: str
@@ -184,6 +244,7 @@ class BudgetSummaryResponse(PublicModel):
 )
 async def list_zones(
     tenant: PublicTenantDep,
+    locale: PublicLocaleDep,
     session: SessionDep,
     settings: ConfigDep,
     response: Response,
@@ -198,15 +259,27 @@ async def list_zones(
         limit=limit,
         offset=offset,
     )
-    _finish(response, endpoint="/public/{tenant_slug}/zones", settings=settings)
+    strings = await public_strings(session, tenant_id=tenant.id, locale=locale)
+    notice_locale, catalogue = notices.resolve(locale)
+    _finish(
+        response,
+        endpoint="/public/{tenant_slug}/zones",
+        settings=settings,
+        notice_locale=notice_locale,
+    )
     for summary in summaries:
         metrics.public_api_suppressed_buckets_total.inc(summary.suppression.suppressed_buckets)
     return ZoneIndexResponse(
         api_version=API_VERSION,
         generated_at=aggregates.utc_now().isoformat(),
         tenant=tenant.slug,
-        notice=aggregates.SYSTEM_FLAGGED_NOTICE,
-        zones=[ZoneSummaryResponse.of(item, tenant=tenant) for item in summaries],
+        tenant_name=tenant.name,
+        locales=list(tenant.locales),
+        locale=locale,
+        notice=catalogue.system_flagged.text,
+        notice_locale=notice_locale,
+        notice_review=catalogue.system_flagged.review,
+        zones=[ZoneSummaryResponse.of(item, tenant=tenant, strings=strings) for item in summaries],
         count=total,
     )
 
@@ -219,6 +292,7 @@ async def list_zones(
 async def ward_summary(
     zone_code: str,
     tenant: PublicTenantDep,
+    locale: PublicLocaleDep,
     session: SessionDep,
     settings: ConfigDep,
     response: Response,
@@ -239,12 +313,14 @@ async def ward_summary(
     if summary is None:
         raise _no_such()
     metrics.public_api_suppressed_buckets_total.inc(summary.suppression.suppressed_buckets)
+    strings = await public_strings(session, tenant_id=tenant.id, locale=locale)
     _finish(
         response,
         endpoint="/public/{tenant_slug}/ward/{zone_code}/summary",
         settings=settings,
+        notice_locale=notices.resolve(locale)[0],
     )
-    return ZoneSummaryResponse.of(summary, tenant=tenant)
+    return ZoneSummaryResponse.of(summary, tenant=tenant, strings=strings)
 
 
 @router.get(
@@ -255,6 +331,7 @@ async def ward_summary(
 async def contractor_profile(
     contractor_id: uuid.UUID,
     tenant: PublicTenantDep,
+    locale: PublicLocaleDep,
     session: SessionDep,
     settings: ConfigDep,
     response: Response,
@@ -275,17 +352,26 @@ async def contractor_profile(
     )
     if profile is None:
         raise _no_such()
+    notice_locale, catalogue = notices.resolve(locale)
     _finish(
         response,
         endpoint="/public/{tenant_slug}/contractor/{contractor_id}/profile",
         settings=settings,
+        notice_locale=notice_locale,
     )
     return ContractorProfileResponse(
         api_version=API_VERSION,
         generated_at=aggregates.utc_now().isoformat(),
         tenant=tenant.slug,
-        notice=aggregates.SYSTEM_FLAGGED_NOTICE,
-        rating_disclaimer=aggregates.RATING_DISCLAIMER,
+        tenant_name=tenant.name,
+        locales=list(tenant.locales),
+        locale=locale,
+        notice=catalogue.system_flagged.text,
+        notice_locale=notice_locale,
+        notice_review=catalogue.system_flagged.review,
+        rating_disclaimer=catalogue.rating_disclaimer.text,
+        rating_disclaimer_locale=notice_locale,
+        rating_disclaimer_review=catalogue.rating_disclaimer.review,
         contractor_id=str(profile.contractor_id),
         contractor_name=profile.contractor_name,
         registration_id=profile.registration_id,
@@ -308,6 +394,7 @@ async def contractor_profile(
 async def budget(
     zone_code: str,
     tenant: PublicTenantDep,
+    locale: PublicLocaleDep,
     session: SessionDep,
     settings: ConfigDep,
     response: Response,
@@ -317,16 +404,23 @@ async def budget(
     summary = await aggregates.budget_summary(
         session, tenant_id=tenant.id, zone_code=zone_code, fiscal_year=fiscal_year
     )
+    notice_locale, catalogue = notices.resolve(locale)
     _finish(
         response,
         endpoint="/public/{tenant_slug}/budget/{zone_code}",
         settings=settings,
+        notice_locale=notice_locale,
     )
     return BudgetSummaryResponse(
         api_version=API_VERSION,
         generated_at=aggregates.utc_now().isoformat(),
         tenant=tenant.slug,
-        notice=aggregates.SYSTEM_FLAGGED_NOTICE,
+        tenant_name=tenant.name,
+        locales=list(tenant.locales),
+        locale=locale,
+        notice=catalogue.system_flagged.text,
+        notice_locale=notice_locale,
+        notice_review=catalogue.system_flagged.review,
         zone_code=summary.zone_code,
         fiscal_year=summary.fiscal_year,
         currency=summary.currency,
@@ -364,7 +458,7 @@ def _no_such() -> ProblemDetailError:
     )
 
 
-def _finish(response: Response, *, endpoint: str, settings: Settings) -> None:
+def _finish(response: Response, *, endpoint: str, settings: Settings, notice_locale: str) -> None:
     """Version headers, cache directive, and the request counter.
 
     ``public`` rather than ``private`` in the cache directive, and that is a
@@ -376,4 +470,8 @@ def _finish(response: Response, *, endpoint: str, settings: Settings) -> None:
     seconds = settings.public_api.cache_seconds
     response.headers.update(version_headers(get_version(API_VERSION)))
     response.headers["Cache-Control"] = f"public, max-age={seconds}"
+    # `Content-Language` and no `Vary`: the locale is in the URL, so two
+    # languages are two cache entries by construction. See
+    # `public_deps.resolve_public_locale` on why it is not a header.
+    response.headers["Content-Language"] = notice_locale
     metrics.public_api_requests_total.labels(endpoint=endpoint, outcome="ok").inc()

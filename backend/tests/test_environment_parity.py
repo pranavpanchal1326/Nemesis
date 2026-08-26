@@ -182,9 +182,9 @@ class TestVersionConsistency:
     def test_package_and_pyproject_agree(self) -> None:
         pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
         declared = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
-        assert (
-            declared == __version__
-        ), f"pyproject.toml says {declared}, nemesis.__version__ says {__version__}"
+        assert declared == __version__, (
+            f"pyproject.toml says {declared}, nemesis.__version__ says {__version__}"
+        )
 
     def test_settings_reports_the_package_version(self) -> None:
         assert Settings().service_version == __version__

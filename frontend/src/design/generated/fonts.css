@@ -583,3 +583,105 @@
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
+/* --- metric-matched fallbacks (A1) - generated; do not edit --- */
+/* A1 - §E10 metric-matched fallbacks. Ascent, descent and line gap are
+   copied from the real face, so a fallback occupies the same line box and
+   the swap does not move the paragraph below it. size-adjust is
+   deliberately absent - ADR-0053 states why. */
+
+@font-face {
+  font-family: "Gambarino Fallback";
+  src:
+    local("Georgia"), local("Gelasio"), local("Liberation Serif"), local("Times New Roman"),
+    local("DejaVu Serif");
+  ascent-override: 108%;
+  descent-override: 31%;
+  line-gap-override: 10%;
+}
+
+@font-face {
+  font-family: "Panchang Fallback";
+  src:
+    local("Haettenschweiler"), local("Impact"), local("Liberation Sans Narrow"),
+    local("DejaVu Sans Condensed");
+  ascent-override: 97%;
+  descent-override: 26%;
+  line-gap-override: 9%;
+}
+
+@font-face {
+  font-family: "Switzer Fallback";
+  src:
+    local("Segoe UI"), local("Helvetica Neue"), local("Arial"), local("Liberation Sans"),
+    local("DejaVu Sans");
+  ascent-override: 98%;
+  descent-override: 25%;
+  line-gap-override: 9%;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Fallback";
+  src:
+    local("Consolas"), local("SF Mono"), local("Liberation Mono"), local("DejaVu Sans Mono"),
+    local("Courier New");
+  ascent-override: 102%;
+  descent-override: 30%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Courier Prime Fallback";
+  src:
+    local("Courier New"), local("Liberation Mono"), local("Nimbus Mono PS"),
+    local("DejaVu Sans Mono");
+  ascent-override: 78.12%;
+  descent-override: 34.18%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Kalam Fallback";
+  src: local("Segoe Script"), local("Bradley Hand"), local("Comic Sans MS"), local("DejaVu Sans");
+  ascent-override: 106.3%;
+  descent-override: 53.1%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Sarpanch Fallback";
+  src:
+    local("Nirmala UI"), local("Kohinoor Devanagari"), local("Noto Sans Devanagari"),
+    local("Lohit Devanagari");
+  ascent-override: 105%;
+  descent-override: 35%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Tiro Devanagari Marathi Fallback";
+  src:
+    local("Noto Serif Devanagari"), local("Nirmala UI"), local("Kohinoor Devanagari"),
+    local("Lohit Devanagari");
+  ascent-override: 75.5%;
+  descent-override: 24.5%;
+  line-gap-override: 33%;
+}
+
+@font-face {
+  font-family: "Noto Sans Devanagari Fallback";
+  src: local("Nirmala UI"), local("Kohinoor Devanagari"), local("Lohit Devanagari");
+  ascent-override: 89.6%;
+  descent-override: 40.8%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Modak Fallback";
+  src: local("Nirmala UI"), local("Kohinoor Devanagari"), local("Lohit Devanagari");
+  ascent-override: 99.37%;
+  descent-override: 51.22%;
+  line-gap-override: 0%;
+}
+
+/* --- end metric-matched fallbacks --- */

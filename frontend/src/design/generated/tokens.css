@@ -58,16 +58,17 @@
   --color-role-dark-flag-text: #e4dcce;
 
   /* Faces (§E10) — self-hosted, no CDN (§6 Principle #6) */
-  --font-narrative: Gambarino, Georgia, serif;
-  --font-institutional: Panchang, Haettenschweiler, Impact, sans-serif;
-  --font-interface: Switzer, "Segoe UI", system-ui, sans-serif;
-  --font-data: "JetBrains Mono", Consolas, ui-monospace, monospace;
-  --font-document: "Courier Prime", "Courier New", monospace;
-  --font-hand: Kalam, "Segoe Script", cursive;
-  --font-deva-display: Sarpanch, "Noto Sans Devanagari", sans-serif;
-  --font-deva-narrative: "Tiro Devanagari Marathi", "Noto Serif Devanagari", serif;
-  --font-deva-interface: "Noto Sans Devanagari", sans-serif;
-  --font-deva-celebration: Modak, "Noto Sans Devanagari", sans-serif;
+  --font-narrative: Gambarino, "Gambarino Fallback", Georgia, serif;
+  --font-institutional: Panchang, "Panchang Fallback", Haettenschweiler, Impact, sans-serif;
+  --font-interface: Switzer, "Switzer Fallback", "Segoe UI", system-ui, sans-serif;
+  --font-data: "JetBrains Mono", "JetBrains Mono Fallback", Consolas, ui-monospace, monospace;
+  --font-document: "Courier Prime", "Courier Prime Fallback", "Courier New", monospace;
+  --font-hand: Kalam, "Kalam Fallback", "Segoe Script", cursive;
+  --font-deva-display: Sarpanch, "Sarpanch Fallback", "Noto Sans Devanagari", sans-serif;
+  --font-deva-narrative:
+    "Tiro Devanagari Marathi", "Tiro Devanagari Marathi Fallback", "Noto Serif Devanagari", serif;
+  --font-deva-interface: "Noto Sans Devanagari", "Noto Sans Devanagari Fallback", sans-serif;
+  --font-deva-celebration: Modak, "Modak Fallback", "Noto Sans Devanagari", sans-serif;
 
   /* Motion (§E11) — every duration a multiple of the 12 fps step */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);

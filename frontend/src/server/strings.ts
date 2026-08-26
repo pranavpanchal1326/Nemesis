@@ -114,15 +114,41 @@ async function loadOne(namespace: Namespace, locale: string): Promise<Strings> {
   // one.
   const seeded = shippedBundle(namespace, locale);
 
+  // **A17: this tier cannot currently resolve, and saying so here is the
+  // point.** The registry carries `taxonomy`, `organisation`, `zone` and
+  // `calendar` — tenant-authored words — and refuses an import into any of the
+  // four namespaces below, because `db/models/i18n.py` rules that product copy
+  // is authored by NEMESIS and reviewed like code. So the fetch answers `{}`
+  // and the merge is a no-op. Nothing renders wrong; the seed bundles carry the
+  // words. It is left wired rather than deleted because which way it should go
+  // is a decision with an argument on both sides, and F18 owns making it —
+  // deleting it quietly would settle the question by attrition.
+
   if (locale === SOURCE_LOCALE) return makeStrings(namespace, locale, seeded);
 
-  const { data, error } = await upstream.GET(
-    "/api/v1/control-plane/translations/{namespace}/{locale}",
-    { params: { path: { namespace, locale } } },
-  );
-
-  if (error !== undefined) return makeStrings(namespace, locale, seeded);
-  return makeStrings(namespace, locale, mergeBundles(seeded, data));
+  // **The whole call is guarded, not just its error field.** `openapi-fetch`
+  // returns `{ error }` for a response the server sent and *throws* for a
+  // connection it never made — and an unreachable control plane is the second
+  // one. Without the catch, a deployment whose control plane is down renders a
+  // 500 for every non-source locale while rendering perfectly in English: a
+  // Marathi reader loses the page and an English reviewer never sees it.
+  //
+  // Found by F12: the landing negotiates a locale from `Accept-Language`, so
+  // it was the first surface where a browser set to Marathi reached this line
+  // on a machine with no backend. The paragraph above this function already
+  // promised the behaviour — *"an unreachable registry yields the base bundle
+  // and a correct page in the source language"* — which is exactly the kind of
+  // promise that is worth a test rather than a comment.
+  try {
+    const { data, error } = await upstream.GET(
+      "/api/v1/control-plane/translations/{namespace}/{locale}",
+      { params: { path: { namespace, locale } } },
+    );
+    if (error !== undefined) return makeStrings(namespace, locale, seeded);
+    return makeStrings(namespace, locale, mergeBundles(seeded, data));
+  } catch {
+    return makeStrings(namespace, locale, seeded);
+  }
 }
 
 /** The keys this application asks for. Exported so a coverage test can compare

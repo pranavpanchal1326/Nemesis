@@ -21,10 +21,16 @@ from pydantic import BaseModel, ConfigDict
 
 from nemesis.api.deps import ConfigDep, SessionDep
 from nemesis.api.errors import HTTP_404_NOT_FOUND, PROBLEM_BASE, ProblemDetailError
-from nemesis.api.public_deps import PublicRateLimit, PublicTenant, PublicTenantDep
+from nemesis.api.public_deps import (
+    PublicLocaleDep,
+    PublicRateLimit,
+    PublicTenant,
+    PublicTenantDep,
+)
 from nemesis.api.versioning import get_version, version_headers
 from nemesis.observability import metrics
-from nemesis.public import aggregates
+from nemesis.public import aggregates, notices
+from nemesis.public.localisation import PublicStrings, public_strings
 
 router = APIRouter(prefix="/public", tags=["public"], dependencies=[PublicRateLimit])
 
@@ -42,7 +48,27 @@ class Centroid(PublicModel):
 
 class CategoryCountResponse(PublicModel):
     category: str
+    category_name: str
     count: int
+
+
+class LocalisedEnvelope(PublicModel):
+    """ADR-0052's four fields, identical in shape to v1's.
+
+    A new version is a new shape, never a new disclosure — and it is also not a
+    new *policy*. C7 and C8 are answered the same way in both versions, because
+    a reader who follows a v1 link and a v2 link to the same ward and gets a
+    Marathi disclaimer in one and an English one in the other has found a defect
+    rather than a version difference.
+    """
+
+    tenant_name: str
+    locale: str
+    #: See v1's envelope: the same list, for the same reason. A version is a
+    #: shape, never a policy.
+    locales: list[str]
+    notice_locale: str
+    notice_review: str
 
 
 class ZoneTotals(PublicModel):
@@ -64,7 +90,7 @@ class ZoneTotals(PublicModel):
     median_resolution_hours: float | None
 
 
-class ZoneSummaryV2(PublicModel):
+class ZoneSummaryV2(LocalisedEnvelope):
     api_version: str
     generated_at: str
     tenant: str
@@ -83,14 +109,26 @@ class ZoneSummaryV2(PublicModel):
     count_suppressed_buckets: int
 
     @classmethod
-    def of(cls, summary: aggregates.ZoneSummary, *, tenant: PublicTenant) -> ZoneSummaryV2:
+    def of(
+        cls,
+        summary: aggregates.ZoneSummary,
+        *,
+        tenant: PublicTenant,
+        strings: PublicStrings,
+    ) -> ZoneSummaryV2:
+        notice_locale, catalogue = notices.resolve(strings.locale)
         return cls(
             api_version=API_VERSION,
             generated_at=aggregates.utc_now().isoformat(),
             tenant=tenant.slug,
-            notice=aggregates.SYSTEM_FLAGGED_NOTICE,
+            tenant_name=tenant.name,
+            locales=list(tenant.locales),
+            locale=strings.locale,
+            notice=catalogue.system_flagged.text,
+            notice_locale=notice_locale,
+            notice_review=catalogue.system_flagged.review,
             zone_code=summary.zone_code,
-            zone_name=summary.zone_name,
+            zone_name=strings.zone(summary.zone_code, summary.zone_name),
             zone_kind=summary.zone_kind,
             centroid=(
                 None
@@ -106,7 +144,11 @@ class ZoneSummaryV2(PublicModel):
                 median_resolution_hours=summary.median_resolution_hours,
             ),
             by_category=[
-                CategoryCountResponse(category=item.category, count=item.count)
+                CategoryCountResponse(
+                    category=item.category,
+                    category_name=strings.category(item.category),
+                    count=item.count,
+                )
                 for item in summary.by_category
             ],
             suppressed=summary.suppressed,
@@ -115,7 +157,7 @@ class ZoneSummaryV2(PublicModel):
         )
 
 
-class ZoneIndexV2(PublicModel):
+class ZoneIndexV2(LocalisedEnvelope):
     api_version: str
     generated_at: str
     tenant: str
@@ -131,6 +173,7 @@ class ZoneIndexV2(PublicModel):
 )
 async def list_zones(
     tenant: PublicTenantDep,
+    locale: PublicLocaleDep,
     session: SessionDep,
     settings: ConfigDep,
     response: Response,
@@ -144,17 +187,25 @@ async def list_zones(
         limit=limit,
         offset=offset,
     )
+    strings = await public_strings(session, tenant_id=tenant.id, locale=locale)
+    notice_locale, catalogue = notices.resolve(locale)
     _finish(
         response,
         endpoint="/public/{tenant_slug}/zones",
         cache_seconds=settings.public_api.cache_seconds,
+        notice_locale=notice_locale,
     )
     return ZoneIndexV2(
         api_version=API_VERSION,
         generated_at=aggregates.utc_now().isoformat(),
         tenant=tenant.slug,
-        notice=aggregates.SYSTEM_FLAGGED_NOTICE,
-        zones=[ZoneSummaryV2.of(item, tenant=tenant) for item in summaries],
+        tenant_name=tenant.name,
+        locales=list(tenant.locales),
+        locale=locale,
+        notice=catalogue.system_flagged.text,
+        notice_locale=notice_locale,
+        notice_review=catalogue.system_flagged.review,
+        zones=[ZoneSummaryV2.of(item, tenant=tenant, strings=strings) for item in summaries],
         count=total,
     )
 
@@ -167,6 +218,7 @@ async def list_zones(
 async def zone_summary(
     zone_code: str,
     tenant: PublicTenantDep,
+    locale: PublicLocaleDep,
     session: SessionDep,
     settings: ConfigDep,
     response: Response,
@@ -186,15 +238,18 @@ async def zone_summary(
             problem_type=f"{PROBLEM_BASE}/not-found",
         )
     metrics.public_api_suppressed_buckets_total.inc(summary.suppression.suppressed_buckets)
+    strings = await public_strings(session, tenant_id=tenant.id, locale=locale)
     _finish(
         response,
         endpoint="/public/{tenant_slug}/zone/{zone_code}/summary",
         cache_seconds=settings.public_api.cache_seconds,
+        notice_locale=notices.resolve(locale)[0],
     )
-    return ZoneSummaryV2.of(summary, tenant=tenant)
+    return ZoneSummaryV2.of(summary, tenant=tenant, strings=strings)
 
 
-def _finish(response: Response, *, endpoint: str, cache_seconds: int) -> None:
+def _finish(response: Response, *, endpoint: str, cache_seconds: int, notice_locale: str) -> None:
     response.headers.update(version_headers(get_version(API_VERSION)))
     response.headers["Cache-Control"] = f"public, max-age={cache_seconds}"
+    response.headers["Content-Language"] = notice_locale
     metrics.public_api_requests_total.labels(endpoint=endpoint, outcome="ok").inc()

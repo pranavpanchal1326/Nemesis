@@ -146,6 +146,7 @@ nem check
 | `nem doctor` | Diagnose a broken stack |
 | `nem obs` / `nem obs-verify` | Observability profile, and prove a metric reaches Grafana |
 | `nem gate-phase<N>` | Run a phase's exit gate against the live stack |
+| `nem gate-phase18-locale` | A2: add a locale over HTTP and see it in the rendered UI. Needs the frontend running as well as the stack, and `NEMESIS_TENANT_ID` |
 | `nem f1` | Reproduce the Phase 9 perception report |
 | `nem dedup-eval` | Reproduce the Phase 10 dedup report |
 
@@ -155,6 +156,24 @@ Running `pytest` inside the container **without** `NEMESIS_TEST_ADMIN_DSN` silen
 skips ~400 database tests and exits 0. The container's `localhost` is not
 Postgres. Always go through `nem test`, which injects it. If you see a suspiciously
 fast green run, this is why.
+
+### Two more, on the frontend side
+
+**The console reads and cannot write without `NEMESIS_CONTROL_PLANE_TOKEN`.**
+Every control-plane write the console makes — a review decision, a policy
+activation, a tenant provisioning, a publication change — carries
+`X-Control-Plane-Token`, and the BFF reads it from the environment. Leave it out
+of `frontend/.env.local` and every screen renders, every list loads, and the
+first decision comes back with the backend's *"Supply the X-Control-Plane-Token
+header"* — a refusal that looks like a permissions bug and is a missing variable.
+`frontend/.env.example` carries it; copy the whole file rather than the three
+lines somebody quoted in a message.
+
+**`nem seed-demo` on an existing tenant needs `--tenant-id`.** No control-plane
+endpoint maps a slug to an id, and no *public* response publishes one — the
+`tenant` field on the public index is the slug and always was. The script says so
+and tells you where to find the id; it used to read that field as an id instead,
+which turned a re-run into sixteen 400s that read like a broken control plane.
 
 ### Tests that need the app's own engine
 

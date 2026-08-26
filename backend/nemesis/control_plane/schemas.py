@@ -471,6 +471,42 @@ class PublicationSpec(ControlPlaneModel):
     min_aggregate: int | None = Field(default=None, ge=2)
 
 
+class LocaleSpec(ControlPlaneModel):
+    """The languages a tenant offers — A2, Phase 18's gate.
+
+    Deliberately *not* a second way to write :class:`TenantSpec`. Provisioning
+    declares a tenant's locales once, at birth, and until this schema existed
+    that was the only time they could be declared at all — so *"a locale added
+    in the control plane"* had no door to be added through, and Phase 18's gate
+    was unmeetable rather than unmet.
+
+    Stating the whole list rather than an increment, because a PUT that states a
+    desired state is re-sendable and an ``{"add": "kok"}`` is not: two operators
+    running the same deployment script would produce different lists.
+    """
+
+    locales: list[LocaleTag] = Field(min_length=1, max_length=32)
+    #: ``None`` leaves the tenant's own working language as it is. A city adding
+    #: a fourth language is usually not changing which one its staff work in,
+    #: and requiring that to be restated is how it eventually gets restated
+    #: wrongly.
+    primary_locale: LocaleTag | None = None
+    #: Required, for the reason ``PublicationSpec.justification`` is: this list
+    #: is what the public surface offers readers, so adding to it is a published
+    #: change somebody decided to make.
+    justification: str = Field(min_length=8, max_length=1000)
+
+
+class LocaleResponse(ControlPlaneModel):
+    tenant_id: uuid.UUID
+    slug: str
+    primary_locale: str
+    locales: list[str]
+    #: Whether this call changed anything, so a re-run is distinguishable from
+    #: a first run without diffing.
+    changed: bool
+
+
 class ProvisioningRequest(ControlPlaneModel):
     """Everything needed to bring a tenant into existence, in one transaction."""
 

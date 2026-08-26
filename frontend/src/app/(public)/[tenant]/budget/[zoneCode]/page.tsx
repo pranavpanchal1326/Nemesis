@@ -5,7 +5,7 @@ import { notTranslatable, t } from "@/lib/i18n/strings";
 import { formatAmount } from "@/public/figures";
 import { Figure } from "@/public/Figure";
 import { PublicShell } from "@/public/PublicShell";
-import { cityName, fetchBudget } from "@/server/public-data";
+import { cityNameFallback, fetchBudget } from "@/server/public-data";
 import { publicLocale } from "../../locale";
 
 /**
@@ -51,9 +51,18 @@ function requestedYear(search: Record<string, string | string[] | undefined>): s
   return value === undefined || value === "" ? currentFiscalYear() : value;
 }
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}): Promise<Metadata> {
   const { tenant, zoneCode } = await params;
-  const city = cityName(tenant);
+  const search = await searchParams;
+  const { locale } = await publicLocale(tenant, search);
+  const read = await fetchBudget(tenant, zoneCode, requestedYear(search), locale);
+  const city = read.ok ? read.value.cityName : cityNameFallback(tenant);
   return {
     title: `${zoneCode} · ${city}`,
     description: `Budget allocation and spend recorded against ${zoneCode} by ${city}.`,
@@ -70,14 +79,20 @@ export default async function Budget({
 }) {
   const { tenant, zoneCode } = await params;
   const search = await searchParams;
-  const { locale, strings } = await publicLocale(search);
-  const city = cityName(tenant);
+  const { locale, locales, strings } = await publicLocale(tenant, search);
   const year = requestedYear(search);
-  const read = await fetchBudget(tenant, zoneCode, year);
+  const read = await fetchBudget(tenant, zoneCode, year, locale);
+  const city = read.ok ? read.value.cityName : cityNameFallback(tenant);
 
   if (!read.ok) {
     return (
-      <PublicShell city={city} citySlug={tenant} strings={strings} locale={locale}>
+      <PublicShell
+        city={city}
+        citySlug={tenant}
+        strings={strings}
+        locale={locale}
+        locales={locales}
+      >
         <h1 className="type-display-1">{t(strings, "place.notFound")}</h1>
         <p className="type-caption">
           <Link href={`/${tenant}`}>{t(strings, "place.back")}</Link>
@@ -101,6 +116,7 @@ export default async function Budget({
       citySlug={tenant}
       strings={strings}
       locale={locale}
+      locales={locales}
       generatedAt={budget.generatedAt}
       notice={budget.notice}
     >
@@ -163,7 +179,9 @@ export default async function Budget({
       <p className="budget__note type-caption">{t(strings, "budget.notSuppressed")}</p>
 
       <nav className="type-caption">
-        <Link href={`/${tenant}/ward/${zoneCode}`}>{t(strings, "place.summary", { place: zoneCode })}</Link>
+        <Link href={`/${tenant}/ward/${zoneCode}`}>
+          {t(strings, "place.summary", { place: zoneCode })}
+        </Link>
         {" · "}
         <Link href={`/${tenant}`}>{t(strings, "place.back")}</Link>
       </nav>

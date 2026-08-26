@@ -212,6 +212,19 @@ test.describe("M5 — the citizen loop, end to end", () => {
 });
 
 test.describe("§E16.1 — every gate is driven by its real event", () => {
+  /*
+   * The test's own budget has to be larger than the wait inside it.
+   *
+   * Playwright's default is 30 s and `PIPELINE_TIMEOUT_MS` is 45 s, so a run
+   * slower than thirty seconds died on the *outer* clock — reporting "a gate
+   * never received its event" from whichever poll happened to be in flight
+   * rather than from a wait that had actually expired. The generous inner
+   * budget was never reachable, which made a slow pipeline look like a broken
+   * one. The margin covers the upload, the render and the event-log
+   * cross-check that follow it.
+   */
+  test.describe.configure({ timeout: PIPELINE_TIMEOUT_MS + 30_000 });
+
   test.beforeEach(async ({ page }) => {
     test.skip(
       !(await stackIsUp(page)),

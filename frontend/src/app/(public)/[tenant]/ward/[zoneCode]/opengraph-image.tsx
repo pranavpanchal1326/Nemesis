@@ -10,7 +10,7 @@ import {
   shareFonts,
   type ShareFigure,
 } from "@/public/share-card";
-import { cityName, fetchPlace } from "@/server/public-data";
+import { cityNameFallback, fetchPlace } from "@/server/public-data";
 
 /**
  * A place's share card — §E18.
@@ -36,8 +36,8 @@ export default async function Image({
   params: Promise<{ tenant: string; zoneCode: string }>;
 }) {
   const { tenant, zoneCode } = await params;
-  const city = cityName(tenant);
-  const read = await fetchPlace(tenant, zoneCode);
+  const read = await fetchPlace(tenant, zoneCode, "en");
+  const city = read.ok ? read.value.cityName : cityNameFallback(tenant);
 
   // The source language, deliberately. A share card has no request headers to
   // negotiate from — it is fetched by a crawler on behalf of whoever pasted the
@@ -49,15 +49,13 @@ export default async function Image({
 
   if (!read.ok) {
     return new ImageResponse(
-      (
-        <ShareCard
-          city={city}
-          kicker={zoneCode}
-          title={t(strings, "place.notFound")}
-          figures={[]}
-          notice={t(strings, "place.notFoundWhy")}
-        />
-      ),
+      <ShareCard
+        city={city}
+        kicker={zoneCode}
+        title={t(strings, "place.notFound")}
+        figures={[]}
+        notice={t(strings, "place.notFoundWhy")}
+      />,
       { ...size, fonts: await shareFonts() },
     );
   }
@@ -65,19 +63,17 @@ export default async function Image({
   const zone = read.value;
 
   return new ImageResponse(
-    (
-      <ShareCard
-        city={city}
-        kicker={zone.zoneCode}
-        title={zone.zoneName}
-        notice={zone.notice}
-        figures={[
-          shareFigure(t(strings, "figure.total"), zone.totalReports, strings),
-          shareFigure(t(strings, "figure.open"), zone.openReports, strings),
-          shareFigure(t(strings, "figure.resolved"), zone.resolvedReports, strings),
-        ]}
-      />
-    ),
+    <ShareCard
+      city={city}
+      kicker={zone.zoneCode}
+      title={zone.zoneName}
+      notice={zone.notice}
+      figures={[
+        shareFigure(t(strings, "figure.total"), zone.totalReports, strings),
+        shareFigure(t(strings, "figure.open"), zone.openReports, strings),
+        shareFigure(t(strings, "figure.resolved"), zone.resolvedReports, strings),
+      ]}
+    />,
     { ...size, fonts: await shareFonts() },
   );
 }
@@ -110,6 +106,10 @@ function shareFigure(
     case "known":
       return figure.value === 0
         ? { label, value: t(strings, "figure.none"), withheld: true }
-        : { label, value: new Intl.NumberFormat(strings.locale).format(figure.value), withheld: false };
+        : {
+            label,
+            value: new Intl.NumberFormat(strings.locale).format(figure.value),
+            withheld: false,
+          };
   }
 }

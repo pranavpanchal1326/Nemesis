@@ -140,12 +140,18 @@ function readStatus(cell: string): { status: Status | null; note: string } {
     );
   }
 
-  const rest = text
+  // Two shapes appear in the sources. `CUT PERMANENTLY (for MVP)` wraps its
+  // whole caveat in parentheses; `REAL — the 202 carries the chain head
+  // (ADR-0044)` ends with a parenthesis that belongs to the sentence. So the
+  // wrapper is removed only when the caveat is *entirely* parenthesised —
+  // stripping a trailing `)` unconditionally published `(ADR-0044` with the
+  // bracket left open, on the one page that exists to be checked.
+  const trimmed = text
     .slice(label.length)
-    .replace(/^[\s—–\-(:]+/, "")
-    .replace(/\)$/, "")
+    .replace(/^[\s—–\-:]+/, "")
     .trim();
-  return { status: label, note: rest };
+  const wrapped = /^\((.*)\)$/.exec(trimmed);
+  return { status: label, note: (wrapped?.[1] ?? trimmed).trim() };
 }
 
 interface SystemRow {

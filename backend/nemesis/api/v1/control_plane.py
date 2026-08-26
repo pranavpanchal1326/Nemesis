@@ -46,6 +46,7 @@ from nemesis.api.errors import (
 from nemesis.config import Settings
 from nemesis.control_plane import (
     calendars,
+    locales,
     organisation,
     provisioning,
     publication,
@@ -63,6 +64,8 @@ from nemesis.control_plane.schemas import (
     CertificationSpec,
     ContractorSpec,
     DepartmentSpec,
+    LocaleResponse,
+    LocaleSpec,
     PromptSetSpec,
     ProvisioningRequest,
     ProvisioningResult,
@@ -382,6 +385,57 @@ async def set_publication(
         min_aggregate=state.min_aggregate,
         changed=state.changed,
         cache_seconds=settings.public_api.cache_seconds,
+    )
+
+
+@router.put(
+    "/tenants/{slug}/locales",
+    summary="Declare the languages this tenant offers",
+    responses={
+        403: {"description": "Control-plane token missing or wrong"},
+        404: {"description": "No tenant by that name"},
+        422: {"description": "The list is empty, or the primary locale is not in it"},
+    },
+)
+async def set_tenant_locales(
+    slug: str,
+    body: LocaleSpec,
+    session: SessionDep,
+    settings: ConfigDep,
+    token: TokenDep = None,
+) -> LocaleResponse:
+    """A2 — the door Phase 18's gate needs.
+
+    > A locale added in the control plane appears in the UI with no code change.
+
+    ``ProvisioningRequest`` declares a tenant's locales once, at birth, and
+    nothing could change them afterwards — so the sentence above had no
+    mechanism behind its first clause, and adding a language to a running city
+    meant an ``UPDATE`` in ``psql``. See ``control_plane/locales.py`` for why
+    this is a route with a justification rather than a column write.
+
+    A PUT rather than a POST: the body states the desired list, so re-sending it
+    is safe and two operators running the same deployment script converge.
+    """
+    _require_token(settings, token)
+    try:
+        state = await locales.set_locales(
+            session,
+            slug=slug,
+            locales=list(body.locales),
+            primary_locale=body.primary_locale,
+            justification=body.justification,
+            correlation_id=get_correlation_id(),
+        )
+    except ControlPlaneError as exc:
+        raise _translate(exc) from exc
+
+    return LocaleResponse(
+        tenant_id=state.tenant_id,
+        slug=state.slug,
+        primary_locale=state.primary_locale,
+        locales=list(state.locales),
+        changed=state.changed,
     )
 
 
@@ -707,6 +761,28 @@ async def create_zone(
         )
 
 
+class RegisteredContractorResponse(ApiModel):
+    """What was created, including the identifier it is addressed by.
+
+    **``contractor_id`` was missing, and its absence had a consequence.**
+    §26.4's public profile is keyed on the contractor's UUID
+    (``/public/{slug}/contractor/{contractor_id}/profile``), and this handler —
+    the only way to create one — returned the registration id and the name. So
+    a caller could register a contractor over HTTP and then had no way, short of
+    SQL, to learn the identifier needed to link to that contractor's own public
+    record. §E18's contractor page was reachable only by somebody holding a
+    database session, which is the same defect shape as "no endpoint maps a
+    tenant slug to its id".
+
+    A POST that creates a resource returns its identity. Additive, so v1 is
+    unaffected and the lock is re-taken by addition.
+    """
+
+    contractor_id: uuid.UUID
+    registration_id: str
+    name: str
+
+
 @router.post(
     "/contractors",
     status_code=status.HTTP_201_CREATED,
@@ -719,7 +795,7 @@ async def register_contractor(
     settings: ConfigDep,
     spec: ContractorSpec,
     token: TokenDep = None,
-) -> dict[str, str]:
+) -> RegisteredContractorResponse:
     _require_token(settings, token)
     with tenant_scope(tenant.id):
         try:
@@ -728,7 +804,11 @@ async def register_contractor(
             )
         except ControlPlaneError as exc:
             raise _translate(exc) from exc
-        return {"registration_id": contractor.registration_id, "name": contractor.name}
+        return RegisteredContractorResponse(
+            contractor_id=contractor.id,
+            registration_id=contractor.registration_id,
+            name=contractor.name,
+        )
 
 
 @router.post(

@@ -76,3 +76,34 @@ export function formatReceiptTime(timestamp: string, locale: string): Translated
     }).format(new Date(parsed)),
   );
 }
+
+/**
+ * *1 June 2019* — a date that is a date.
+ *
+ * **Not `formatReceiptTime` with the time ignored.** `active_since` is a
+ * SQL `DATE`, and it arrives as `"2019-06-01"` with no time and no zone.
+ * `Date.parse` reads a bare ISO date as **UTC midnight**, and
+ * `Intl.DateTimeFormat` then renders it in the reader's zone — so a contractor
+ * on the register since 1 June 2019 was being published as *"June 1, 2019 at
+ * 5:30 AM"* in Asia/Kolkata, and in a zone west of UTC it would have been the
+ * previous day.
+ *
+ * A wrong date on a named commercial entity's public record is exactly the kind
+ * of small inaccuracy §22.2 makes expensive, so the parts are read back out in
+ * UTC rather than the value being re-localised.
+ */
+export function formatDateOnly(date: string, locale: string): Translated {
+  const parsed = Date.parse(date);
+  if (Number.isNaN(parsed)) return fallback(date);
+
+  return notTranslatable(
+    new Intl.DateTimeFormat(locale, {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      // The value carries no time, so it carries no zone either. Formatting in
+      // UTC is what keeps the rendered day equal to the stored one.
+      timeZone: "UTC",
+    }).format(new Date(parsed)),
+  );
+}

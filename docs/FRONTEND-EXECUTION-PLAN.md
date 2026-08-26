@@ -312,6 +312,36 @@ by the type system rather than by review:
 
 **Traces:** §E7, §E13, §E22, §E23, §E25 Phase 19, ADR-0037.
 
+**Gate result — five of six pass; the frame rate is a recorded deviation.**
+
+| Clause | Budget | Measured | |
+|---|---:|---:|---|
+| Draw calls, from `renderer.info` | 32 | 14–17 | ✅ |
+| VRAM, from `renderer.info` | 512 MB | 14–22 MB | ✅ |
+| Forced context loss recovers without a page reload | — | asserted in a browser | ✅ |
+| Both backends render the same scene | — | golden image per backend, at a pinned step and a fixed instant | ✅ |
+| `prefers-reduced-motion` and no-WebGL both render a usable map | — | asserted; the 2D path answers the first, the peer list the second | ✅ |
+| **60 fps with 5 000 pins on this laptop** | 60 | **~21** (60 holds to ~1 500) | ⚠️ |
+
+`BUDGET.fps` and `BUDGET.pins` are unchanged at 60 and 5 000 — the budget is
+what the product wants, and [`reports/clay-frame-rate.md`](reports/clay-frame-rate.md)
+is what the hardware gave, with the scaling curve, the two optimisations tried,
+and the three routes still open. Law 4: the shortfall is published as a number,
+not absorbed into a token.
+
+**What the gate caught**, each fixed and each argued in the source: headless
+Chromium defaults to `prefers-reduced-motion: reduce`, so every browser test had
+been running at Tier C and the clay had never rendered in CI; `tierFor(rung,
+null)` correctly answers *C* before a renderer exists, which meant the host that
+consulted it never built one; the press's ink separation only inked pixels
+darker than the ink itself, so the 3D press printed a blank sheet; and §E9.3's
+light table publishes the *room* as its stock, which a 3D press cannot print on.
+The first two are in `clay/tier.ts`, the second two in `press/press-model.ts`
+and `design/tokens.json`.
+
+**ADR-0047** — the clay city is generated from the tenant's own origin, not
+modelled — was written before F9, which is what §4 of the phase plan asks for.
+
 ---
 
 ### M9 — The Walk · Phase 20
@@ -404,10 +434,10 @@ by the type system rather than by review:
 | **M3 — The seam** | **Done** | `openapi.json` committed beside the contract lock and drift-checked in `nem check`; 5 600 lines of generated client plus 11 runtime enum companions, drift-checked in `nem web-check`; the BFF holds the tenant header and `server-only` makes a client-bundle import a build error; 14 realtime assertions — a reconnect replays from its cursor, a replayed envelope cannot move the cursor backwards, every envelope reaches transient subscribers past the ring limit, close code 1008 produces **one** handshake and a calm banner rather than a storm, and silence past three heartbeats closes an open-but-dead socket. **Four contract defects found and fixed** (rows 14–17) |
 | **M4 — Contracts** | **Done** | Every §E26 primitive, plus the string layer they need. **`Translated` is not `string`** — only `t()` and `plural()` produce it, so a literal in a component and a sentence built from fragments both fail to compile (§E10.1 made mechanical). Six must-not-compile fixtures assert the required props, each against its exact TS diagnostic. `axe` clean across all **twelve** combinations — three densities × two grounds × two scripts — plus Storybook building the same `<ContractMatrix>` the sweep drives. **Six defects found and fixed** (rows 18–23), three of them mine and caught by the browser rather than by the token tests |
 | **M5 — Citizen loop** | **Done** | `/report` and `/t/[id]` ship against a live stack. Submit → receipt → tracked, with the receipt's hash asserted to be the `complaint_submitted` event's own and the chain verified link by link in the browser (ADR-0044). Five §E16.1 gates read from the log rather than a timer, including §24.2's third outcome and — found by running it — a **held** state for gates the pipeline will never reach, because a parked report left two rows saying *not compared yet* forever. Place resolves a coordinate to a real ward through `GET /places/resolve`. Nine E2E assertions plus three measured-contrast ones; **eleven defects found and fixed** (rows 24–34), five of them in the backend and four of them mine |
-| M6 — Public surface | Not started | |
-| M7 — The light table | Not started | |
-| M8 — Clay engine | Not started | |
-| M9 — The Walk | Not started | |
+| **M6 — Public surface** | **Done** | `/[tenant]`, `/ward/[code]`, `/contractor/[id]`, `/budget/[code]` and `/honesty` ship server-rendered against the live stack, and the demo city publishes over HTTP for the first time (**ADR-0046** — publication is an act somebody takes, logged as an `admin_action` with a required justification, revocable through the same door). The gate turns on one rule and it is closed by the type system rather than by care: `readZone` converts every count into a `PublishedFigure`, which **cannot be interpolated into JSX**, so the zero the backend deliberately sends beside `suppressed: true` has no path to a screen. Twenty-one browser assertions including Tier D with JavaScript switched off, `axe` clean in both scripts, and a share card that is a real PNG from `satori` + `resvg` on four self-hosted faces. §44 and §E28 are **generated** from the two blueprints and drift-checked, which is how the honesty table stays true — and how `REFRAMED` was found. **Ten defects found** (rows 34–43): four in the backend, one a repository-wide gate that had been failing on a clean checkout since M1, two cross-document inconsistencies in the honesty tables themselves, and two of mine — a date published with a time on it, and a ledger that credited closures nobody confirmed. Both of mine were found by reading the rendered page |
+| **M7 — The light table** | **Done** | The console ships: the §E19 shell on `mitti-950` with three persisted densities, `⌘K`, the full keyboard model and a first-class print stylesheet; the four screens the backend already stands behind — **review queue, policy studio and simulation, control-plane admin, developer portal** — and nine ROADMAP screens built against generated types with fixture values behind the §E24 chip. Gated by **44 browser tests across three files** — `console.spec.ts`, `console-real.spec.ts`, `console-roadmap.spec.ts`, and 26 of them new here: F3's shell and keyboard path with no mouse, `axe` clean across three densities × two scripts and over the open palette; F4's decision written from the browser and read back off the complaint's own chain, with the officer's evidence trail asserted to be the citizen's rows plus its filtered ones **by comparing renders**; F5's activation refused by the live guardrail in the server's own words; F6's tenant provisioned, given an invented category and published **entirely through the UI**; F7's closure control disabled with its unmet conditions attached and the blacklist counting *n of m requirements met* rather than hiding. **Nine defects found and fixed**, five of them in this milestone's own work: the skip link was unreachable because the queue's mount-time `scrollIntoView` moved the document's focus-navigation starting point, so an officer's first Tab landed in the middle of the item pane; the palette's arrow keys never moved the highlight, because the keyboard model refuses every key while somebody is typing and the palette's field is a text field; the printed provenance never printed, because an unqualified `display: none` after `@media print` wins the cascade; **the console could not write at all in a default local setup** — `NEMESIS_CONTROL_PLANE_TOKEN` was undocumented in `frontend/.env.example`, so every control-plane write returned the backend's *"supply the header"* and nothing on our side said so; `seed_demo.py` read the public index's `tenant` field as a tenant id when it has always been the slug, which turned a re-run into sixteen 400s that read like a broken control plane. Two more were found by writing F5's gate rather than by running it: **no tenant on this stack gated anything**, so the activation guardrail was a branch nobody had ever seen run — `nem seed-demo` now publishes an evaluation set, and the refusal is asserted; and the golden harness's two live-pipeline baselines were non-deterministic by size, because masking hides content and not layout. And two outside Track E: `worker-ml`'s SIGKILL loop was **not** the OOM ADR-0051 diagnosed but billiard's four-second `worker_proc_alive_timeout` (**ADR-0054**), and the repository's own `ruff format` gate was red on two backend test files |
+| **M8 — Clay engine** | **Done** | `WebGPURenderer` in every tier with the backend as the renderer's own selection (ADR-0037), ENU-metre projection, the clay TSL material, instanced pins in one draw call, the 12 fps stepped world under an uncapped camera, the lens stack with bloom reserved for `safety_trigger_fired`, real sun and weather wired to the same monsoon context that normalises contractor SLAs, adaptive quality, context-loss recovery without a reload, the accessible peer list asserted synchronised by digest in every tier, MapLibre + deck.gl on the 2D path, and `<ClayScene>` — the last §E26 contract (A7). **ADR-0047**: the city is generated from the tenant's own origin and is scenery; everything that carries meaning comes from events. **The frame-rate clause failed and the number is published** — ~21 fps at 5 000 pins on this laptop's Radeon 780M against a 60 fps gate, with `BUDGET.fps` and `BUDGET.pins` deliberately unchanged ([`docs/reports/clay-frame-rate.md`](reports/clay-frame-rate.md)). Every other clause passes with room: 14–17 draw calls against 32, 14–22 MB against 512, both backends photographed. **Four defects found**, including headless Chromium reporting `prefers-reduced-motion: reduce` by default — which meant every browser test had been running at Tier C and the clay had never once rendered in CI |
+| **M9 — The Walk** | **Done** | §E16's nine acts ship on one damped `t ∈ [0,1]`: a Lenis proxy at `lerp 0.075`, a **Theatre.js** camera whose fourteen keys are authored as source and generated into a drift-checked project state (**ADR-0055**), GSAP's ScrollTrigger on the DOM, and scroll-snap per act. Gated by **26 browser assertions** in `tests/story.spec.ts` plus 36 unit assertions across four files. The two clauses that decide whether this is a film or a demo are both taken: **scroll controls distance travelled, not playback** — the scroll is held still for two seconds of frames and the walked distance is asserted unchanged, in the browser and again as a property of the damping in `tests/story-spine.test.ts` — and **Act 4 mounts the citizen loop's own `<ReportFlow>`**, asserted by comparing what the film renders against what `/report` renders rather than by looking at it. Act 5's five gates are stamped from a complaint filed *through the film*, read off its own ledger by M5's own reader. **Ten golden images** at a fixed `t`, seed, step and sun — nine acts and the storyboard. Every tier forced: Tier C by `prefers-reduced-motion` and again by `?tier=C`, Tier D with JavaScript switched off and all ten acts' copy still present, `axe` clean in both scripts on both. §E11.1's five motions are **audited as five** by a test that reads every stylesheet in `src/` and fails on a duration or curve that is not a token. **One clause is unexercised and published rather than skipped quietly:** Act 6 asserts that it renders nothing until a real `cluster_match_found` arrives, and the case that would watch one arrive skips by name because the committed fixture scores 0.142 against a 0.150 classifier floor and parks before dedup — [`docs/reports/story-merge-gate.md`](reports/story-merge-gate.md). **Five defects found and fixed**, three of them outside this milestone: an unreachable control plane 500ed every non-source locale (`loadStrings` caught the error *response* and not the thrown connection, contradicting its own docstring since M2); Act 4 threw on the server render because a component reused across surfaces brought a `QueryClientProvider` requirement with it; a device probe that throws held the film at *undecided* instead of falling to the storyboard; a pinned film re-snapped its own scroll; and two pre-existing type errors were red on a clean typecheck |
 | M10 — Sound & the ladder | Not started | |
 | M11 — Field & offline | Not started | |
 | M12 — Reconciliation | Not started | |
@@ -418,6 +448,15 @@ by the type system rather than by review:
 
 Everything Track E still owes, in one place. Kept here rather than in a second
 document so it cannot drift from the milestones it belongs to.
+
+> **Execution detail lives in `docs/FRONTEND-PHASE-PLAN.md`** — M7–M12 and this
+> register's open rows, broken into eighteen phases (F1–F18) that can each be
+> finished, gated and stopped at. That document owns *order and gate*; this one
+> owns *what and why*. The split is only safe because of the rule it opens with:
+> **every ship line in M7–M12 and every open row below is claimed by exactly one
+> phase there**, and `scripts/check_phase_coverage.py` asserts it in CI from F1
+> onward. A second planning document with no such check is how two roadmaps end
+> up describing different products.
 
 Three groups, because they fail differently. **Group A is debt inside work
 already called done** — the most dangerous kind, because the progress table says
@@ -431,25 +470,26 @@ than a patch.
 
 | # | Owed | Where it was promised | Consequence today |
 |---|---|---|---|
-| A1 | **Metric-matched fallback faces.** The real woff2 files ship and the fallback *stacks* are correct, but no `size-adjust` / `ascent-override` / `descent-override` / `line-gap-override` is declared on a fallback `@font-face` | §E10, §E15 "metric-matched fallbacks" | Layout shifts when a face swaps in. Worst on the citizen route, where §E23 budgets LCP < 2.0 s and CLS is the metric nobody notices until Lighthouse says so |
-| A2 | **The locale gate is not asserted.** `loadStrings` merges base → seed → control plane, and `/api/i18n/[namespace]/[locale]` proxies the registry. Nothing exercises the round trip against a live control plane | §E25 Phase 18: *"a locale added in the control plane appears in the UI with no code change"* | The single Phase 18 gate clause that cannot be checked without a running stack, and therefore the one most likely to be assumed. Needs a `nem` gate task in the pattern of `gate-phase5` |
+| ~~A1~~ **Closed — F2, ADR-0053** | ~~Metric-matched fallback faces~~ — ten adjusted `@font-face` rules, one per role, generated by `scripts/fetch_fonts.py --fallbacks` from the committed woff2 and recomputed by `--verify`, so an override cannot drift from the face it describes. Three of the four named descriptors: `size-adjust` is a *ratio* against whatever face the reader's machine resolves, which this repository cannot measure — ADR-0053 argues the omission rather than shipping a table nothing can check | §E10, §E15 "metric-matched fallbacks" | Layout shifts when a face swaps in. Worst on the citizen route, where §E23 budgets LCP < 2.0 s and CLS is the metric nobody notices until Lighthouse says so. Gated in a browser by `tests/type-metrics.spec.ts`: every adjusted face occupies its real face's line box within a pixel at a 100 px em, and CLS on `/report` stays under 0.1 with the real faces delayed |
+| ~~A2~~ **Closed — F2** | ~~The locale gate is not asserted~~ — `nem gate-phase18-locale` adds Konkani to a running tenant over HTTP, imports its strings, and asserts the words reach the rendered page. Asserting it found two things that made the clause unmeetable rather than unmet: **no route could add a locale to an existing tenant** (`PUT /control-plane/tenants/{slug}/locales`, `control_plane/locales.py`), and **the language switch was a two-element array in a component**, so a locale added upstream appeared in no switch — it is now built from what the tenant declares, published on every public body | §E25 Phase 18: *"a locale added in the control plane appears in the UI with no code change"* | The single Phase 18 gate clause that cannot be checked without a running stack, and therefore the one most likely to be assumed |
 | ~~A3~~ **Closed** | ~~Mutations do not exist~~ — `POST /api/complaints` through the BFF, a key minted with the *draft* rather than with the request, and an optimistic send. A route handler rather than a server action, and §E14.1 already said so: M11 replays a queued submission from IndexedDB after a restart, and a server action's payload is an opaque encoding bound to a build id | M3 ships list: *"Server actions for mutations, carrying a client-generated idempotency key end to end"* | Nothing can be submitted. Also blocks M11: server-side idempotency is what makes the offline queue tractable, and the key has to be generated somewhere |
 | ~~A4~~ **Closed** | ~~The polling fallback is a state, not a behaviour~~ — §27.3's five seconds, on the interval the read path's own `Cache-Control` states, driven by `refetchInterval` rather than by a second registry of what is interesting. `refused` is promoted to `polling` only once something polls, so the state and the behaviour agree | §E14.3, §27.3's 5-second poll | A refused upgrade currently degrades to *nothing updating at all*, behind a banner saying the saved state is being refreshed. The banner is honest about the intent and wrong about the fact, which is worse than either |
 | ~~A5~~ **Closed** | ~~Nothing mounts the socket~~ — `lib/realtime/bridge.ts` mounts it, `RealtimeProvider` is thirty lines of React around it, and the citizen shell renders the banner. The bridge is a plain function with injected collaborators, so every gate clause is asserted without a component render | §E14.2 | The event bus is a library with no consumer. First consumer is M5's pipeline theatre |
 | ~~A6~~ **Closed** | ~~`resyncRequired` has no consumer~~ — the bridge drops every cached read once per transition and clears the flag, because clearing it is a claim that somebody acted on it | §E14.3 | A client past the replay window silently stops being current |
-| A7 | **`<ClayScene>`** — the one §E26 contract not built | §E26 | Belongs to M8; listed here so the contract table is not read as complete |
+| ~~A7~~ **Closed — F8** | ~~**`<ClayScene>`** — the one §E26 contract not built~~ — the 3D host: `WebGPURenderer` in every tier with the backend as the renderer's own selection (ADR-0037), the adaptive quality manager, context-loss recovery without a page reload, and **the accessible peer list, asserted present and synchronised in every tier** by comparing the digest the canvas was handed against the digest the list rendered. Server-rendered by a client component, so a reader whose JavaScript never runs gets every place and every figure and loses only the highlight | §E26 | Belongs to M8; listed here so the contract table is not read as complete |
 | A8 | **No golden images.** `playwright.config.ts` sets `toHaveScreenshot` to zero tolerance and there is nothing to compare against | §E24, and the Phase 20 gate | Visual regression is configured, not running |
 | A9 | **Storybook is built, not diffed.** CI builds the catalogue and uploads it | §E24: *"Every visual PR posts its Storybook diff and a five-second scene capture"* | A reviewer can browse it; a pull request does not show what changed |
-| A10 | **Density is not persisted, and has no control.** The three modes exist as tokens and CSS and are exercised by the matrix | §E19: *"three density modes … persisted per user"* | An officer sets it once per page load, which is not setting it |
-| A11 | **RTL is unasserted.** Every stylesheet uses logical properties — zero physical `left`/`right`/`margin-left` in `src/` — so the ground is prepared, but no RTL locale is seeded and nothing checks it | §E22: *"RTL-ready layout primitives"* | Ready is a claim until a locale proves it |
-| A12 | **The paper is generated, not scanned.** §E6.1 stage 6 asks for *"a scanned paper texture with fibre grain"*; the press composites `feTurbulence` | §E6.1 stage 6 | Defensible — a generated texture is one the product cannot fail to have, which is §6 Principle #6 — but it is a deviation, and it is recorded rather than assumed |
+| ~~A10~~ **Closed — F2** | ~~Density is not persisted, and has no control~~ — `src/lib/density.ts` stores the choice per device and a synchronous script in the document applies it **before first paint**, so the console does not render one mode and reflow into another; `<DensityControl>` is the affordance. F3 moves the control into the §E19 chrome; it sits at the top of the console surface until then | §E19: *"three density modes … persisted per user"* | An officer sets it once per page load, which is not setting it. `tests/density.spec.ts` asserts the choice survives a reload and a new tab, and reads the attribute at `domcontentloaded` — before React has run — because an effect-based implementation passes every other assertion in that file |
+| ~~A11~~ **Closed — F2** | ~~RTL is unasserted~~ — `lib/i18n/direction.ts` derives a direction from the locale and the public, citizen and console surfaces set `dir` beside `lang`; `ar` is declared by `nem seed-demo` as tenant *data* and by the application as a locale it can render but ships no words for. `tests/rtl.spec.ts` asserts the frame **by geometry** rather than by the attribute — the same element measured in both directions has to land at the mirror of where it started | §E22: *"RTL-ready layout primitives"* | Ready is a claim until a locale proves it |
+| A12 **Accepted** | **The paper is generated, not scanned.** §E6.1 stage 6 asks for *"a scanned paper texture with fibre grain"*; the press composites `feTurbulence` | §E6.1 stage 6 | **Accepted as a deviation, not planned work** — no phase claims it and none should, which is why F1 gave the row an explicit disposition rather than leaving it to read as debt. Revisit only if the generated texture is judged insufficient. Defensible — a generated texture is one the product cannot fail to have, which is §6 Principle #6 — but it is a deviation, and it is recorded rather than assumed |
+| A17 | **The control plane cannot carry product copy, and the frontend implies it can.** `loadStrings` resolves three tiers — base, seed, control plane — and the third fetches `/api/v1/control-plane/translations/{namespace}/{locale}` for `common`, `citizen`, `console` and `public`. The registry carries none of them: `db/models/i18n.py` lists `taxonomy`, `organisation`, `zone` and `calendar`, and an import into `public` is refused. So that tier resolves to `{}` on every request it will ever make | §E10.1, §E22, §E25 Phase 18 | Found by writing A2's gate, which is the argument for writing gates. **Nothing is broken and nothing renders wrong** — the seed bundles carry the words and the merge degrades exactly as designed — but a tier that cannot ever return anything is a capability the code claims and does not have, and §E3.3 is a rule about precisely that. The decision is not a patch: either product copy becomes tenant-importable, which reopens *"a tenant could overwrite the wording of a legal notice"* that `db/models/i18n.py` settled — weakened, but not answered, by C7 moving the §22.2 notices into code — or the frontend stops implying it can and the tier is removed. F18 is where the honesty table is verified line by line, which is where a claim the product cannot support belongs |
 | A13 | **The no-off-origin assertion covers fonts only.** `tests/type.spec.ts` fails on a font fetched from a third party; images, scripts and audio are covered only by the source-level CDN grep | §6 Principle #6, §E24 | A runtime fetch the grep cannot see would pass |
 
 ### Cross-cutting gates not yet wired
 
 | # | Gate | Source | State |
 |---|---|---|---|
-| A14 | **Lighthouse ≥ 90 performance and accessibility** on citizen and department routes | §E25 Phase 18, §E23 | Not in CI. Neither route exists yet, so this lands with M5 and M7 |
+| ~~A14~~ **Closed — F1 + F3** | ~~Lighthouse ≥ 90 performance and accessibility on citizen and department routes~~ — `frontend/lighthouserc.json` asserts both category scores in CI on three routes, three runs and the median, against a **production** build on its own port, because a Lighthouse run that silently measured the dev server would report ~0.65 for reasons that have nothing to do with the product. F1 landed the citizen and public routes; F3 built the department shell, which is what turned the third URL from a passing check with nothing behind it into a measurement. Measured on the reference machine under the same mobile emulation as the other two — the stricter reading, since an officer's console is a desktop surface: **/console 97–99 performance, 100 accessibility**; /report 93–99 and 100; /pune-demo/honesty 86–97 and 100, which clears the budget on the median and is the one route sitting near the line — it is a forty-row document and its LCP is that document. The console's accessibility is additionally swept by `console.spec.ts` across three densities × two scripts and over the open `⌘K` palette, and by `console-roadmap.spec.ts` over all seven fixture screens, because a category score is an average and §E22's floor is not |
 | A15 | **WCAG 2.2 AA verified by audit, not only by automated scan** | §E25 Phase 18, §E22 | The scan half is done and clean across twelve combinations. The audit half is a person, and it has not happened |
 | A16 | **Measured task-success rate from a usability session** with real field staff and department users, findings tracked | §E25 Phase 18 — *"the plan calls this a design practice, not a component library, and that distinction is the gate"* | Not started. The only Phase 18 clause that no amount of code closes |
 
@@ -464,11 +504,12 @@ the dedup payoff from the real engine; the receipt; the tracking ledger with
 ward film (§E17.6) scaffold against real types behind the not-wired chip.
 Carries **C1, C2 and C3** below, and closes **A3, A4, A5, A6**.
 
-**M6 — the public surface.** SSR ward / zone / contractor / budget pages;
-`rating_disclaimer` and `SYSTEM_FLAGGED_NOTICE` as first-class UI; suppression as
-an honest empty state; contractor ledgers with response and appeal in the same
-frame; `satori` + `resvg` share cards; §44's honesty table published as data.
-Gate: Tier D — correct with JavaScript disabled.
+~~**M6 — the public surface.**~~ **Done.** SSR place / contractor / budget
+pages, `rating_disclaimer` and `SYSTEM_FLAGGED_NOTICE` as first-class UI,
+suppression as an honest empty state, contractor ledgers with the response frame
+present before there is anything in it, `satori` + `resvg` share cards, and §44 +
+§E28 generated from the blueprints and served as JSON. Tier D asserted with
+JavaScript switched off. Carried **C5** (ADR-0046) and surfaced **C6–C8**.
 
 **M7 — the light table.** The console shell, `⌘K`, three persisted densities
 (A10), a first-class print stylesheet. REAL today: review queue, policy studio
@@ -476,6 +517,30 @@ and simulation, control plane, developer portal. ROADMAP behind the chip: role
 shells (13), area view and the underreporting signal (12, 23), work order and
 contractor picker (14), milestone strip (14), closure gates (15), money (14, 23),
 integrity room and case file (17), report builder (23).
+
+> **The ship lines, named.** From F1 onward every line below carries an id, and
+> `scripts/check_phase_coverage.py` asserts each is claimed by exactly one phase
+> in `docs/FRONTEND-PHASE-PLAN.md`. The ids exist for that check and for no
+> other reason: a prose paragraph cannot be mechanically compared against a
+> plan, and a rule that cannot be executed is the rule that lets two roadmaps
+> describe different products.
+
+- **M7.1** The console shell
+- **M7.2** `⌘K`
+- **M7.3** Three persisted densities (A10)
+- **M7.4** A first-class print stylesheet
+- **M7.5** Review queue — REAL
+- **M7.6** Policy studio and simulation — REAL
+- **M7.7** Control plane — REAL
+- **M7.8** Developer portal — REAL
+- **M7.9** Role shells (13) — ROADMAP behind the chip
+- **M7.10** Area view and the underreporting signal (12, 23) — ROADMAP
+- **M7.11** Work order and contractor picker (14) — ROADMAP
+- **M7.12** Milestone strip (14) — ROADMAP
+- **M7.13** Closure gates (15) — ROADMAP
+- **M7.14** Money (14, 23) — ROADMAP
+- **M7.15** Integrity room and case file (17) — ROADMAP
+- **M7.16** Report builder (23) — ROADMAP
 
 **M8 — the clay engine.** `WebGPURenderer`; ENU-metre projection; the clay TSL
 material; instanced pins in one draw call; the 12 fps stepped clock driving the
@@ -486,22 +551,65 @@ accessible peer list in every tier**; MapLibre + deck.gl; `<ClayScene>` (A7).
 Gate: 60 fps with 5 000 pins **with Ollama running**, VRAM ≤ 512 MB asserted in
 CI.
 
+- **M8.1** `WebGPURenderer`
+- **M8.2** Web Mercator → local ENU-metre projection
+- **M8.3** The clay TSL material
+- **M8.4** Instanced pins in one draw call
+- **M8.5** The 12 fps stepped clock driving the world, camera uncapped
+- **M8.6** Tilt-shift, gate weave, and bloom reserved for `safety_trigger_fired`
+- **M8.7** Real sun and weather wired to the monsoon SLA context
+- **M8.8** Adaptive quality turning the press dial first
+- **M8.9** Context-loss recovery
+- **M8.10** The accessible peer list in every tier
+- **M8.11** MapLibre + deck.gl
+- **M8.12** `<ClayScene>` (A7)
+- **M8.13** The gate: 60 fps with 5 000 pins with Ollama running, VRAM ≤ 512 MB in CI
+
 **M9 — the Walk.** Nine acts on one damped `t`; Theatre.js camera; GSAP for DOM
 and type; Rive characters as event-driven state machines; the merge with its
 overprint, thumbprint and registration rings; Tier C's nine prints as a reviewed
 design deliverable. Gate: **every scene fired by a genuine backend event — a
 scene that can only be fired by a button fails.**
 
+- **M9.1** Acts 0–3 on one damped `t`
+- **M9.2** Acts 4–5
+- **M9.3** Acts 6–9
+- **M9.4** Theatre.js camera
+- **M9.5** GSAP for DOM and type
+- **M9.6** Rive characters as event-driven state machines
+- **M9.7** The merge with its overprint, thumbprint and registration rings
+- **M9.8** Tier C's nine prints as a reviewed design deliverable
+- **M9.9** The gate: every scene fired by a genuine backend event
+
 **M10 — sound and the ladder proven.** The Web Audio graph, positional foley, the
 merge cue, the single struck note. The §E3.4 audit as a usage grep: no second use
 of bloom, the stamp, or a severity colour. Every tier S/A/B/C/D forced in CI.
 
+- **M10.1** The Web Audio graph
+- **M10.2** Positional foley
+- **M10.3** The merge cue
+- **M10.4** The single struck note
+- **M10.5** The §E3.4 audit as a usage grep
+- **M10.6** Every tier S/A/B/C/D forced in CI
+
 **M11 — field and offline.** PWA, offline queue surviving restart, outdoor mode
 at 7:1, EXIF-preserving compression, conflict-free sync.
+
+- **M11.1** PWA
+- **M11.2** Offline queue surviving restart
+- **M11.3** Outdoor mode at 7:1
+- **M11.4** EXIF-preserving compression
+- **M11.5** Conflict-free sync
 
 **M12 — reconciliation.** §E28 and §44 verified line by line; §E27 audited; the
 usability session (A16); ADR index and PHASES amended. Gate: **no REAL row backed
 by a fixture.**
+
+- **M12.1** §E28 and §44 verified line by line
+- **M12.2** §E27 audited
+- **M12.3** The usability session (A16)
+- **M12.4** ADR index and `docs/PHASES.md` amended
+- **M12.5** The gate: no REAL row backed by a fixture
 
 ---
 
@@ -516,6 +624,11 @@ Track E.
 | ~~C1~~ **Landed — ADR-0043** | ~~A per-complaint event history endpoint~~ | §E17.4's ledger, `<EvidenceTrail>` with real data, §E28's "Tracking ledger from the event log: REAL" row | What may a citizen see of their own complaint's history? That is a different question from ADR-0016's default-deny, which governs a *broadcast* stream to anyone. The log is hash-chained per entity, so the data exists and the shape is the envelope already published |
 | ~~C2~~ **Landed — ADR-0044** | ~~The chain hash, published~~ | §E17.3's receipt | Which hash: the event's, or the entity's chain head? The receipt's claim is *"this record cannot be edited"*, so it wants the head — and the head has to be readable without leaking the log |
 | ~~C3~~ **Landed — ADR-0045** | ~~Payload shapers for `exif_check_completed` and `media_redacted`~~ | §E16.1's gates 2 and 5 — *"EXIF INTACT · DEVICE NOT ON WATCHLIST"* and *"a face visibly blurs on the photograph itself"* | ADR-0016 is default-deny by construction. What may a browser learn about an EXIF check, or about where a face was? Booleans and counts, certainly; coordinates and boxes, certainly not. The line between needs writing down |
+| ~~C5~~ **Landed — ADR-0046** | ~~A tenant cannot be published over HTTP~~ | Every §E18 page; `nem seed-demo` | `public_deps.py` calls this *"a disclosure decision no engineer is entitled to make on their behalf"* and then left `psql` as the only way to make it. Is publication a field on `TenantSpec`, or a separate act? Separate: a tenant that publishes from the instant it is provisioned has published before anybody looked at what is in it |
+| **C6** **Owned by backend Phase 12** | **A complaint is never assigned a place.** `complaints.ward` is nullable and unwritten, so `zone_summary`'s `Complaint.ward == zone_code` can never match | §E18's place figures; §E28's *"Public zone / ward / contractor / budget pages: data REAL"* row, which is corrected to ROADMAP until this lands | Where does a report acquire its ward — at ingest, in the log, or recomputed at read time? The projection cannot do it without breaking its own rule that every column derives from an event, and read-time recomputation puts a PostGIS join on an unauthenticated endpoint. It looks like Phase 12's `ROUTING`, which is a declared stage with no provider and whose job is exactly assigning department and place. Defect row 35 |
+| **C9** **Owned by backend** | **A ward's boundary is write-only.** `ZoneSpec.boundary` is on the control plane's write side and **no read endpoint publishes it** — not `OrgUnitResponse`, not the public zone index. So the 2D map path can draw a tenant's *places* and not its *shapes* | §E15's 2D and heavy-layer path (`clay/FlatMap.tsx`); ADR-0047, which argues that boundaries belong on that path drawn as boundaries rather than extruded into scenery | Surfaced by F11, which needed them and drew none rather than putting something else in their place. Not a large change — the geometry is already stored — but a real question about which surface may read it: a ward outline is a disclosure a municipality makes, and ADR-0046 established that publication is an act somebody takes. Probably the same door as the public zone index, behind the same publication decision |
+| ~~C7~~ **Landed — ADR-0052** | ~~The public surface cannot speak Marathi.~~ `SYSTEM_FLAGGED_NOTICE`, `RATING_DISCLAIMER` and `zones.name` are English constants on every response; `NAMESPACE_ZONE` exists and the endpoints never consult it | §E18's *"first-class UI"* rule, and §16.2's audience | What may a §22.2 disclaimer be translated *by*? Not by the client — that is the client asserting its own legal text, which is why the frontend renders the server's words verbatim through `notTranslatable()`. So the registry has to carry them, and somebody has to own the translation as a legal artefact rather than as a string. Defect row 36 |
+| ~~C8~~ **Landed — ADR-0052** | ~~A tenant's display name is not published~~ — only its slug | Every §E18 page heading, which currently title-cases the slug | Trivial as a change and listed here anyway, because the alternative the frontend was tempted into is a lookup table of cities we happen to know about, which is a second source of truth for a fact the platform holds. Defect row 37 |
 | ~~C4~~ **Done** | ~~§E28's row corrections~~ — restated with two columns, *Component* and *Data*, because the single column was answering two questions at once | Nothing — but it is currently inaccurate | *"Tracking ledger from the event log: REAL"* is false until C1 lands. §E28 is the honesty table; an honesty table that is wrong is worse than no table |
 
 **Raised by M5, owed by M6.**
@@ -524,6 +637,7 @@ Track E.
 |---|---|---|---|
 | C5 | **A tenant can opt into the public API over HTTP** | §E18's whole surface. Every public route is `/api/v1/public/{tenant_slug}/…` and answers 404 unless `public_api_enabled` is true | ADR-0021 makes publishing an opt-in per customer, defaulting to off, and argues it well: *"a municipality that has not decided its disclosure posture is not a municipality that has decided yes."* But **nothing can set it** — `TenantSpec` has no field and no endpoint writes one — so a provisioned tenant can only be published with SQL, and the decision the ADR protects cannot actually be taken. The default stays `false`; the argument is about giving the customer a way to say yes |
 | C6 | **A slug resolves to a tenant id** | Any operator tooling that runs twice. `nem seed-demo` needs `--tenant-id` on a re-run for exactly this reason | Small, and it is a real question rather than an oversight: an unauthenticated endpoint mapping slugs to ids is an enumeration surface, and the control-plane token is the only control available before Phase 13. Probably a token-gated `GET /control-plane/tenants/{slug}` |
+| C9 | **A ward's boundary is readable** | The 2D map path, which draws a tenant's places today and would draw its wards | The geometry exists; only a read does not. See the row above for the disclosure question it carries |
 
 ### The demo tenant
 
@@ -531,7 +645,10 @@ Track E.
 no fixtures, no code change, which is Phase 5's own claim exercised as a
 side effect. Nine wards with approximate boundaries labelled as such in the
 data, a locality nested inside one so §E17.1's card renders a real chain, twelve
-taxonomy nodes, sixteen prompt sets, and `en` + `mr`.
+taxonomy nodes, sixteen prompt sets, and `en` + `mr` + `ar` — the third for
+A11, seeded as *data* rather than shipped as a product language, because
+NEMESIS publishes no Arabic copy and a right-to-left frame around English words
+is exactly what the assertion needs and all the demo can honestly claim.
 
 `--reports N` then submits reports **through `POST /api/v1/complaints`**, which
 is the part that matters: the demo's complaints carry real hash chains, real
@@ -559,12 +676,20 @@ fast and an unused dependency cannot rot in the lockfile.
 
 `@react-three/fiber` · `@react-three/drei` · `three-mesh-bvh` · `r3f-perf` (M8) ·
 `maplibre-gl` · `deck.gl` (M8) · `lenis` · `gsap` · `@theatre/core` +
-`@theatre/studio` (M9) · `@rive-app/react-canvas` (M9) · `satori` +
-`@resvg/resvg-js` (M6) · `gltf-transform` (M8 assets) · opus sprites (M10).
+`@theatre/studio` (M9) · `@rive-app/react-canvas` (M9) · `gltf-transform`
+(M8 assets) · opus sprites (M10).
 
 `three` **is** installed — `press-tsl.ts` compiles against it today.
-`@tanstack/react-query` is installed and unused; it lands with M5's mutations
-(A3) or it comes back out.
+`@tanstack/react-query` **is** in use since M5, driving §27.3's polling fallback
+(A4).
+
+**`satori` + `@resvg/resvg-js` were never installed, and M6 shipped the share
+cards anyway.** `next/og` bundles both — satori as vendored source and resvg as
+`resvg.wasm` — so adding them as direct dependencies would have put a second
+copy of each in the lockfile to do what the framework already does. The one cost
+is real and is recorded on `OgFace` in `scripts/fetch_fonts.py`: satori parses
+TTF/OTF/WOFF and **not** WOFF2, so the four faces the card uses are built offline
+from the shipped WOFF2 and committed — ~360 kB that would otherwise not exist.
 
 ### Assets to author
 
@@ -636,7 +761,15 @@ in a plan whose whole method is traceability.
 | 31 | **The degradation banner's sentence was an English literal in `src/`.** `socket.ts` set `cause: "Live updates are switched off…"` | `realtime/socket.ts`, `store.ts` | Which made the one banner a citizen sees when the system is degraded the single piece of copy the Phase 5 locale registry could never reach — against Phase 18's own gate, on the surface where being understood matters most. `Degradation.cause` is now a **key**, resolved where a `Strings` is in hand, and both bundles carry the sentence |
 | 32 | **A parked report left its downstream gates waiting forever.** Found by running the product, not by reading it | `citizen/gates.ts` | Classification abstains → §24.2 parks the report → the stages after it never run → the dedup gate sat at *"not compared yet"* indefinitely while the theatre polled every 1.2 s. §24.2's rule is that the card **continues** and §E17.2's is that the wait is legible; an unreachable gate pretending to still be waiting is neither. Gates now read the two halting signals off the chain — `safety_trigger_fired`, and a `pipeline_stage_degraded` carrying a halting fallback — and report **held** instead, which settles the theatre and stops the poll |
 | 33 | **Nothing published a read of the place tree.** `zones` has carried a `MULTIPOLYGON` boundary and a GiST index since Phase 5; `GET /control-plane/zones` returns name, code, kind, parent and path — enough to draw the tree, nothing about where any of it is | `nemesis/api/v1/places.py` (new) | So a browser could learn Ward 14 exists and could not learn it was standing in it, and §E17.1's *Place* card — *"presented as a card, not a picker"* — had nothing to say. Track E cannot answer it client-side: point-in-polygon needs the polygons, publishing every ward boundary is a payload in megabytes, and a third-party geocoder is banned outright by §6 Principle #6. `GET /places/resolve` answers it where the geometry already lives, returning the chain innermost-first. **It does not produce *"Paud Road, near Karve Statue"***: street-level reverse geocoding needs a street graph this product does not have and may not fetch, so the card renders the street line not at all rather than guessing at one (§E3.3) |
-| 34 | **No endpoint maps a tenant slug to its id, and `public_api_enabled` cannot be set over HTTP at all** | `control_plane`, `TenantSpec` | Surfaced by a seeding script that had to re-run against an existing tenant. The public index publishes `tenant`, but only for a tenant that opted into the public API — which ADR-0021 makes a deliberate per-customer decision defaulting to off, and which `TenantSpec` has no field for and no endpoint sets. So a provisioned tenant can never be published without SQL. Recorded rather than patched: it is M6's blocker, not M5's, and the fix is a `TenantSpec` field plus an argued note that the default stays `false` |
+| 34 | **No endpoint maps a tenant slug to its id, and `public_api_enabled` cannot be set over HTTP at all** | `control_plane`, `TenantSpec` | Surfaced by a seeding script that had to re-run against an existing tenant. The public index publishes `tenant`, but only for a tenant that opted into the public API — which ADR-0021 makes a deliberate per-customer decision defaulting to off, and which `TenantSpec` has no field for and no endpoint sets. So a provisioned tenant can never be published without SQL. Recorded rather than patched: it is M6's blocker, not M5's. **Closed at M6 by ADR-0046, and not the way this row predicted.** A `TenantSpec` field was the obvious fix and is the wrong one: provisioning applies a template to a tenant with zero complaints in it, so a tenant that publishes from the instant it exists has published before anybody looked at what is in it — and it collapses an operations act and a municipality's disclosure decision into one call. `PUT /control-plane/tenants/{slug}/publication` instead, token-gated, revocable through the same door, appending an `admin_action` with a required justification. The prediction is left in place rather than rewritten, because the argument that changed it is the record |
+| 35 | **`complaints.ward` is never written, so no ward summary can ever count anything.** `public.aggregates.zone_summary` filters on `Complaint.ward == zone_code`; the column is nullable, and the only writer in the tree is `sandbox.py`. The projection cannot fill it either — `projections/writer.py` reads `state.get("ward")` and no event payload carries one | `public/aggregates.py`, `projections/writer.py`, `events/catalog.py` | **The most consequential M6 finding, and it is a data defect rather than a surface one.** Every §E18 place page renders honest zeros for a city with sixty-two complaints in it, because the join can never match. Not patched here, and the reason is that the two cheap fixes are both wrong: resolving the ward *in the projection* would make a replayable projection depend on mutable `zones` geometry, which `projections/writer.py` explicitly forbids — *"every column here is derived from a projected state, which is derived from events"* — and resolving it *at read time* would put a PostGIS join over the whole complaint table on an unauthenticated endpoint. The ward is a fact recorded **about** a report and belongs in the log, which makes it Phase 12's: `ROUTING` is a declared stage with no provider, and assigning department and place is exactly what it is for. §E28's row is corrected to **data ROADMAP** in the meantime, because a published figure that is structurally always zero is worse than no figure |
+| 36 | **`SYSTEM_FLAGGED_NOTICE` and `rating_disclaimer` cannot be translated, and neither can a zone's name.** All three are what §E18 calls *"first-class UI, never tooltips"*, and all three arrive from the API as English constants — the two notices from module-level strings in `public/aggregates.py`, the zone name from `zones.name`, and a category from `by_category[].category` which is the immutable taxonomy **key** rather than the node's translated `display_name` — while `NAMESPACE_ZONE` exists in the i18n schema and the public endpoints never consult it | `public/aggregates.py`, `api/v1/public.py` | So a Marathi ward page carries an English legal sentence and a breakdown that reads `pothole_or_road_damage`, on the surface §16.2 aims at residents. The frontend deliberately does **not** paper over it: `notTranslatable()` renders the server's exact words, because a §22.2 disclaimer paraphrased by a client is the client asserting its own legal text. The right fix is upstream — the notices resolve through the Phase 5 locale registry and the public endpoints negotiate a locale — and it is a contract change, so it is recorded rather than improvised |
+| 37 | **The public contract publishes a tenant's slug and never its name.** `ZoneIndexResponse.tenant` is the slug; `tenants.name` is not on any public model | `api/v1/public.py` | Every §E18 page is headed *"Published by Pune Demo"* — the slug, title-cased by `cityName()`. The alternative was a lookup table of cities we happen to know about, which would be a second source of truth for a fact the platform already holds. One field on the index response closes it |
+| 38 | **§44 uses five status labels; the execution plan claims three.** §0 of this document says the vocabulary is *"REAL / SIMULATED / ROADMAP, used exactly as §44 and §E28 use them"*. §44 also uses `CUT PERMANENTLY (for MVP)` and — the one nobody had written down — **`REFRAMED`**, for *"Intake/Classification/Ops as 'agents'"* | §0 vs §44 | Found by `scripts/generate-honesty.ts` refusing to parse a label it did not recognise, which is the behaviour that made it worth writing that way. `REFRAMED` is not a synonym for any of the other four: they say how far a claim got, and it says the claim was **withdrawn and renamed**. It is the most honest row in §44 and it is precisely the row a parser that mapped unknown labels onto `ROADMAP` would have deleted. The vocabulary is corrected to five, and `honesty.test.ts` asserts that row survives |
+| 39 | **Every drift check fails on a clean checkout on Windows.** `core.autocrlf=true` is the platform default and the repository shipped no `.gitattributes`, so `tokens.ts`, `api.ts` and `honesty.ts` are checked out with CRLF while their generators write LF | repository root | M0's gate is *"`nem web-check` passes on a clean checkout"*, and it did not — for a reason with nothing to do with anything the check protects, which is the worst kind of failing gate because it teaches people to ignore it. Latent since M1 and invisible because nobody had re-cloned; surfaced by the third drift check landing on a file that had been through a `git stash`. A `.gitattributes` pins text to LF, names the six generated artefacts explicitly, and marks `*.cmd` CRLF because `cmd.exe` genuinely wants it || 40 | **§E28 said RTI draft generation closes at M6; M6's own ships list never contained it.** §3 and §3b both define M6 as the SSR pages, the two notices, suppression, contractor ledgers, share cards and the honesty table | §E28 vs §3, §3b | Found by shipping M6 and reading the table back. §16.1's RTI draft is a template auto-fill with no filing integration and belongs with the Phase 23 reporting work; the row's *Closes at* is corrected to Phase 23 rather than the milestone quietly being marked incomplete. A row whose closing milestone is wrong is the same failure as a row whose status is wrong — it is the artefact a reader trusts instead of checking |
+| 41 | **A SQL `DATE` was being published with a time on it.** `contractor.active_since` arrives as `"2019-06-01"`; `Date.parse` reads a bare ISO date as UTC midnight and `Intl` then renders it in the reader's zone, so the contractor's public record said *"On the register since June 1, 2019 at 5:30 AM"* | `datetime.ts`, the §E18 contractor page | Mine, and found by reading the rendered page rather than by a test. The 5:30 is the IST offset wearing a clock face; west of UTC the same code would have published the **previous day**. A wrong date on a named commercial entity's public record is exactly the small inaccuracy §22.2 makes expensive. `formatDateOnly` formats in UTC, so the rendered day equals the stored one — and the distinction between a timestamp and a date is now in the type of the helper rather than in whoever picks it |
+| 42 | **The contractor ledger was crediting closures nobody confirmed.** §16.1's third metric is *"confirmed by reporters, versus disputed"*, and the public profile publishes `work_orders_completed` and `disputed_count` — but not a confirmation count. The first pass wired `work_orders_completed` in as *confirmed* | `ContractorLedger.tsx`, the §E18 contractor page | Also mine, and wrong in the direction that matters: `auto_confirmed_resolutions` exists on the *place* summary precisely because a closure nobody confirmed is a weaker fact than one somebody did, and this collapsed the two on a named contractor's record. §16.1's rule is that a ledger must not flatter. The row now renders null behind a `Phase 15` chip — the phase that lands §21.2's confirmation loop — rather than a number that reads as vindication |
+| 43 | **§E28's M5 rows were wrong for the length of a whole milestone.** `Report capture → submit → receipt`, `Pipeline theatre — six gates`, `The third outcome`, `Dedup payoff` and `Severity breakdown panel` all still read **component ROADMAP** after M5 shipped every one of them | §E28 vs §3a | The progress table in this document was updated when M5 landed and §E28 was not, so the two honesty artefacts disagreed and the *published* one was the flattering-in-reverse direction — understating what exists, which is the same class of error as overstating it and just as disqualifying for a table whose only value is being accurate. **Found by M6 generating the public honesty page from §E28 and somebody reading the output.** That is the argument for generating it rather than transcribing it: a hand-kept table drifts, and the drift stays invisible until the table is put somewhere people look. Corrected, with the failure recorded in §E28's own header rather than silently repaired |
 
 Fixing 5 and 6 by rewriting the old text would erase the record of the change,
 which is the thing this repository has consistently refused to do. Both are

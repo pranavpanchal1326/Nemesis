@@ -3,12 +3,12 @@ import Link from "next/link";
 
 import { ContractorLedger } from "@/components/ContractorLedger";
 import { SuppressionNotice } from "@/components/SuppressionNotice";
-import { formatReceiptTime } from "@/lib/i18n/datetime";
+import { formatDateOnly } from "@/lib/i18n/datetime";
 import { notTranslatable, t } from "@/lib/i18n/strings";
 import { asDisclaimer, ContractorFlags, responseHrefFor } from "@/public/ContractorFlags";
 import { LabelledFigure } from "@/public/Figure";
 import { PublicShell } from "@/public/PublicShell";
-import { cityName, fetchContractor } from "@/server/public-data";
+import { cityNameFallback, fetchContractor } from "@/server/public-data";
 import { publicLocale } from "../../locale";
 
 /**
@@ -41,10 +41,17 @@ import { publicLocale } from "../../locale";
 type Params = Promise<{ tenant: string; contractorId: string }>;
 type Search = Promise<Record<string, string | string[] | undefined>>;
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}): Promise<Metadata> {
   const { tenant, contractorId } = await params;
-  const read = await fetchContractor(tenant, contractorId);
-  const city = cityName(tenant);
+  const { locale } = await publicLocale(tenant, await searchParams);
+  const read = await fetchContractor(tenant, contractorId, locale);
+  const city = read.ok ? read.value.cityName : cityNameFallback(tenant);
 
   if (!read.ok) return { title: city, robots: { index: false, follow: false } };
 
@@ -65,13 +72,19 @@ export default async function Contractor({
   searchParams: Search;
 }) {
   const { tenant, contractorId } = await params;
-  const { locale, strings } = await publicLocale(await searchParams);
-  const city = cityName(tenant);
-  const read = await fetchContractor(tenant, contractorId);
+  const { locale, locales, strings } = await publicLocale(tenant, await searchParams);
+  const read = await fetchContractor(tenant, contractorId, locale);
+  const city = read.ok ? read.value.cityName : cityNameFallback(tenant);
 
   if (!read.ok) {
     return (
-      <PublicShell city={city} citySlug={tenant} strings={strings} locale={locale}>
+      <PublicShell
+        city={city}
+        citySlug={tenant}
+        strings={strings}
+        locale={locale}
+        locales={locales}
+      >
         <h1 className="type-display-1">{t(strings, "contractor.notFound")}</h1>
         <p className="type-caption">
           <Link href={`/${tenant}`}>{t(strings, "place.back")}</Link>
@@ -88,6 +101,7 @@ export default async function Contractor({
       citySlug={tenant}
       strings={strings}
       locale={locale}
+      locales={locales}
       generatedAt={profile.generatedAt}
       notice={profile.notice}
     >
@@ -101,7 +115,7 @@ export default async function Contractor({
             {profile.activeSince === null
               ? t(strings, "contractor.activeSinceUnknown")
               : t(strings, "contractor.activeSince", {
-                  date: formatReceiptTime(profile.activeSince, locale),
+                  date: formatDateOnly(profile.activeSince, locale),
                 })}
           </p>
         </header>
@@ -119,11 +133,7 @@ export default async function Contractor({
 
         {profile.suppressed ? (
           <p>
-            <SuppressionNotice
-              threshold={profile.suppressionThreshold}
-              strings={strings}
-              explain
-            />
+            <SuppressionNotice threshold={profile.suppressionThreshold} strings={strings} explain />
           </p>
         ) : null}
 
@@ -163,7 +173,15 @@ export default async function Contractor({
           metrics={{
             onTimeRate: profile.onTimeRate.kind === "known" ? profile.onTimeRate.value : null,
             costVariance: null,
-            confirmedCount: profile.completed.kind === "known" ? profile.completed.value : null,
+            // **Not `profile.completed`.** An earlier pass wired the completed
+            // count in here and it was wrong in the direction that matters:
+            // `work_orders_completed` counts every closure including the ones
+            // `auto_confirmed_resolutions` exists to hold apart, so publishing
+            // it under "confirmed by reporters" would credit the contractor
+            // with confirmations no reporter gave. §16.1's rule is that the
+            // ledger must not flatter, so the row stays null behind its chip
+            // until Phase 15 publishes a real confirmation count.
+            confirmedCount: null,
             disputedCount: profile.disputed.kind === "known" ? profile.disputed.value : null,
             repeatDefectRate: null,
           }}
@@ -196,7 +214,6 @@ export default async function Contractor({
           responseHref={responseHrefFor(tenant, contractorId)}
           strings={strings}
         />
-
       </article>
     </PublicShell>
   );

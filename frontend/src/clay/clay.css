@@ -1,0 +1,238 @@
+/*
+ * The clay surface — §E7, §E22, §E26 (A7).
+ *
+ * No colour, duration or type size is declared here. Every one arrives as a
+ * custom property generated from src/design/tokens.json, and
+ * scripts/check-guards.ts fails the build on a literal.
+ *
+ * Two rules this file exists to hold:
+ *
+ *   · **The list is a peer, not a fallback** (§E22). It is laid out beside the
+ *     canvas in every tier that has one, at a width that makes it readable
+ *     rather than at whatever is left over. A layout that pushed it under a
+ *     fold, or hid it behind a toggle, would make it a thing nobody on the
+ *     team ever looks at — which is how an accessible view rots while
+ *     technically existing.
+ *
+ *   · **The canvas never carries a word.** Every label, figure and state in
+ *     this component is DOM text, at full contrast, on the surface's own
+ *     ground. §E6.2 and ADR-0038 exempt text from the press for the same
+ *     reason: a word rendered into a texture is a word no screen reader, no
+ *     translation and no print stylesheet can reach.
+ */
+
+.clay {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 1fr);
+  gap: var(--density-gutter);
+  align-items: start;
+}
+
+/* One column below the tablet breakpoint, and the *list* goes first. On a
+   narrow screen the model is the illustration and the list is the content —
+   the opposite of the assumption a "map with a sidebar" layout makes. */
+@media (max-width: 60rem) {
+  .clay {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .clay__stage {
+    order: 2;
+  }
+  .clay-peers {
+    order: 1;
+  }
+}
+
+.clay__stage {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  min-block-size: 18rem;
+  overflow: hidden;
+  background: var(--role-ground);
+  border: 1px solid var(--role-rule);
+}
+
+.clay__canvas {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  /* The canvas is a picture of the model and the list is its peer, so the
+     canvas is not in the tab order and is not announced. Removing it from the
+     accessibility tree is only honest because the list carries every entity it
+     draws — asserted by the shared digest, not by this comment. */
+  touch-action: none;
+}
+
+/* The 2D path (`FlatMap.tsx`). Positioned, because both MapLibre's canvas and
+   deck.gl's are absolutely placed inside it. */
+.clay__flat {
+  position: relative;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: hidden;
+}
+
+.clay__panel {
+  min-inline-size: 0;
+}
+
+.clay__caption {
+  padding-block-start: 0.4em;
+  color: var(--role-text-secondary);
+}
+
+.clay__season {
+  color: var(--role-text-primary);
+  font-variant-numeric: var(--numeric);
+}
+
+/*
+ * The two sentences under the list, and they are not decoration.
+ *
+ * One names what the model is a model *of*; the other says that its light and
+ * its rain are the tenant's own SLA calendar rather than an effect. §E3.3's
+ * rule is that a screen states what it knows — and a city that is scenery
+ * standing next to figures that are measurements has to say which is which.
+ */
+.clay__note {
+  color: var(--role-text-secondary);
+  max-inline-size: var(--measure);
+  padding-block-start: 0.4em;
+}
+
+/* ------------------------------------------------------------------ *
+ * The peer list
+ * ------------------------------------------------------------------ */
+
+.clay-peers {
+  min-inline-size: 0;
+}
+
+.clay-peers__title {
+  color: var(--role-text-secondary);
+  margin-block-end: 0.25em;
+}
+
+.clay-peers__hint {
+  color: var(--role-text-secondary);
+  max-inline-size: var(--measure);
+  margin-block-end: var(--density-gutter);
+}
+
+.clay-peers__empty {
+  color: var(--role-text-secondary);
+  max-inline-size: var(--measure);
+}
+
+.clay-peers__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-block-size: 32rem;
+  overflow-y: auto;
+}
+
+.clay-peers__row {
+  border-block-end: 1px solid var(--role-rule);
+}
+
+.clay-peers__cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label badge"
+    "state reports";
+  gap: 0.15em 0.6em;
+  inline-size: 100%;
+  min-block-size: var(--density-row);
+  padding-block: 0.35em;
+  align-items: center;
+  text-align: start;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* The link and span variants are the server render and the no-JavaScript
+   render. Same grid, so Tier D is the same list and not a different one. */
+a.clay-peers__cell,
+span.clay-peers__cell {
+  cursor: auto;
+  text-decoration: none;
+}
+
+a.clay-peers__cell {
+  cursor: pointer;
+}
+
+.clay-peers__label {
+  grid-area: label;
+  color: var(--role-text-primary);
+}
+
+.clay-peers__cell .severity-badge {
+  grid-area: badge;
+  justify-self: end;
+}
+
+.clay-peers__state {
+  grid-area: state;
+  color: var(--role-text-secondary);
+}
+
+.clay-peers__reports {
+  grid-area: reports;
+  justify-self: end;
+  color: var(--role-text-secondary);
+  font-variant-numeric: var(--numeric);
+}
+
+/* Selection is a rule and a weight, never a fill — a filled row would need a
+   colour, and the only colours in this product that mean anything are severity
+   glazes (§E9.4 rule 1). */
+.clay-peers__row[aria-current="true"] {
+  border-inline-start: 2px solid var(--role-text-signal);
+}
+
+.clay-peers__row[aria-current="true"] .clay-peers__label {
+  font-weight: 600;
+}
+
+.clay-peers__cell:focus-visible {
+  outline: 2px solid var(--role-text-signal);
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Print (§E19.7)
+ * ------------------------------------------------------------------ */
+
+@media print {
+  /* A canvas prints as a grey rectangle at best and a blank one at worst, and
+     an officer printing a ward does not need a photograph of a model — they
+     need the places and the figures. The list is the document. */
+  .clay__stage {
+    display: none;
+  }
+
+  .clay {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .clay-peers__list {
+    max-block-size: none;
+    overflow: visible;
+  }
+}
+
+/* Reduced motion never reaches this file as an animation switch, because
+   nothing here animates: the ladder answers it by not building a canvas at all
+   (`ladderRung()` returns "C"). The rule below exists so the list still gets
+   the space the canvas would have had. */
+@media (prefers-reduced-motion: reduce) {
+  .clay {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

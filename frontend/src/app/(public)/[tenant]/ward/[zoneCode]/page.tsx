@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notTranslatable, t } from "@/lib/i18n/strings";
 import { PlaceHeading, PublicShell } from "@/public/PublicShell";
 import { ZonePanel } from "@/public/ZonePanel";
-import { cityName, fetchPlace } from "@/server/public-data";
+import { cityNameFallback, fetchPlace } from "@/server/public-data";
 import { publicLocale } from "../../locale";
 
 /**
@@ -26,10 +26,17 @@ import { publicLocale } from "../../locale";
 type Params = Promise<{ tenant: string; zoneCode: string }>;
 type Search = Promise<Record<string, string | string[] | undefined>>;
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}): Promise<Metadata> {
   const { tenant, zoneCode } = await params;
-  const read = await fetchPlace(tenant, zoneCode);
-  const city = cityName(tenant);
+  const { locale } = await publicLocale(tenant, await searchParams);
+  const read = await fetchPlace(tenant, zoneCode, locale);
+  const city = read.ok ? read.value.cityName : cityNameFallback(tenant);
 
   if (!read.ok) {
     // A 404 must not be indexed, and it must not carry a title that reads like
@@ -55,13 +62,19 @@ export default async function Place({
   searchParams: Search;
 }) {
   const { tenant, zoneCode } = await params;
-  const { locale, strings } = await publicLocale(await searchParams);
-  const city = cityName(tenant);
-  const read = await fetchPlace(tenant, zoneCode);
+  const { locale, locales, strings } = await publicLocale(tenant, await searchParams);
+  const read = await fetchPlace(tenant, zoneCode, locale);
+  const city = read.ok ? read.value.cityName : cityNameFallback(tenant);
 
   if (!read.ok) {
     return (
-      <PublicShell city={city} citySlug={tenant} strings={strings} locale={locale}>
+      <PublicShell
+        city={city}
+        citySlug={tenant}
+        strings={strings}
+        locale={locale}
+        locales={locales}
+      >
         <h1 className="type-display-1">{t(strings, "place.notFound")}</h1>
         <p className="type-body">{t(strings, "place.notFoundWhy")}</p>
         <p className="type-caption">
@@ -79,6 +92,7 @@ export default async function Place({
       citySlug={tenant}
       strings={strings}
       locale={locale}
+      locales={locales}
       generatedAt={zone.generatedAt}
       notice={zone.notice}
     >
