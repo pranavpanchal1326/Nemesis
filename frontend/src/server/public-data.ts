@@ -8,6 +8,7 @@ import {
   type PublishedContractor,
   type PublishedZone,
 } from "@/public/figures";
+import { SEEDED_LOCALES, SOURCE_LOCALE } from "@/lib/i18n/bundles";
 import { upstream } from "@/server/upstream";
 
 /**
@@ -68,15 +69,18 @@ const MISSING = { ok: false } as const;
  */
 export async function fetchCity(
   slug: string,
+  locale: string,
 ): Promise<
   PublicRead<{
     readonly zones: readonly PublishedZone[];
     readonly notice: string;
+    readonly noticeLocale: string;
+    readonly cityName: string;
     readonly generatedAt: string;
   }>
 > {
   const { data, error } = await upstream.GET("/api/v1/public/{tenant_slug}/zones", {
-    params: { path: { tenant_slug: slug }, query: { limit: 200 } },
+    params: { path: { tenant_slug: slug }, query: { limit: 200, locale } },
     ...cache,
   });
   if (error !== undefined) return MISSING;
@@ -86,6 +90,8 @@ export async function fetchCity(
     value: {
       zones: data.zones.map(readZone),
       notice: data.notice,
+      noticeLocale: data.notice_locale,
+      cityName: data.tenant_name,
       generatedAt: data.generated_at,
     },
   };
@@ -105,10 +111,11 @@ export async function fetchCity(
 export async function fetchPlace(
   slug: string,
   zoneCode: string,
+  locale: string,
 ): Promise<PublicRead<PublishedZone>> {
   const { data, error } = await upstream.GET(
     "/api/v1/public/{tenant_slug}/ward/{zone_code}/summary",
-    { params: { path: { tenant_slug: slug, zone_code: zoneCode } }, ...cache },
+    { params: { path: { tenant_slug: slug, zone_code: zoneCode }, query: { locale } }, ...cache },
   );
   if (error !== undefined) return MISSING;
   return { ok: true, value: readZone(data) };
@@ -118,10 +125,14 @@ export async function fetchPlace(
 export async function fetchContractor(
   slug: string,
   contractorId: string,
+  locale: string,
 ): Promise<PublicRead<PublishedContractor>> {
   const { data, error } = await upstream.GET(
     "/api/v1/public/{tenant_slug}/contractor/{contractor_id}/profile",
-    { params: { path: { tenant_slug: slug, contractor_id: contractorId } }, ...cache },
+    {
+      params: { path: { tenant_slug: slug, contractor_id: contractorId }, query: { locale } },
+      ...cache,
+    },
   );
   if (error !== undefined) return MISSING;
   return { ok: true, value: readContractor(data) };
@@ -139,11 +150,12 @@ export async function fetchBudget(
   slug: string,
   zoneCode: string,
   fiscalYear: string,
+  locale: string,
 ): Promise<PublicRead<PublishedBudget>> {
   const { data, error } = await upstream.GET("/api/v1/public/{tenant_slug}/budget/{zone_code}", {
     params: {
       path: { tenant_slug: slug, zone_code: zoneCode },
-      query: { fiscal_year: fiscalYear },
+      query: { fiscal_year: fiscalYear, locale },
     },
     ...cache,
   });
@@ -152,16 +164,65 @@ export async function fetchBudget(
 }
 
 /**
- * The city's display name.
+ * Every locale this tenant declares — A2, A11.
  *
- * **It is not published, and this is the honest workaround.** The public
- * contract returns `tenant`, which is the slug, and nothing carries
- * `tenants.name`. So the heading says the slug, title-cased, until the contract
- * publishes the name — recorded as a defect rather than hidden behind a lookup
- * table of cities we happen to know about, which would be a second source of
- * truth for a fact the platform already holds.
+ * Phase 18's gate is *"a locale added in the control plane appears in the UI
+ * with no code change"*, and until F2 the language switch was a two-element
+ * array in `<PublicShell>` with a comment admitting it should not be. A locale
+ * added upstream therefore appeared in **no** switch, which made the gate
+ * unmeetable by construction rather than by oversight.
+ *
+ * **The cost, stated.** This is a second upstream read on a page that already
+ * makes one. It asks for a single zone because the envelope is what it wants
+ * and the zones are not, it is cached for the same five minutes as everything
+ * else on this surface, and Next de-duplicates it within a render. A page that
+ * offers a language nobody configured, or hides one somebody did, is worse than
+ * a cached request.
+ *
+ * A failed read returns the locales this application ships, so the switch
+ * degrades to what can certainly be rendered rather than disappearing — §E13's
+ * ladder, applied to a control.
  */
-export function cityName(slug: string): string {
+export async function fetchPublishedLocales(slug: string): Promise<readonly string[]> {
+  const { data, error } = await upstream.GET("/api/v1/public/{tenant_slug}/zones", {
+    params: { path: { tenant_slug: slug }, query: { limit: 1, locale: SOURCE_LOCALE } },
+    ...cache,
+  });
+  if (error !== undefined) return SEEDED_LOCALES;
+
+  // Read defensively even though the contract says this field is required.
+  // The generated types describe the API this build was generated against, and
+  // a frontend deployed ahead of its backend is an ordinary Tuesday — the
+  // additive field simply is not there yet. Trusting the type here turns that
+  // into a 500 on a public page, which is a worse answer than a switch with
+  // two entries in it.
+  // The cast is the whole point: it widens the *generated* type back to what a
+  // running server may actually have sent. Without it the compiler — reading
+  // the contract rather than the deployment — proves the check below is
+  // redundant, and the lint rule deletes the only thing standing between an
+  // older backend and a 500 on a public page.
+  const declared = (data as { locales?: readonly string[] }).locales;
+  return declared === undefined || declared.length === 0 ? SEEDED_LOCALES : declared;
+}
+
+/**
+ * The city's display name **when there is no published body to read it from**.
+ *
+ * C8 landed with ADR-0052: every public response now carries `tenant_name`, and
+ * every surface above that has one uses it. This remains for the two cases that
+ * have no response to read:
+ *
+ * * a fetch that failed or a tenant that does not publish — the page still
+ *   needs a heading to say *"this city does not publish"* under;
+ * * `/[tenant]/honesty`, which is generated from the blueprints at build time
+ *   and calls no API at all.
+ *
+ * Title-casing a slug is a guess, and it is confined here so it cannot be
+ * mistaken for the published fact. A lookup table of cities we happen to know
+ * about would still be the wrong answer, for the reason it always was: a second
+ * source of truth for something the platform holds.
+ */
+export function cityNameFallback(slug: string): string {
   return slug
     .split("-")
     .map((part) => (part === "" ? part : `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`))

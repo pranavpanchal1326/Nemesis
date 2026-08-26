@@ -348,12 +348,35 @@
             "title": "Generated At",
             "type": "string"
           },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          },
+          "locales": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locales",
+            "type": "array"
+          },
           "notice": {
             "title": "Notice",
             "type": "string"
           },
+          "notice_locale": {
+            "title": "Notice Locale",
+            "type": "string"
+          },
+          "notice_review": {
+            "title": "Notice Review",
+            "type": "string"
+          },
           "tenant": {
             "title": "Tenant",
+            "type": "string"
+          },
+          "tenant_name": {
+            "title": "Tenant Name",
             "type": "string"
           },
           "zone_code": {
@@ -362,6 +385,11 @@
           }
         },
         "required": [
+          "tenant_name",
+          "locale",
+          "locales",
+          "notice_locale",
+          "notice_review",
           "api_version",
           "generated_at",
           "tenant",
@@ -544,6 +572,10 @@
             "title": "Category",
             "type": "string"
           },
+          "category_name": {
+            "title": "Category Name",
+            "type": "string"
+          },
           "count": {
             "title": "Count",
             "type": "integer"
@@ -551,6 +583,7 @@
         },
         "required": [
           "category",
+          "category_name",
           "count"
         ],
         "title": "CategoryCountResponse",
@@ -1082,8 +1115,27 @@
             "title": "Generated At",
             "type": "string"
           },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          },
+          "locales": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locales",
+            "type": "array"
+          },
           "notice": {
             "title": "Notice",
+            "type": "string"
+          },
+          "notice_locale": {
+            "title": "Notice Locale",
+            "type": "string"
+          },
+          "notice_review": {
+            "title": "Notice Review",
             "type": "string"
           },
           "on_time_rate": {
@@ -1099,6 +1151,14 @@
           },
           "rating_disclaimer": {
             "title": "Rating Disclaimer",
+            "type": "string"
+          },
+          "rating_disclaimer_locale": {
+            "title": "Rating Disclaimer Locale",
+            "type": "string"
+          },
+          "rating_disclaimer_review": {
+            "title": "Rating Disclaimer Review",
             "type": "string"
           },
           "registration_id": {
@@ -1117,6 +1177,10 @@
             "title": "Tenant",
             "type": "string"
           },
+          "tenant_name": {
+            "title": "Tenant Name",
+            "type": "string"
+          },
           "work_orders_completed": {
             "title": "Work Orders Completed",
             "type": "integer"
@@ -1127,11 +1191,18 @@
           }
         },
         "required": [
+          "tenant_name",
+          "locale",
+          "locales",
+          "notice_locale",
+          "notice_review",
           "api_version",
           "generated_at",
           "tenant",
           "notice",
           "rating_disclaimer",
+          "rating_disclaimer_locale",
+          "rating_disclaimer_review",
           "contractor_id",
           "contractor_name",
           "registration_id",
@@ -2185,6 +2256,86 @@
         "title": "LabelResponse",
         "type": "object"
       },
+      "LocaleResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "locales": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locales",
+            "type": "array"
+          },
+          "primary_locale": {
+            "title": "Primary Locale",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "slug",
+          "primary_locale",
+          "locales",
+          "changed"
+        ],
+        "title": "LocaleResponse",
+        "type": "object"
+      },
+      "LocaleSpec": {
+        "additionalProperties": false,
+        "description": "The languages a tenant offers — A2, Phase 18's gate.\n\nDeliberately *not* a second way to write :class:`TenantSpec`. Provisioning\ndeclares a tenant's locales once, at birth, and until this schema existed\nthat was the only time they could be declared at all — so *\"a locale added\nin the control plane\"* had no door to be added through, and Phase 18's gate\nwas unmeetable rather than unmet.\n\nStating the whole list rather than an increment, because a PUT that states a\ndesired state is re-sendable and an ``{\"add\": \"kok\"}`` is not: two operators\nrunning the same deployment script would produce different lists.",
+        "properties": {
+          "justification": {
+            "maxLength": 1000,
+            "minLength": 8,
+            "title": "Justification",
+            "type": "string"
+          },
+          "locales": {
+            "items": {
+              "maxLength": 35,
+              "pattern": "^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|[0-9]{3}))?$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Locales",
+            "type": "array"
+          },
+          "primary_locale": {
+            "anyOf": [
+              {
+                "maxLength": 35,
+                "pattern": "^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|[0-9]{3}))?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Locale"
+          }
+        },
+        "required": [
+          "locales",
+          "justification"
+        ],
+        "title": "LocaleSpec",
+        "type": "object"
+      },
       "MilestoneStage": {
         "description": "§15.5's 30/40/30 gate strip.",
         "enum": [
@@ -3223,6 +3374,31 @@
         ],
         "title": "RealtimeShapedEventType",
         "type": "string"
+      },
+      "RegisteredContractorResponse": {
+        "description": "What was created, including the identifier it is addressed by.\n\n**``contractor_id`` was missing, and its absence had a consequence.**\n§26.4's public profile is keyed on the contractor's UUID\n(``/public/{slug}/contractor/{contractor_id}/profile``), and this handler —\nthe only way to create one — returned the registration id and the name. So\na caller could register a contractor over HTTP and then had no way, short of\nSQL, to learn the identifier needed to link to that contractor's own public\nrecord. §E18's contractor page was reachable only by somebody holding a\ndatabase session, which is the same defect shape as \"no endpoint maps a\ntenant slug to its id\".\n\nA POST that creates a resource returns its identity. Additive, so v1 is\nunaffected and the lock is re-taken by addition.",
+        "properties": {
+          "contractor_id": {
+            "format": "uuid",
+            "title": "Contractor Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "registration_id": {
+            "title": "Registration Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractor_id",
+          "registration_id",
+          "name"
+        ],
+        "title": "RegisteredContractorResponse",
+        "type": "object"
       },
       "ReloadNotice": {
         "description": "How long until this change is live everywhere.\n\nReturned on every activation and rollback because the honest answer is not\n\"immediately\". This process dropped its cache; other workers refresh on\ntheir own TTL. Stating it is what stops an operator concluding the button\ndid nothing.",
@@ -4838,12 +5014,35 @@
             "title": "Generated At",
             "type": "string"
           },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          },
+          "locales": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locales",
+            "type": "array"
+          },
           "notice": {
             "title": "Notice",
             "type": "string"
           },
+          "notice_locale": {
+            "title": "Notice Locale",
+            "type": "string"
+          },
+          "notice_review": {
+            "title": "Notice Review",
+            "type": "string"
+          },
           "tenant": {
             "title": "Tenant",
+            "type": "string"
+          },
+          "tenant_name": {
+            "title": "Tenant Name",
             "type": "string"
           },
           "zones": {
@@ -4855,6 +5054,11 @@
           }
         },
         "required": [
+          "tenant_name",
+          "locale",
+          "locales",
+          "notice_locale",
+          "notice_review",
           "api_version",
           "generated_at",
           "tenant",
@@ -4880,12 +5084,35 @@
             "title": "Generated At",
             "type": "string"
           },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          },
+          "locales": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locales",
+            "type": "array"
+          },
           "notice": {
             "title": "Notice",
             "type": "string"
           },
+          "notice_locale": {
+            "title": "Notice Locale",
+            "type": "string"
+          },
+          "notice_review": {
+            "title": "Notice Review",
+            "type": "string"
+          },
           "tenant": {
             "title": "Tenant",
+            "type": "string"
+          },
+          "tenant_name": {
+            "title": "Tenant Name",
             "type": "string"
           },
           "zones": {
@@ -4897,6 +5124,11 @@
           }
         },
         "required": [
+          "tenant_name",
+          "locale",
+          "locales",
+          "notice_locale",
+          "notice_review",
           "api_version",
           "generated_at",
           "tenant",
@@ -5038,6 +5270,17 @@
             "title": "Generated At",
             "type": "string"
           },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          },
+          "locales": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locales",
+            "type": "array"
+          },
           "median_resolution_hours": {
             "anyOf": [
               {
@@ -5051,6 +5294,14 @@
           },
           "notice": {
             "title": "Notice",
+            "type": "string"
+          },
+          "notice_locale": {
+            "title": "Notice Locale",
+            "type": "string"
+          },
+          "notice_review": {
+            "title": "Notice Review",
             "type": "string"
           },
           "open_reports": {
@@ -5084,6 +5335,10 @@
             "title": "Tenant",
             "type": "string"
           },
+          "tenant_name": {
+            "title": "Tenant Name",
+            "type": "string"
+          },
           "total_reports": {
             "title": "Total Reports",
             "type": "integer"
@@ -5102,6 +5357,11 @@
           }
         },
         "required": [
+          "tenant_name",
+          "locale",
+          "locales",
+          "notice_locale",
+          "notice_review",
           "api_version",
           "generated_at",
           "tenant",
@@ -5156,8 +5416,27 @@
             "title": "Generated At",
             "type": "string"
           },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          },
+          "locales": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locales",
+            "type": "array"
+          },
           "notice": {
             "title": "Notice",
+            "type": "string"
+          },
+          "notice_locale": {
+            "title": "Notice Locale",
+            "type": "string"
+          },
+          "notice_review": {
+            "title": "Notice Review",
             "type": "string"
           },
           "suppressed": {
@@ -5170,6 +5449,10 @@
           },
           "tenant": {
             "title": "Tenant",
+            "type": "string"
+          },
+          "tenant_name": {
+            "title": "Tenant Name",
             "type": "string"
           },
           "totals": {
@@ -5189,6 +5472,11 @@
           }
         },
         "required": [
+          "tenant_name",
+          "locale",
+          "locales",
+          "notice_locale",
+          "notice_review",
           "api_version",
           "generated_at",
           "tenant",
@@ -5845,11 +6133,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Register Contractor Api V1 Control Plane Contractors Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RegisteredContractorResponse"
                 }
               }
             },
@@ -8207,6 +8491,74 @@
         ]
       }
     },
+    "/api/v1/control-plane/tenants/{slug}/locales": {
+      "put": {
+        "description": "A2 — the door Phase 18's gate needs.\n\n> A locale added in the control plane appears in the UI with no code change.\n\n``ProvisioningRequest`` declares a tenant's locales once, at birth, and\nnothing could change them afterwards — so the sentence above had no\nmechanism behind its first clause, and adding a language to a running city\nmeant an ``UPDATE`` in ``psql``. See ``control_plane/locales.py`` for why\nthis is a route with a justification rather than a column write.\n\nA PUT rather than a POST: the body states the desired list, so re-sending it\nis safe and two operators running the same deployment script converge.",
+        "operationId": "set_tenant_locales_api_v1_control_plane_tenants__slug__locales_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Control-Plane-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Control-Plane-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocaleSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocaleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Control-plane token missing or wrong"
+          },
+          "404": {
+            "description": "No tenant by that name"
+          },
+          "422": {
+            "description": "The list is empty, or the primary locale is not in it"
+          }
+        },
+        "summary": "Declare the languages this tenant offers",
+        "tags": [
+          "control-plane"
+        ]
+      }
+    },
     "/api/v1/control-plane/tenants/{slug}/publication": {
       "put": {
         "description": "ADR-0046 — the one route that decides whether §26.4 answers for a tenant.\n\n``api/public_deps.py`` calls this *\"a disclosure decision no engineer is\nentitled to make on their behalf\"*, and until this route existed the only\nmechanism was an ``UPDATE`` in ``psql`` — the one route that leaves no record\nof who decided, when, or on what basis. The justification is required and the\nchange lands on the tenant's chain as an ``admin_action``.\n\nA PUT rather than a POST because the request states the desired state rather\nthan an increment, and re-sending it is safe. ``enabled: false`` retracts\nthrough the same door: a one-way door on a disclosure is not a control, it\nis a control that has been used once.",
@@ -9551,6 +9903,26 @@
               "title": "Fiscal Year",
               "type": "string"
             }
+          },
+          {
+            "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+              "title": "Locale"
+            }
           }
         ],
         "responses": {
@@ -9606,6 +9978,26 @@
               "title": "Tenant Slug",
               "type": "string"
             }
+          },
+          {
+            "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+              "title": "Locale"
+            }
           }
         ],
         "responses": {
@@ -9659,6 +10051,26 @@
               "pattern": "^[a-z0-9][a-z0-9-]*$",
               "title": "Tenant Slug",
               "type": "string"
+            }
+          },
+          {
+            "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+              "title": "Locale"
             }
           }
         ],
@@ -9727,6 +10139,26 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+              "title": "Locale"
             }
           }
         ],
@@ -10119,6 +10551,26 @@
               "title": "Tenant Slug",
               "type": "string"
             }
+          },
+          {
+            "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+              "title": "Locale"
+            }
           }
         ],
         "responses": {
@@ -10185,6 +10637,26 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices.",
+              "title": "Locale"
             }
           }
         ],

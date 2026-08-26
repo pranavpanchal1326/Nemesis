@@ -130,6 +130,7 @@ quietly overwritten, because §E3.3 applies to this file too:
 | §E9.4's severity `ink` read as usable on any ground | It is **4.17:1 on kraft-200**. Severity type sits on its own `tint` field, never directly on a table stock — which is what the four-channel model was always for, now stated and tested |
 | §E9.4 rule 2 read as belt-and-braces | `high` and `medium` are **1.4% apart in grayscale**. On the printouts §E19.7 says officers make, the shape channel is not a redundancy — it is the only channel that survives |
 | §E10.1 named **Kaana** as the Devanagari display face | Not in Fontshare's catalogue and not available under a free commercial licence, so it cannot ship. **Sarpanch** takes the role — ITF, OFL, Devanagari and Latin, squared and straight-lined and wide, which is what §E10.1 actually described |
+| §E10 and §E15 ask for **metric-matched fallbacks** and name four descriptors | Three of them — `ascent-override`, `descent-override`, `line-gap-override` — are copied from the real face and hold whichever installed face the browser resolves. `size-adjust` is a *ratio between two faces*, and the second face is whatever is on the reader's machine: Arial on the developer's Windows host, Liberation Sans in CI's container, neither on a locked-down municipal terminal. This repository cannot measure it, and a ratio computed for a face that did not resolve scales text **away** from the real face's width. So it is not declared, and the omission is argued in **ADR-0053** rather than papered over with a hard-coded metrics table that nothing in `nem check` could ever recompute |
 | §E10.2 wrote the tabular-figures rule as `font-variant-numeric: tabular-lining` | Not a CSS value. It computes to `normal`, so the first of §E10.2's *"two hard rules"* was doing nothing. The real declaration is `lining-nums tabular-nums` |
 | §E10.1 set the Devanagari leading rule as a flat **+0.15** | Measured, Devanagari ink runs to **1.289em** at `display-2`, against a Latin display leading of 1.04. The rule is a delta **and a floor**: `max(latin + 0.15, 1.35)`. Devanagari display type is genuinely looser than Latin display type — the script stacks matras above the shirorekha and below the baseline, and you cannot set it at 0.86 |
 | §E1 said the severity fields *"are already fields on the v1 complaint read schema"* | True of the Pydantic model, false of the **published contract**: the route returns a raw `Response` for its ETag path, so OpenAPI recorded `{}` and `api_contract_lock.json` protected nothing on the hottest read in the product. A generated client can only see what is published. Fixed in `complaints.py`; the lock now covers fifteen fields |
@@ -1178,7 +1179,26 @@ audit. A visual element not on this list, and not classifiable as chrome, is a d
 
 ## E28. Appendix C — REAL / SIMULATED / ROADMAP, frontend rows
 
-Reconciles into §44. Status is against commit `d0b533a` plus ADR-0043/0044/0045.
+Reconciles into §44. Status is against **M7** plus ADR-0043/0044/0045/0046.
+
+**What M7 changed here, and what it deliberately did not.** Thirteen console
+rows moved. Four moved to **REAL / REAL** and are finished — the review queue,
+the policy studio and simulation, control-plane admin, and the developer portal
+— because the backend behind all four already shipped and F4–F6 built the
+surfaces onto it. Eight moved to **component REAL, data ROADMAP**: they are
+screens an officer can open, built against generated types with fixture
+*values* behind the §E24 chip, and the two-column split is the whole reason
+that is sayable without lying. One did not move: **Command view SLA
+countdowns**, and its row says why.
+
+**The M5 rows in this table were wrong for the length of one milestone**, and that is
+recorded rather than quietly corrected. M5 shipped `/report`, the six-gate theatre, the
+third outcome and the dedup payoff, and every one of those rows still read **ROADMAP**
+here — because the progress table in `docs/FRONTEND-EXECUTION-PLAN.md` was updated and
+this one was not. It was found by M6 *generating* the published honesty page from this
+table and somebody reading the result. That is the argument for generating it: a
+hand-kept honesty table drifts in exactly the direction that flatters, and the drift is
+invisible until the table is put somewhere people look.
 
 **This table was wrong, and the way it was wrong is worth recording rather than
 quietly fixing.** The original had one status column, and it answered two
@@ -1200,35 +1220,38 @@ when both read REAL.
 | Frontend capability | Component | Data | Closes at |
 |---|---|---|---|
 | Design system, tokens, press, type stack | **REAL** — M1, M2 | — | done |
-| §E26 component contracts (badge, trail, before/after, flagged, suppression, receipt, ledger, banner, stamp) | **REAL** — M4; `<ClayScene>` outstanding | — | `<ClayScene>` at M8 |
+| §E26 component contracts (badge, trail, before/after, flagged, suppression, receipt, ledger, banner, stamp, clay scene) | **REAL** — M4, and `<ClayScene>` at M8/F8: renderer, adaptive quality, context-loss recovery and the accessible peer list, with the list asserted present and synchronised in every tier | — | done |
 | Generated client, BFF seam, WebSocket store, reconciliation rule | **REAL** — M3 | **REAL** | done |
-| Report capture → submit → receipt | **ROADMAP** — no capture surface exists; `/report` is a placeholder | **REAL** — `POST /complaints` ships, and the 202 carries the chain head (ADR-0044) | M5 |
-| Pipeline theatre — **six** gates, not five | **ROADMAP** | **REAL** — all six are drivable from a genuine event since ADR-0045 shaped `exif_check_completed` and `media_redacted` | M5 |
-| The third outcome (`pending_classification`, §24.2) | **ROADMAP** | **REAL** — `pipeline_stage_degraded` is shaped, and the status is on the published enum | M5 |
+| Report capture → submit → receipt | **REAL** — M5; `/report` opens in the viewfinder and the receipt carries the chain head | **REAL** — `POST /complaints` ships, and the 202 carries the chain head (ADR-0044) | M5 |
+| Pipeline theatre — **six** gates, not five | **REAL** — M5; every gate reads the log, and a gate the log will never reach says *held* rather than *waiting* | **REAL** — all six are drivable from a genuine event since ADR-0045 shaped `exif_check_completed` and `media_redacted` | M5 |
+| The third outcome (`pending_classification`, §24.2) | **REAL** — M5 | **REAL** — `pipeline_stage_degraded` is shaped, and the status is on the published enum | M5 |
 | Tracking ledger from the event log | **REAL** — `<EvidenceTrail>`, built against the published envelope | **REAL** — `GET /complaints/{id}/events` (ADR-0043) | screen at M5 |
-| Dedup payoff — *"you're the 4th person"* | **ROADMAP** | **REAL** — `cluster_match_found` carries `report_count` | M5 |
-| Severity breakdown panel | **ROADMAP** | **SIMULATED** — `severity_score`, `severity_breakdown`, `severity_policy_version` are on the published v1 schema and return null | M5/M7 · Phase 12 |
-| Cluster-merge hero, live | **ROADMAP** | **REAL** | M9 |
-| Live map, instanced pins | **ROADMAP** — the store is real, nothing renders a pin | **REAL** | M8 |
+| Dedup payoff — *"you're the 4th person"* | **REAL** — M5, from the real engine | **REAL** — `cluster_match_found` carries `report_count` | M5 |
+| Severity breakdown panel | **REAL** — M5, `why? →` opens the rubric | **SIMULATED** — `severity_score`, `severity_breakdown`, `severity_policy_version` are on the published v1 schema and return null | M5/M7 · Phase 12 |
+| Cluster-merge hero, live | **REAL** — M9/F14; Act 6 renders the merge from `cluster_match_found` and renders **nothing** until one arrives — no stamp, no rings, and the empty state is what the gate asserts. Watching a real one land is **unexercised on this checkout**: the committed test photograph scores below the classifier's own floor, so the report parks before deduplication and no merge is ever published. Recorded, not waived: [`docs/reports/story-merge-gate.md`](docs/reports/story-merge-gate.md) | **REAL** | done |
+| Live map, instanced pins | **REAL** — M8; one instanced draw call for the city and one for its pins, driven off the M3 bus, with a synchronised DOM list beside it in every tier. The **frame rate** clause of the Phase 19 gate is a recorded deviation, measured: [`docs/reports/clay-frame-rate.md`](docs/reports/clay-frame-rate.md) | **REAL** | done |
 | Temporal replay — endpoint and UI both | **ROADMAP** | **ROADMAP** — *no replay endpoint exists; an earlier draft of this document wrongly listed the backend as shipped* | Phase 21 |
 | "Your Ward's Month" film | **ROADMAP** | **ROADMAP** | Phase 21 |
-| Review queue | **ROADMAP** | **REAL** — `/api/v1/review` ships, media included | M7 |
-| Policy studio + simulation | **ROADMAP** | **REAL** — backtest, shadow mode, activation guardrail all ship | M7 |
-| Control-plane admin (taxonomy, zones, departments, calendars, locales) | **ROADMAP** | **REAL** | M7 |
-| Developer portal (keys, webhooks, usage, versions) | **ROADMAP** | **REAL** | M7 |
-| Public zone / ward / contractor / budget pages | **ROADMAP** | **REAL** — k-anonymous aggregates ship; *thin until Phases 14–17* | M6 |
-| Share cards (`satori` + `resvg`) | **ROADMAP** | **REAL** | M6 |
-| Role-based console shells | **ROADMAP** | **ROADMAP** | M7 · Phase 13 |
-| Command view SLA countdowns | **ROADMAP** | **ROADMAP** | M7 · Phase 12 |
-| Area view + underreporting signal | **ROADMAP** | **ROADMAP** | M7 · Phases 12, 23 |
-| Work order, assignment, contractor picker, budget entry | **ROADMAP** | **ROADMAP** | M7 · Phase 14 |
-| Milestone gate strip | **ROADMAP** | **SIMULATED** — fund release is a ledger event, never a disbursement (§15.5) | M7 · Phase 14 |
-| Closure gates + SSIM display | **ROADMAP** | **ROADMAP** | M7 · Phase 15 |
-| Money view | **ROADMAP** | **ROADMAP** | M7 · Phases 14, 23 |
-| Integrity room, case file, blacklist flow | **ROADMAP** | **ROADMAP** | M7 · Phase 17 |
+| Review queue | **REAL** — M7/F4; the queue, the item and the decision, with `<EvidenceTrail>` under officer filtering — the same component the citizen reads, differing by which rows are filtered and by nothing else | **REAL** — `/api/v1/review` ships, media included | done |
+| Policy studio + simulation | **REAL** — M7/F5; rules as documents with revision history and a structural diff, the backtest stated in reverted-decision terms, shadow mode and rollback. Activation is refused by the server and the disabled control says why (§E19.4) | **REAL** — backtest, shadow mode, activation guardrail all ship | done |
+| Control-plane admin (taxonomy, zones, departments, calendars, locales) | **REAL** — M7/F6; a tenant is provisioned, given an invented taxonomy and published through the UI, including ADR-0046's publication control with its justification as a first-class input | **REAL** | done |
+| Developer portal (keys, webhooks, usage, versions) | **REAL** — M7/F6; keys, webhooks with their delivery log and secret rotation, usage, and the version registry with its deprecation clock | **REAL** | done |
+| Public place pages (zone / ward) | **REAL** — M6 | **ROADMAP** — the aggregate is correct and can never match: `complaints.ward` is nullable and nothing writes it, so every figure is structurally zero | Phase 12 |
+| Public contractor and budget pages | **REAL** — M6 | **REAL** — k-anonymous aggregates ship; *thin until Phases 14–17* | done |
+| Suppression rendered rather than blanked | **REAL** — M6; a figure is a union the compiler will not let a surface print as a number | **REAL** | done |
+| Share cards (`satori` + `resvg`) | **REAL** — M6, on four self-hosted faces built from the shipped woff2 | **REAL** | done |
+| Role-based console shells | **REAL** — M7/F7; built against generated types with fixture *values*, behind the §E24 chip | **ROADMAP** | Phase 13 |
+| Command view SLA countdowns | **ROADMAP** — and deliberately so after M7/F7: the command view carries real queue figures, and a fixture countdown beside them would put measurements and decoration in one strip with nothing on screen saying which is which. The breach line renders its Phase 12 chip and the sentence it will say, instead of a number it cannot know | **ROADMAP** | Phase 12 |
+| Area view + underreporting signal | **REAL** — M7/F7, fixture values behind the chip | **ROADMAP** | Phase 12 · Phase 23 |
+| Work order, assignment, contractor picker, budget entry | **REAL** — M7/F7, fixture values behind the chip; the concentration warning and the live rate-card variance render | **ROADMAP** | Phase 14 |
+| Milestone gate strip | **REAL** — M7/F7, fixture values behind the chip | **SIMULATED** — fund release is a ledger event, never a disbursement (§15.5) | Phase 14 |
+| Closure gates + SSIM display | **REAL** — M7/F7; `Resolved` renders disabled with its unmet conditions attached and the ambiguous SSIM printed as the number it is | **ROADMAP** | Phase 15 |
+| Money view | **REAL** — M7/F7, fixture values behind the chip, including the *what citizens see* toggle | **ROADMAP** | Phase 14 · Phase 23 |
+| Integrity room, case file, blacklist flow | **REAL** — M7/F7; the blacklist action renders *n of m requirements met* rather than hiding itself (§E19.6) | **ROADMAP** | Phase 17 |
 | Contractor portal + appeals | **ROADMAP** | **ROADMAP** | Phase 17 |
-| Report builder + verifiable PDF | **ROADMAP** | **ROADMAP** | M7 · Phase 23 |
-| RTI draft generation | **ROADMAP** | **SIMULATED** — template auto-fill only, no filing integration (§16.1) | M6 |
+| Report builder + verifiable PDF | **REAL** — M7/F7, fixture values behind the chip, with its verification footer | **ROADMAP** | Phase 23 |
+| Honesty table published as data (§44 + §E28) | **REAL** — M6; generated from these two documents and drift-checked in CI, so a blueprint edit that is not republished is a build failure | **REAL** | done |
+| RTI draft generation | **ROADMAP** | **SIMULATED** — template auto-fill only, no filing integration (§16.1) | Phase 23 |
 | Accident-prone & traffic overlays | **ROADMAP** | **ROADMAP** | Phase 23 |
 | PWA, offline queue, outdoor mode | **ROADMAP** | **REAL** — server-side idempotency is what makes the queue safe, and it ships | M11 · Phase 22 |
 | Sound design | **ROADMAP** — the library is unauthored | — | M10 |

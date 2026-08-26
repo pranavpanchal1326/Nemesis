@@ -59,6 +59,21 @@ const EXPECTED: readonly Expectation[] = [
     why: "unscored is a value, not an omission",
     code: "TS2741",
   },
+  {
+    file: "public-flag-without-disclaimer.tsx",
+    why: "§22.2 — the same contract as M4's, exercised on the public composition",
+    code: "TS2741",
+  },
+  {
+    file: "public-flag-without-response.tsx",
+    why: "§E18, §16.4 — a flag and its response ship in the same frame",
+    code: "TS2741",
+  },
+  {
+    file: "published-figure-as-child.tsx",
+    why: "ADR-0021 — a suppressed figure cannot be interpolated as a number",
+    code: "TS2322",
+  },
 ];
 
 function compile(): string {

@@ -1,0 +1,246 @@
+/*
+ * §E19.1 — the review queue.
+ *
+ * No colour, duration or type size is declared here; every one arrives as a
+ * custom property generated from src/design/tokens.json.
+ *
+ * The split is 60/40 by §E19.1, and it is a grid rather than two floats so the
+ * queue keeps its own scroll: a reviewer reading a long evidence trail on the
+ * right must not lose their place in the list on the left. On a narrow viewport
+ * the two stack, list first — an officer on a laptop in a meeting still needs
+ * the queue before they need the item.
+ */
+
+.review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--density-gutter);
+  min-block-size: 0;
+}
+
+@media (min-width: 60rem) {
+  .review {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+.review__list-pane,
+.review__item-pane {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 2);
+  min-block-size: 0;
+}
+
+.review__filter {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 4);
+}
+
+.review__filter-field {
+  background: none;
+  border: 1px solid var(--role-rule);
+  color: var(--color-chalk);
+  padding: calc(var(--density-gutter) / 2);
+  inline-size: 100%;
+}
+
+.review__sort {
+  color: var(--role-text-secondary);
+}
+
+.review__sort-why,
+.review__count,
+.review__empty {
+  color: var(--role-text-secondary);
+}
+
+.review__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--role-rule);
+  overflow-y: auto;
+  max-block-size: 60vh;
+}
+
+/*
+ * The 36 px row §E19.1 asks for, at `dense`. The number is not written here:
+ * `--density-row` is 48 / 40 / 36 across the three modes, which is what makes
+ * "dense rows" a property of the mode rather than of this screen.
+ */
+.review__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content max-content max-content;
+  align-items: center;
+  gap: var(--density-gutter);
+  inline-size: 100%;
+  min-block-size: var(--density-row);
+  padding-inline: var(--density-gutter);
+  background: none;
+  border: 0;
+  border-block-end: 1px solid var(--role-rule);
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+/*
+ * Hover and selection raise the ink; neither lights the field.
+ *
+ * The first version painted both with `mitti-500` and `axe` measured the row at
+ * **1.51:1** — the row an officer reads first, in the queue that is the
+ * console's most-used screen. `mitti-500` is a mid brown; §E9.3 is explicit
+ * that the light table is backlit ink on a dark room, not a tinted field, and
+ * this is that mistake reappearing at the scale of one CSS rule.
+ *
+ * Selection is marked three ways for the three situations this ships into: the
+ * inline edge for the grayscale monitor and the printed page, the brighter ink
+ * for everyone else, and `aria-selected` for the screen reader.
+ */
+.review__row:hover {
+  color: var(--color-chalk);
+  box-shadow: inset 2px 0 0 0 var(--role-rule);
+}
+
+.review__row[aria-selected="true"] {
+  box-shadow: inset 2px 0 0 0 var(--color-riso-aqua);
+  color: var(--color-chalk);
+}
+
+/* The secondary columns come up with the row rather than staying set back —
+   otherwise the selected row is half bright and half dim, which reads as a
+   partially-loaded row. */
+.review__row[aria-selected="true"] .review__row-age,
+.review__row[aria-selected="true"] .review__row-priority {
+  color: var(--color-bone-200);
+}
+
+.review__row-age,
+.review__row-priority {
+  color: var(--role-text-secondary);
+}
+
+.review__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--density-gutter);
+  border: 1px solid var(--role-rule);
+  padding: var(--density-gutter);
+  overflow-y: auto;
+}
+
+.review__facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: calc(var(--density-gutter) / 3) var(--density-gutter);
+  margin: 0;
+}
+
+.review__fact {
+  display: contents;
+}
+
+.review__fact dt {
+  color: var(--role-text-secondary);
+}
+
+.review__fact dd {
+  margin: 0;
+}
+
+.review__thumbs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--density-gutter);
+}
+
+.review__thumb {
+  display: block;
+  border: 1px solid var(--role-rule);
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+.review__toggle,
+.review__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5ch;
+  background: none;
+  border: 1px solid var(--role-rule);
+  color: var(--role-text-primary);
+  padding-inline: var(--density-gutter);
+  min-block-size: calc(var(--density-row) * 0.8);
+  cursor: pointer;
+}
+
+.review__action[disabled],
+.review__decision fieldset[disabled] .review__action {
+  /* Visibly disabled *and* legible — §E19.4's argument about closure applies to
+     every disabled control in this product: a rule you can read is a rule you
+     learn, and a control greyed to illegibility teaches nothing. */
+  color: var(--role-text-secondary);
+  cursor: not-allowed;
+}
+
+.review__decision fieldset {
+  border: 1px solid var(--role-rule);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 2);
+  padding: var(--density-gutter);
+}
+
+.review__rationale {
+  background: none;
+  border: 1px solid var(--role-rule);
+  color: var(--color-chalk);
+  padding: calc(var(--density-gutter) / 2);
+  inline-size: 100%;
+  font-family: var(--font-interface);
+}
+
+.review__actions {
+  display: flex;
+  gap: var(--density-gutter);
+  flex-wrap: wrap;
+}
+
+.review__decision-state {
+  color: var(--role-text-secondary);
+}
+
+@media print {
+  /* On paper the split is meaningless — there is no scrolling and no
+     selection. One column, list then item, in reading order. */
+  .review {
+    display: block;
+  }
+
+  .review__filter,
+  .review__toggle,
+  .review__actions {
+    display: none;
+  }
+
+  .review__list {
+    max-block-size: none;
+    overflow: visible;
+    border-color: var(--color-riso-black);
+  }
+
+  .review__row {
+    border-block-end: 1px solid var(--color-riso-black);
+    break-inside: avoid;
+  }
+
+  .review__item {
+    border-color: var(--color-riso-black);
+    break-before: page;
+  }
+}

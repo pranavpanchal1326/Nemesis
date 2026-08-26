@@ -319,6 +319,269 @@ def build_og_fonts() -> int:
     return 0
 
 
+
+
+# --------------------------------------------------------------------------
+# Metric-matched fallbacks — A1, §E10, §E15
+# --------------------------------------------------------------------------
+
+#: Marks the generated fallback section of ``fonts.css``. Everything between
+#: these two lines is rewritten by :func:`build_fallback_faces`; everything
+#: outside them is left alone, which is what lets ``--fallbacks`` run on its
+#: own, offline, without re-fetching 51 files.
+FALLBACK_BEGIN = "/* --- metric-matched fallbacks (A1) - generated; do not edit --- */"
+FALLBACK_END = "/* --- end metric-matched fallbacks --- */"
+
+#: Suffix appended to a real family to name its adjusted fallback. The same
+#: string is asserted against ``src/design/tokens.json`` by :func:`verify`, so
+#: the stack and the generated face cannot drift apart.
+FALLBACK_SUFFIX = " Fallback"
+
+
+@dataclass(frozen=True)
+class FallbackFace:
+    """One adjusted ``@font-face`` standing in for one real face (§E10).
+
+    **What is overridden, and what deliberately is not.** This face declares
+    ``ascent-override``, ``descent-override`` and ``line-gap-override``, and it
+    does **not** declare ``size-adjust``. That is a decision with an argument,
+    recorded in ADR-0053 and repeated here because the omission is exactly the
+    kind of thing a later reader will "fix".
+
+    The three that are declared are computed **entirely from the real face**
+    and describe the line box in em units, so they hold whichever local face
+    the browser actually resolves - Arial or Liberation Sans, Georgia or
+    Gelasio, Nirmala UI or Lohit Devanagari. ``size-adjust`` is a *ratio*
+    between two faces, so declaring it needs the metrics of the face on the
+    reader's machine, which this script cannot measure and which differs
+    between a Windows host and CI's Linux container. A ratio computed against a
+    face that did not resolve is worse than no ratio: it scales text away from
+    the real face's width rather than towards it.
+
+    Line-box height is also the term that actually moves a paragraph. A width
+    mismatch re-wraps a line; an ascent mismatch moves every line below it.
+    """
+
+    #: The ``--font-*`` role this stands in for.
+    role: str
+    #: The real family whose metrics are copied.
+    family: str
+    #: The woff2 in ``public/fonts`` the metrics are read from.
+    source: str
+    #: Installed faces to stand in, in order. Any of them is metrically
+    #: normalised by the overrides, so this list is about *availability*
+    #: (Windows, macOS, the Playwright container) and not about metrics.
+    local: tuple[str, ...]
+
+
+FALLBACK_FACES: tuple[FallbackFace, ...] = (
+    FallbackFace(
+        role="narrative",
+        family="Gambarino",
+        source="gambarino-regular.woff2",
+        local=("Georgia", "Gelasio", "Liberation Serif", "Times New Roman", "DejaVu Serif"),
+    ),
+    FallbackFace(
+        role="institutional",
+        family="Panchang",
+        source="panchang-variable.woff2",
+        local=("Haettenschweiler", "Impact", "Liberation Sans Narrow", "DejaVu Sans Condensed"),
+    ),
+    FallbackFace(
+        role="interface",
+        family="Switzer",
+        source="switzer-variable.woff2",
+        local=("Segoe UI", "Helvetica Neue", "Arial", "Liberation Sans", "DejaVu Sans"),
+    ),
+    FallbackFace(
+        role="data",
+        family="JetBrains Mono",
+        source="jetbrains-mono-400-latin.woff2",
+        local=("Consolas", "SF Mono", "Liberation Mono", "DejaVu Sans Mono", "Courier New"),
+    ),
+    FallbackFace(
+        role="document",
+        family="Courier Prime",
+        source="courier-prime-400-latin.woff2",
+        local=("Courier New", "Liberation Mono", "Nimbus Mono PS", "DejaVu Sans Mono"),
+    ),
+    FallbackFace(
+        role="hand",
+        family="Kalam",
+        source="kalam-400-latin.woff2",
+        local=("Segoe Script", "Bradley Hand", "Comic Sans MS", "DejaVu Sans"),
+    ),
+    FallbackFace(
+        role="deva-display",
+        family="Sarpanch",
+        source="sarpanch-400-devanagari.woff2",
+        local=("Nirmala UI", "Kohinoor Devanagari", "Noto Sans Devanagari", "Lohit Devanagari"),
+    ),
+    FallbackFace(
+        role="deva-narrative",
+        family="Tiro Devanagari Marathi",
+        source="tiro-devanagari-marathi-400-devanagari.woff2",
+        local=("Noto Serif Devanagari", "Nirmala UI", "Kohinoor Devanagari", "Lohit Devanagari"),
+    ),
+    FallbackFace(
+        role="deva-interface",
+        family="Noto Sans Devanagari",
+        source="noto-sans-devanagari-400-devanagari.woff2",
+        local=("Nirmala UI", "Kohinoor Devanagari", "Lohit Devanagari"),
+    ),
+    FallbackFace(
+        role="deva-celebration",
+        family="Modak",
+        source="modak-400-devanagari.woff2",
+        local=("Nirmala UI", "Kohinoor Devanagari", "Lohit Devanagari"),
+    ),
+)
+
+#: OS/2 fsSelection bit 7, USE_TYPO_METRICS. When it is set, the typographic
+#: metrics are the ones the renderer is being told to use; when it is clear,
+#: the near-universal behaviour is hhea. Both branches are implemented rather
+#: than assuming the flag, because these ten faces do not agree about it and a
+#: face whose hhea and typo metrics differ would otherwise be adjusted to a
+#: line box nothing renders.
+USE_TYPO_METRICS = 1 << 7
+
+
+def read_metrics(path: Path) -> tuple[float, float, float]:
+    """Ascent, descent and line gap of a real face, as fractions of the em."""
+    from fontTools.ttLib import TTFont
+
+    font = TTFont(path, lazy=True)
+    upm = font["head"].unitsPerEm
+    os2 = font["OS/2"]
+    if os2.fsSelection & USE_TYPO_METRICS:
+        ascent, descent, gap = os2.sTypoAscender, os2.sTypoDescender, os2.sTypoLineGap
+    else:
+        hhea = font["hhea"]
+        ascent, descent, gap = hhea.ascent, hhea.descent, hhea.lineGap
+    font.close()
+    # CSS states all three as positive percentages of the em; `descent` is
+    # negative in every font table that carries it.
+    return ascent / upm, abs(descent) / upm, gap / upm
+
+
+def _percent(value: float) -> str:
+    return f"{round(value * 100, 2):g}%"
+
+
+def _fallback_block(face: "FallbackFace", metrics: tuple[float, float, float]) -> list[str]:
+    """The CSS for one adjusted face, as lines.
+
+    One function, two callers: the generator writes it and the verifier
+    recomputes it and asserts the file still says the same thing. A generated
+    artefact checked only for *presence* drifts the first time a face is
+    re-subset, which is precisely the hand-tuned override A1 refuses.
+    """
+    ascent, descent, gap = metrics
+    local = ", ".join(f'local("{name}")' for name in face.local)
+    return [
+        "@font-face {",
+        f'  font-family: "{face.family}{FALLBACK_SUFFIX}";',
+        f"  src: {local};",
+        f"  ascent-override: {_percent(ascent)};",
+        f"  descent-override: {_percent(descent)};",
+        f"  line-gap-override: {_percent(gap)};",
+        "}",
+    ]
+
+
+def build_fallback_faces() -> int:
+    """Rewrite the fallback section of ``fonts.css`` from the woff2 on disk.
+
+    No network: the real faces are committed (see the ``web-fonts`` docstring),
+    so these numbers are derived from the same bytes the browser will load. Run
+    on its own with ``--fallbacks``, and at the end of every fetch.
+    """
+    if not CSS_OUT.exists():
+        print("fonts: not fetched - run 'nem web-fonts'", file=sys.stderr)
+        return 1
+
+    lines = [
+        FALLBACK_BEGIN,
+        "/* A1 - §E10 metric-matched fallbacks. Ascent, descent and line gap are",
+        "   copied from the real face, so a fallback occupies the same line box and",
+        "   the swap does not move the paragraph below it. size-adjust is",
+        "   deliberately absent - ADR-0053 states why. */",
+        "",
+    ]
+    for face in FALLBACK_FACES:
+        source = OUT_DIR / face.source
+        if not source.exists():
+            print(f"fonts: {face.source} is not on disk - run 'nem web-fonts'", file=sys.stderr)
+            return 1
+        ascent, descent, gap = read_metrics(source)
+        lines += [*_fallback_block(face, (ascent, descent, gap)), ""]
+        print(
+            f"  {face.family}{FALLBACK_SUFFIX}  "
+            f"asc {_percent(ascent)} / desc {_percent(descent)} / gap {_percent(gap)}"
+        )
+    lines.append(FALLBACK_END)
+
+    css = CSS_OUT.read_text(encoding="utf-8")
+    generated = "\n".join(lines)
+    if FALLBACK_BEGIN in css:
+        start = css.index(FALLBACK_BEGIN)
+        end = css.index(FALLBACK_END) + len(FALLBACK_END)
+        css = css[:start] + generated + css[end:]
+    else:
+        css = css.rstrip("\n") + "\n\n" + generated + "\n"
+    CSS_OUT.write_text(css, encoding="utf-8", newline="\n")
+
+    _prettier(CSS_OUT)
+    print(f"  {len(FALLBACK_FACES)} metric-matched fallback faces")
+    return 0
+
+
+def stacks() -> dict[str, list[str]]:
+    """The ``--font-*`` stacks, read from the token source rather than restated."""
+    tokens = json.loads((ROOT / "src" / "design" / "tokens.json").read_text(encoding="utf-8"))
+    return {
+        role: list(definition["stack"])
+        for role, definition in tokens["type"]["family"].items()
+        if isinstance(definition, dict)
+    }
+
+
+def verify_fallbacks(css: str) -> list[str]:
+    """Every adjusted face is declared, and every stack names it in the right place.
+
+    The second half is the one that matters. A generated ``@font-face`` that
+    nothing references is a face the browser never uses, and it would fail
+    silently: the page would render in the unadjusted system face exactly as it
+    does today, and the CSS would look like the work had been done.
+    """
+    problems: list[str] = []
+    family_stacks = stacks()
+    # Prettier reflows a long `src:` list across several lines, so the file is
+    # compared with whitespace collapsed rather than line by line. The claim
+    # being checked is the declaration, not its wrapping.
+    flat = re.sub(r"\s+", " ", css)
+    for face in FALLBACK_FACES:
+        name = f"{face.family}{FALLBACK_SUFFIX}"
+        source = OUT_DIR / face.source
+        if not source.exists():
+            problems.append(f"fonts: {face.source} is not on disk")
+        else:
+            expected = re.sub(r"\s+", " ", " ".join(_fallback_block(face, read_metrics(source))))
+            if expected not in flat:
+                problems.append(
+                    f"fonts: the adjusted face for {face.family} does not match its metrics "
+                    f"- run 'nem web-fonts --fallbacks'"
+                )
+        stack = family_stacks.get(face.role, [])
+        if name not in stack:
+            problems.append(f"fonts: --font-{face.role} does not list {name!r}")
+        elif stack.index(name) != stack.index(face.family) + 1:
+            problems.append(
+                f"fonts: {name!r} must sit directly after {face.family!r} in --font-{face.role}"
+            )
+    return problems
+
+
 def _get(url: str, *, ua: str | None = None) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": ua} if ua else {})
     with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
@@ -475,19 +738,25 @@ def write_css(blocks: list[dict[str, object]]) -> None:
 
     CSS_OUT.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
-    # Formatted by the same tool that checks it. Reimplementing Prettier's
-    # line-wrapping in Python so `format:check` stays green would be a second
-    # formatter to keep in step — the exact shape of drift this repository
-    # refuses everywhere else.
+    _prettier(CSS_OUT)
+    print(f"  wrote {CSS_OUT.relative_to(ROOT)}")
+
+
+def _prettier(path: Path) -> None:
+    """Format generated CSS with the same tool that checks it.
+
+    Reimplementing Prettier's line-wrapping in Python so `format:check` stays
+    green would be a second formatter to keep in step — the exact shape of
+    drift this repository refuses everywhere else.
+    """
     npx = shutil.which("npx")
     if npx is not None:
         subprocess.run(  # noqa: S603
-            [npx, "prettier", "--write", str(CSS_OUT)],
+            [npx, "prettier", "--write", str(path)],
             cwd=ROOT,
             check=False,
             capture_output=True,
         )
-    print(f"  wrote {CSS_OUT.relative_to(ROOT)}")
 
 
 def write_licences() -> None:
@@ -539,11 +808,15 @@ def verify() -> int:
     declared = set(re.findall(r'font-family: "([^"]+)"', css))
     absent = families - declared
 
-    if missing or absent:
+    fallback_problems = verify_fallbacks(css)
+
+    if missing or absent or fallback_problems:
         for name in missing:
             print(f"fonts: declared but not on disk: {name}", file=sys.stderr)
         for family in sorted(absent):
             print(f"fonts: face never fetched: {family}", file=sys.stderr)
+        for problem in fallback_problems:
+            print(problem, file=sys.stderr)
         return 1
     files = set(re.findall(r'url\("/fonts/([^"]+)"\)', css))
 
@@ -558,7 +831,8 @@ def verify() -> int:
 
     print(
         f"fonts: {len(declared)} families, {len(files)} files, "
-        f"{len(OG_FACES)} share-card faces, all present"
+        f"{len(OG_FACES)} share-card faces, "
+        f"{len(FALLBACK_FACES)} metric-matched fallbacks, all present"
     )
     return 0
 
@@ -571,12 +845,19 @@ def main() -> int:
         action="store_true",
         help="rebuild only the §E18 share-card faces, from the WOFF2 already on disk. No network.",
     )
+    parser.add_argument(
+        "--fallbacks",
+        action="store_true",
+        help="recompute only the A1 metric-matched fallback faces, from the WOFF2 on disk. No network.",
+    )
     args = parser.parse_args()
 
     if args.verify:
         return verify()
     if args.og:
         return build_og_fonts()
+    if args.fallbacks:
+        return build_fallback_faces()
 
     if shutil.which(sys.executable) is None:  # pragma: no cover
         return 1
@@ -597,6 +878,10 @@ def main() -> int:
 
     write_css(blocks)
     write_licences()
+    # Order matters: the fallback pass edits the file write_css just wrote, and
+    # reads metrics from the woff2 this run has only just put on disk.
+    if build_fallback_faces() != 0:
+        return 1
     return build_og_fonts()
 
 

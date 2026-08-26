@@ -619,3 +619,30 @@
   gap: 1.5rem;
   align-items: start;
 }
+
+/* `<DensityControl>` — A10, §E19.
+
+   Logical properties only, like every other rule in this repository: the
+   console is one of the surfaces A11's RTL assertion mirrors, and a physical
+   `margin-left` here would be the one place the frame did not turn. */
+.density {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.density__option {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  color: var(--role-text-secondary);
+  cursor: pointer;
+}
+
+.density__option:has(input:checked) {
+  color: var(--role-text-primary);
+}

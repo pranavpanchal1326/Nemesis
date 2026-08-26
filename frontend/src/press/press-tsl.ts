@@ -10,7 +10,7 @@
  * Unlike the DOM implementation (`press-filter.ts`), this one runs §E6.1's six
  * stages in their real order, per pixel, per ink:
  *
- *   1 · ink separation   how much of this ink the pixel is missing
+ *   1 · ink separation   how much absorbance this ink must contribute
  *   2 · halftone         a rotated dot grid at the plate's classic angle,
  *                        thresholded against the separation density
  *   3 · misregistration  the plate is sampled at an offset, re-jittered at
@@ -39,6 +39,8 @@ import {
   float,
   fract,
   length,
+  log,
+  max,
   mix,
   mx_noise_float,
   oneMinus,
@@ -53,6 +55,10 @@ import {
 import type { Node } from "three/webgpu";
 
 import { jitterAt, type PressPlan } from "./press-model";
+
+/** A black pixel absorbs infinitely. Floored, so the separation stays finite
+ *  where the scene is genuinely black — which is most of the sky. */
+const MIN_CHANNEL = 0.002;
 
 type F = Node<"float">;
 type V2 = Node<"vec2">;
@@ -139,9 +145,20 @@ export function createPressPass(
     const sampled = source.sample(source.uv.add(offset.div(source.resolution)));
 
     // Stage 1 — the density this ink must carry at this pixel.
+    //
+    // Absorbance, not projection. `needed` is how much light the sheet must
+    // still lose to reach the photographed colour, per channel, and `separation`
+    // is this plate's row of the least-squares solve `press-model.ts` performed
+    // once when it built the plan. One dot product, no matrix maths, and the
+    // same numbers the plan hands to every other implementation.
     const ink = vec3(plate.linear[0], plate.linear[1], plate.linear[2]);
-    const magnitude = plate.linear.reduce((acc, c) => acc + c * c, 0) || 1;
-    const density = clamp(oneMinus(dot(sampled.rgb, ink).div(float(magnitude))), 0, 1);
+    const needed = vec3(
+      Math.log(Math.max(stockLinear[0], MIN_CHANNEL)),
+      Math.log(Math.max(stockLinear[1], MIN_CHANNEL)),
+      Math.log(Math.max(stockLinear[2], MIN_CHANNEL)),
+    ).sub(log(max(sampled.rgb, vec3(MIN_CHANNEL, MIN_CHANNEL, MIN_CHANNEL))));
+    const row = vec3(plate.separation[0], plate.separation[1], plate.separation[2]);
+    const density = clamp(dot(row, needed), 0, 1);
 
     // Stage 4 — risograph ink is uneven, roller-streaked, and denser at the
     // leading edge of a pass. One low-frequency field per plate, shifted per

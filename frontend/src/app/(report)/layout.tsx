@@ -1,4 +1,5 @@
 import { CitizenShell } from "@/citizen/CitizenShell";
+import { directionOf } from "@/lib/i18n/direction";
 import { loadStrings, negotiateLocale, SEEDED_LOCALES } from "@/server/strings";
 import { headers } from "next/headers";
 
@@ -26,7 +27,10 @@ export default async function ReportLayout({ children }: { children: React.React
   const strings = await loadStrings("common", locale);
 
   return (
-    <div data-surface="report" lang={locale}>
+    // `dir` beside `lang`, derived from it (A11). §E22's logical properties
+    // mirror the whole one-thumb layout the moment this attribute changes, and
+    // until F2 nothing in the application ever set it.
+    <div data-surface="report" lang={locale} dir={directionOf(locale)}>
       <CitizenShell strings={strings}>{children}</CitizenShell>
     </div>
   );

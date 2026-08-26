@@ -40,34 +40,56 @@ Blueprint §27.1 already budgets classification as "CPU-bound at demo scale"
 
 ## Memory budget
 
+<!-- budget:usable-vm-mb = 7587 -->
+<!-- budget:min-headroom-mb = 768 -->
+
+**This table is executed, not decorative.** `scripts/check_memory_budget.py`
+reads every `mem_limit` in `docker-compose.yml`, asserts each one has a row here
+with the same number, re-adds both subtotals, and fails when the totals no
+longer fit the VM. It runs in `nem check` and in CI.
+
+It is checked because it drifted. `relay` and `webhooks` were added to the
+compose file with 192 MB each and never added here, so the documented total sat
+384 MB below the declared one — and with the observability profile up the stack
+declared **7712 MB against a 7587 MB VM**. The first process the kernel reaches
+for in that condition is `worker-ml`'s fork child at model load, and its symptom
+is inference failing for reasons that look like a model problem. ADR-0051 has
+the argument; the two comment markers above are the contract this check reads.
+
+**7587 MB, not 8192.** The `.wslconfig` cap below is what WSL2 is *asked* for;
+`docker info` reports 7956238336 bytes of it as usable, the difference being the
+guest kernel and its own structures. Budgeting against the number that was asked
+for rather than the number that arrived is how a budget passes review and fails
+at runtime.
+
 | Process | Limit | Note |
 |---|---|---|
 | `postgres` | 1536 MB | `shared_buffers=384MB`, `maintenance_work_mem=192MB` for HNSW builds |
 | `redis` | 256 MB | `maxmemory 192mb`, `noeviction` — silently evicting queue state is unacceptable |
-| `api` | 640 MB | |
-| `worker-io` | 640 MB | concurrency 4, never imports torch |
-| `worker-ml` | 3072 MB | concurrency **1** — the only process holding model weights |
-| `beat` | 192 MB | |
-| **Application subtotal** | **6336 MB** | started by `nem up` |
+| `api` | 640 MB | measured ~106 MB idle; the headroom is for request bursts and `satori` rasterising a share card |
+| `worker-io` | 640 MB | concurrency 4, never imports torch. Measured ~316 MB under load |
+| `worker-ml` | 3072 MB | concurrency **1** — the only process holding model weights. Measured ~2130 MB with CLIP resident. **Not trimmed**: this is the process whose OOM this budget exists to prevent, and squeezing it is squeezing the symptom |
+| `beat` | 128 MB | measured ~77 MB — a scheduler, not a worker |
+| `relay` | 128 MB | measured ~66 MB. Absent from this table until ADR-0051 |
+| `webhooks` | 128 MB | measured ~74 MB. Absent from this table until ADR-0051 |
+| **Application subtotal** | **6528 MB** | started by `nem up`; leaves 1059 MB against the 768 MB floor above |
 
-### Observability profile (`nem obs`) — opt-in, +992 MB
+### Observability profile (`nem obs`) — opt-in, +736 MB
 
 Not started by default, and the reason is this arithmetic rather than taste
-(ADR-0007). Adding it lands the stack at **7328 MB** inside the 8192 MB cap,
-leaving under 900 MB of headroom on a machine also running a browser, an editor,
-and host-side Ollama. `worker-ml` is the largest consumer and the first thing
-the OOM killer reaches for — and its symptom is inference failing mid-pipeline
-for reasons that look like a model problem.
+(ADR-0007). Every limit below was cut in ADR-0051 so that both profiles fit the
+VM at all; the profile is a debugging tool a developer turns on knowingly, so it
+is held to *fitting* rather than to the application set's headroom floor.
 
 | Process | Limit | Note |
 |---|---|---|
-| `prometheus` | 256 MB | 7-day retention, 15s scrape |
-| `grafana` | 256 MB | provisioned dashboards and datasources, read-only |
-| `tempo` | 256 MB | 24h trace retention — traces are for debugging *now*; the durable record is the event log (§9.1) |
-| `otel-collector` | 128 MB | `memory_limiter` sheds spans under pressure rather than being OOM-killed |
-| `alertmanager` | 96 MB | |
-| **Observability subtotal** | **992 MB** | |
-| **WSL2 total, both profiles** | **7328 MB** | inside the 8192 MB cap, ~860 MB headroom |
+| `prometheus` | 192 MB | 7-day retention, 15s scrape |
+| `grafana` | 192 MB | provisioned dashboards and datasources, read-only |
+| `tempo` | 192 MB | 24h trace retention — traces are for debugging *now*; the durable record is the event log (§9.1) |
+| `otel-collector` | 96 MB | `memory_limiter` sheds spans under pressure rather than being OOM-killed |
+| `alertmanager` | 64 MB | |
+| **Observability subtotal** | **736 MB** | |
+| **WSL2 total, both profiles** | **7264 MB** | inside the 7587 MB VM, 323 MB spare |
 
 ## Required: cap WSL2
 

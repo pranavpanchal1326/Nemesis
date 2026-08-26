@@ -54,7 +54,30 @@ PUBLIC_FIELDS: Final[dict[str, str]] = {
     "api_version": "which contract produced this body",
     "generated_at": "when the aggregate was computed; a cached response is stale by design",
     "tenant": "the publishing organisation's slug — a public body, not a person",
+    "tenant_name": (
+        "C8: the organisation's own display name. A public body's name is public "
+        "record, and publishing only the slug left every consumer title-casing it"
+    ),
+    "locale": "which language the tenant-authored names in this body are in",
+    "locales": (
+        "A2: every language this tenant declares, primary first. The reader's "
+        "language switch is built from it, so a locale added in the control "
+        "plane is offered without a frontend release — Phase 18's gate. It "
+        "describes an organisation's published service, not a person: a city "
+        "that answers in Marathi is advertising that it does"
+    ),
     "notice": "the §22.2 disclaimer text carried with any system-flagged figure",
+    "notice_locale": (
+        "which language the notice above is actually in, which is not always the "
+        "one asked for — see public.notices"
+    ),
+    "notice_review": (
+        "who is accountable for that wording, or that nobody yet is. A legal "
+        "sentence published without saying who approved its translation is the "
+        "thing §22.2 exists to prevent, one language over"
+    ),
+    "rating_disclaimer_locale": "as notice_locale, for the §16.1 disclaimer",
+    "rating_disclaimer_review": "as notice_review, for the §16.1 disclaimer",
     "suppressed": "whether a bucket fell below the k-anonymity floor",
     "suppression_threshold": "the floor itself, published so a gap is explicable",
     # --- place ------------------------------------------------------------
@@ -78,6 +101,10 @@ PUBLIC_FIELDS: Final[dict[str, str]] = {
     "sla_breach_rate": "derived",
     "by_category": "counts keyed by tenant taxonomy key — a defect type, not a reporter",
     "category": "a tenant taxonomy key",
+    "category_name": (
+        "the tenant's own display name for that key, in the requested locale. "
+        "Additive beside the key, which stays stable in every language"
+    ),
     "count": "a count",
     "totals": "the v2 grouping object holding the counts above",
     "period": "the reporting window this row covers",

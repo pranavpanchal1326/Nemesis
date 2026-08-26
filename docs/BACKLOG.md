@@ -17,10 +17,19 @@ significantly for the first item you touch.
 
 ## Priority 0 — do these first
 
-### B-10.1 · Build the photograph corpus · **XL** · unblocks G1, Phase 10, Phase 11
+### B-10.1 · Build the photograph corpus · **XL** · unblocks G1, Phase 10, Phase 11 · **[serves FE]**
 
-The single highest-value item in this backlog. Two phases now depend on it and a
-third is about to.
+The single highest-value item in this backlog. Two phases now depend on it, a
+third is about to, and **Track E's Phase 20 gate now does too.**
+
+The frontend's landing film asserts that its merge scene renders nothing until a
+real `cluster_match_found` arrives — and the case that would watch one arrive
+cannot run, because the only committed test photograph is procedurally drawn and
+scores 0.142 against the classifier's 0.150 floor, so the report parks before
+deduplication. Two *photographed* images of one defect would take that gate.
+See [`reports/story-merge-gate.md`](reports/story-merge-gate.md); the frontend
+needs a handful of images from this corpus, not the whole of it, so a partial
+delivery is genuinely useful here.
 
 The image modality has never been measured. CLIP prompt sets ship unvalidated,
 dedup's `image_weight` has never been exercised, and Phase 10's gate fails

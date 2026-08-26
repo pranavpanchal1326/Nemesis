@@ -1,0 +1,974 @@
+{
+  "sheetsById": {
+    "Walk": {
+      "staticOverrides": { "byObject": {} },
+      "sequence": {
+        "type": "PositionalSequence",
+        "subUnitsPerUnit": 1000,
+        "length": 1,
+        "tracksByObject": {
+          "Camera": {
+            "trackData": {
+              "track_eyeEast": {
+                "type": "BasicKeyframedTrack",
+                "__debugName": "Camera:[\"eyeEast\"]",
+                "keyframes": [
+                  {
+                    "id": "kf_eyeEast_0",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_eyeEast_1",
+                    "position": 0.05,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -500
+                  },
+                  {
+                    "id": "kf_eyeEast_2",
+                    "position": 0.22,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_eyeEast_3",
+                    "position": 0.32,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_eyeEast_4",
+                    "position": 0.3695,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_eyeEast_5",
+                    "position": 0.43,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 125
+                  },
+                  {
+                    "id": "kf_eyeEast_6",
+                    "position": 0.4708,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_eyeEast_7",
+                    "position": 0.55,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_eyeEast_8",
+                    "position": 0.568,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_eyeEast_9",
+                    "position": 0.7,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_eyeEast_10",
+                    "position": 0.7715,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_eyeEast_11",
+                    "position": 0.83,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_eyeEast_12",
+                    "position": 0.93,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_eyeEast_13",
+                    "position": 1,
+                    "connectedRight": false,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  }
+                ]
+              },
+              "track_eyeNorth": {
+                "type": "BasicKeyframedTrack",
+                "__debugName": "Camera:[\"eyeNorth\"]",
+                "keyframes": [
+                  {
+                    "id": "kf_eyeNorth_0",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -4200
+                  },
+                  {
+                    "id": "kf_eyeNorth_1",
+                    "position": 0.05,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -150
+                  },
+                  {
+                    "id": "kf_eyeNorth_2",
+                    "position": 0.22,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -150
+                  },
+                  {
+                    "id": "kf_eyeNorth_3",
+                    "position": 0.32,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -9
+                  },
+                  {
+                    "id": "kf_eyeNorth_4",
+                    "position": 0.3695,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -220
+                  },
+                  {
+                    "id": "kf_eyeNorth_5",
+                    "position": 0.43,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -240
+                  },
+                  {
+                    "id": "kf_eyeNorth_6",
+                    "position": 0.4708,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -14
+                  },
+                  {
+                    "id": "kf_eyeNorth_7",
+                    "position": 0.55,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -1.1
+                  },
+                  {
+                    "id": "kf_eyeNorth_8",
+                    "position": 0.568,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -190
+                  },
+                  {
+                    "id": "kf_eyeNorth_9",
+                    "position": 0.7,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -190
+                  },
+                  {
+                    "id": "kf_eyeNorth_10",
+                    "position": 0.7715,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -700
+                  },
+                  {
+                    "id": "kf_eyeNorth_11",
+                    "position": 0.83,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -700
+                  },
+                  {
+                    "id": "kf_eyeNorth_12",
+                    "position": 0.93,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -1500
+                  },
+                  {
+                    "id": "kf_eyeNorth_13",
+                    "position": 1,
+                    "connectedRight": false,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -3400
+                  }
+                ]
+              },
+              "track_eyeUp": {
+                "type": "BasicKeyframedTrack",
+                "__debugName": "Camera:[\"eyeUp\"]",
+                "keyframes": [
+                  {
+                    "id": "kf_eyeUp_0",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 1400
+                  },
+                  {
+                    "id": "kf_eyeUp_1",
+                    "position": 0.05,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 46
+                  },
+                  {
+                    "id": "kf_eyeUp_2",
+                    "position": 0.22,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 46
+                  },
+                  {
+                    "id": "kf_eyeUp_3",
+                    "position": 0.32,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 2.4
+                  },
+                  {
+                    "id": "kf_eyeUp_4",
+                    "position": 0.3695,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 130
+                  },
+                  {
+                    "id": "kf_eyeUp_5",
+                    "position": 0.43,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 130
+                  },
+                  {
+                    "id": "kf_eyeUp_6",
+                    "position": 0.4708,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 14
+                  },
+                  {
+                    "id": "kf_eyeUp_7",
+                    "position": 0.55,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 11.6
+                  },
+                  {
+                    "id": "kf_eyeUp_8",
+                    "position": 0.568,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 96
+                  },
+                  {
+                    "id": "kf_eyeUp_9",
+                    "position": 0.7,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 96
+                  },
+                  {
+                    "id": "kf_eyeUp_10",
+                    "position": 0.7715,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 900
+                  },
+                  {
+                    "id": "kf_eyeUp_11",
+                    "position": 0.83,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 900
+                  },
+                  {
+                    "id": "kf_eyeUp_12",
+                    "position": 0.93,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 1500
+                  },
+                  {
+                    "id": "kf_eyeUp_13",
+                    "position": 1,
+                    "connectedRight": false,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 2600
+                  }
+                ]
+              },
+              "track_targetEast": {
+                "type": "BasicKeyframedTrack",
+                "__debugName": "Camera:[\"targetEast\"]",
+                "keyframes": [
+                  {
+                    "id": "kf_targetEast_0",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetEast_1",
+                    "position": 0.05,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -500
+                  },
+                  {
+                    "id": "kf_targetEast_2",
+                    "position": 0.22,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_targetEast_3",
+                    "position": 0.32,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_targetEast_4",
+                    "position": 0.3695,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 200
+                  },
+                  {
+                    "id": "kf_targetEast_5",
+                    "position": 0.43,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": -500
+                  },
+                  {
+                    "id": "kf_targetEast_6",
+                    "position": 0.4708,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_targetEast_7",
+                    "position": 0.55,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_targetEast_8",
+                    "position": 0.568,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_targetEast_9",
+                    "position": 0.7,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 500
+                  },
+                  {
+                    "id": "kf_targetEast_10",
+                    "position": 0.7715,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetEast_11",
+                    "position": 0.83,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetEast_12",
+                    "position": 0.93,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetEast_13",
+                    "position": 1,
+                    "connectedRight": false,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  }
+                ]
+              },
+              "track_targetNorth": {
+                "type": "BasicKeyframedTrack",
+                "__debugName": "Camera:[\"targetNorth\"]",
+                "keyframes": [
+                  {
+                    "id": "kf_targetNorth_0",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_1",
+                    "position": 0.05,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_2",
+                    "position": 0.22,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_3",
+                    "position": 0.32,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_4",
+                    "position": 0.3695,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_5",
+                    "position": 0.43,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_6",
+                    "position": 0.4708,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_7",
+                    "position": 0.55,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0.9
+                  },
+                  {
+                    "id": "kf_targetNorth_8",
+                    "position": 0.568,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_9",
+                    "position": 0.7,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_10",
+                    "position": 0.7715,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_11",
+                    "position": 0.83,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_12",
+                    "position": 0.93,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetNorth_13",
+                    "position": 1,
+                    "connectedRight": false,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 260
+                  }
+                ]
+              },
+              "track_targetUp": {
+                "type": "BasicKeyframedTrack",
+                "__debugName": "Camera:[\"targetUp\"]",
+                "keyframes": [
+                  {
+                    "id": "kf_targetUp_0",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 60
+                  },
+                  {
+                    "id": "kf_targetUp_1",
+                    "position": 0.05,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 9
+                  },
+                  {
+                    "id": "kf_targetUp_2",
+                    "position": 0.22,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 9
+                  },
+                  {
+                    "id": "kf_targetUp_3",
+                    "position": 0.32,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0.4
+                  },
+                  {
+                    "id": "kf_targetUp_4",
+                    "position": 0.3695,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 6
+                  },
+                  {
+                    "id": "kf_targetUp_5",
+                    "position": 0.43,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 6
+                  },
+                  {
+                    "id": "kf_targetUp_6",
+                    "position": 0.4708,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 11
+                  },
+                  {
+                    "id": "kf_targetUp_7",
+                    "position": 0.55,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 11.4
+                  },
+                  {
+                    "id": "kf_targetUp_8",
+                    "position": 0.568,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 8
+                  },
+                  {
+                    "id": "kf_targetUp_9",
+                    "position": 0.7,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 8
+                  },
+                  {
+                    "id": "kf_targetUp_10",
+                    "position": 0.7715,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetUp_11",
+                    "position": 0.83,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetUp_12",
+                    "position": 0.93,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  },
+                  {
+                    "id": "kf_targetUp_13",
+                    "position": 1,
+                    "connectedRight": false,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 0
+                  }
+                ]
+              },
+              "track_focusMetres": {
+                "type": "BasicKeyframedTrack",
+                "__debugName": "Camera:[\"focusMetres\"]",
+                "keyframes": [
+                  {
+                    "id": "kf_focusMetres_0",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 4400
+                  },
+                  {
+                    "id": "kf_focusMetres_1",
+                    "position": 0.05,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 150
+                  },
+                  {
+                    "id": "kf_focusMetres_2",
+                    "position": 0.22,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 150
+                  },
+                  {
+                    "id": "kf_focusMetres_3",
+                    "position": 0.32,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 9
+                  },
+                  {
+                    "id": "kf_focusMetres_4",
+                    "position": 0.3695,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 260
+                  },
+                  {
+                    "id": "kf_focusMetres_5",
+                    "position": 0.43,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 300
+                  },
+                  {
+                    "id": "kf_focusMetres_6",
+                    "position": 0.4708,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 14
+                  },
+                  {
+                    "id": "kf_focusMetres_7",
+                    "position": 0.55,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 2
+                  },
+                  {
+                    "id": "kf_focusMetres_8",
+                    "position": 0.568,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 210
+                  },
+                  {
+                    "id": "kf_focusMetres_9",
+                    "position": 0.7,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 210
+                  },
+                  {
+                    "id": "kf_focusMetres_10",
+                    "position": 0.7715,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 1140
+                  },
+                  {
+                    "id": "kf_focusMetres_11",
+                    "position": 0.83,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 1140
+                  },
+                  {
+                    "id": "kf_focusMetres_12",
+                    "position": 0.93,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 2120
+                  },
+                  {
+                    "id": "kf_focusMetres_13",
+                    "position": 1,
+                    "connectedRight": false,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 4300
+                  }
+                ]
+              },
+              "track_apertureMetres": {
+                "type": "BasicKeyframedTrack",
+                "__debugName": "Camera:[\"apertureMetres\"]",
+                "keyframes": [
+                  {
+                    "id": "kf_apertureMetres_0",
+                    "position": 0,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 44
+                  },
+                  {
+                    "id": "kf_apertureMetres_1",
+                    "position": 0.05,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 44
+                  },
+                  {
+                    "id": "kf_apertureMetres_2",
+                    "position": 0.22,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 44
+                  },
+                  {
+                    "id": "kf_apertureMetres_3",
+                    "position": 0.32,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 6
+                  },
+                  {
+                    "id": "kf_apertureMetres_4",
+                    "position": 0.3695,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 44
+                  },
+                  {
+                    "id": "kf_apertureMetres_5",
+                    "position": 0.43,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 44
+                  },
+                  {
+                    "id": "kf_apertureMetres_6",
+                    "position": 0.4708,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 9
+                  },
+                  {
+                    "id": "kf_apertureMetres_7",
+                    "position": 0.55,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 2.5
+                  },
+                  {
+                    "id": "kf_apertureMetres_8",
+                    "position": 0.568,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 26
+                  },
+                  {
+                    "id": "kf_apertureMetres_9",
+                    "position": 0.7,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 26
+                  },
+                  {
+                    "id": "kf_apertureMetres_10",
+                    "position": 0.7715,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 11
+                  },
+                  {
+                    "id": "kf_apertureMetres_11",
+                    "position": 0.83,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 11
+                  },
+                  {
+                    "id": "kf_apertureMetres_12",
+                    "position": 0.93,
+                    "connectedRight": true,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 44
+                  },
+                  {
+                    "id": "kf_apertureMetres_13",
+                    "position": 1,
+                    "connectedRight": false,
+                    "handles": [0.35, 1, 0.65, 0],
+                    "type": "bezier",
+                    "value": 30
+                  }
+                ]
+              }
+            },
+            "trackIdByPropPath": {
+              "[\"eyeEast\"]": "track_eyeEast",
+              "[\"eyeNorth\"]": "track_eyeNorth",
+              "[\"eyeUp\"]": "track_eyeUp",
+              "[\"targetEast\"]": "track_targetEast",
+              "[\"targetNorth\"]": "track_targetNorth",
+              "[\"targetUp\"]": "track_targetUp",
+              "[\"focusMetres\"]": "track_focusMetres",
+              "[\"apertureMetres\"]": "track_apertureMetres"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitionVersion": "0.4.0",
+  "revisionHistory": []
+}

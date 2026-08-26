@@ -1,0 +1,172 @@
+/*
+ * §E19, §E14.4 — the control plane and the developer portal.
+ *
+ * No colour, duration or type size is declared here; every one arrives as a
+ * custom property generated from src/design/tokens.json.
+ *
+ * These are the two screens a solutions engineer lives in during a deployment
+ * call, and the layout follows from that: no dashboard, no cards in a grid, no
+ * summary tiles. A stack of plain sheets an operator scrolls, with the forms
+ * beside the lists they change, so the effect of a write is visible without
+ * navigating.
+ */
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--density-gutter);
+}
+
+.control__tree,
+.control__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * The taxonomy tree, indented by the node's own depth.
+ *
+ * `--depth` comes from the server, so this is a rendering of the hierarchy the
+ * classifier reads rather than a second one computed here from `parent_key`.
+ * A `ch` unit rather than a `rem`: the keys beside the names are set in the
+ * data face, and indentation measured in characters keeps the two columns in
+ * step across the three densities.
+ */
+.control__node {
+  display: flex;
+  align-items: baseline;
+  gap: var(--density-gutter);
+  min-block-size: calc(var(--density-row) * 0.7);
+  padding-inline-start: calc(var(--depth, 0) * 2ch);
+}
+
+.control__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--density-gutter);
+  flex-wrap: wrap;
+  min-block-size: calc(var(--density-row) * 0.7);
+  border-block-end: 1px solid var(--role-rule);
+}
+
+.control__key {
+  color: var(--role-text-secondary);
+}
+
+.control__table {
+  border-collapse: collapse;
+  inline-size: 100%;
+}
+
+.control__table th,
+.control__table td {
+  text-align: start;
+  padding-block: calc(var(--density-gutter) / 3);
+  padding-inline-end: var(--density-gutter);
+  border-block-end: 1px solid var(--role-rule);
+  vertical-align: baseline;
+}
+
+.control__table thead th {
+  color: var(--role-text-secondary);
+}
+
+/* A revoked key is still listed — it is part of the record of what has had
+   access — and it is set back rather than removed. */
+.control__table tr[data-revoked="true"] th,
+.control__table tr[data-revoked="true"] td {
+  color: var(--role-text-secondary);
+}
+
+.control__webhook {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 4);
+  padding-block: calc(var(--density-gutter) / 2);
+  border-block-end: 1px solid var(--role-rule);
+}
+
+/* A failing endpoint, in the flag ink and never in severity ink: a webhook
+   nobody is answering is an integration problem, not an incident in the city
+   (§E9.4 rule 1). */
+.control__failing {
+  border-inline-start: 3px solid var(--role-flag-hatch);
+  padding-inline-start: calc(var(--density-gutter) / 2);
+}
+
+.control__form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 3);
+  align-items: start;
+  margin-block-start: var(--density-gutter);
+}
+
+.control__form fieldset {
+  border: 1px solid var(--role-rule);
+  padding: var(--density-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 3);
+  inline-size: min(100%, 40rem);
+}
+
+.control__field {
+  background: none;
+  border: 1px solid var(--role-rule);
+  color: var(--color-chalk);
+  padding: calc(var(--density-gutter) / 2);
+  inline-size: 100%;
+  font-family: inherit;
+}
+
+.control__actions {
+  display: flex;
+  gap: var(--density-gutter);
+  flex-wrap: wrap;
+}
+
+.control__action {
+  align-self: start;
+  background: none;
+  border: 1px solid var(--role-rule);
+  color: var(--role-text-primary);
+  padding-inline: var(--density-gutter);
+  min-block-size: calc(var(--density-row) * 0.8);
+  cursor: pointer;
+}
+
+.control__action[disabled] {
+  color: var(--role-text-secondary);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.control__why,
+.control__unavailable,
+.control__generated {
+  color: var(--role-text-secondary);
+}
+
+@media print {
+  /* An administrative printout is a record of configuration, so the forms go
+     and the lists stay. */
+  .control__form,
+  .control__actions {
+    display: none;
+  }
+
+  .control__row,
+  .control__webhook,
+  .control__table th,
+  .control__table td {
+    border-color: var(--color-riso-black);
+  }
+
+  .control__key,
+  .control__why,
+  .control__generated {
+    color: var(--color-riso-black);
+  }
+}

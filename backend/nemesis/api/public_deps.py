@@ -26,7 +26,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, Path, Request
+from fastapi import Depends, Path, Query, Request
 from sqlalchemy import select
 
 from nemesis.api.errors import (
@@ -39,6 +39,7 @@ from nemesis.config import Settings, get_settings
 from nemesis.db.models.tenant import Tenant
 from nemesis.db.session import session_scope
 from nemesis.observability import metrics
+from nemesis.public import notices
 from nemesis.public.policy import clamp_suppression_threshold
 
 #: Slugs are ``String(64)`` and tenant-chosen. Bounded in the path so a
@@ -54,6 +55,16 @@ class PublicTenant:
     id: uuid.UUID
     slug: str
     name: str
+    #: Every locale this tenant declares, primary first.
+    #:
+    #: **Published because Phase 18's gate is otherwise unmeetable.** *"A locale
+    #: added in the control plane appears in the UI with no code change"* — and
+    #: a reader can only be offered a language the surface knows the tenant
+    #: speaks. Without this the frontend has to keep its own list, which is a
+    #: second source of truth for a fact the platform already holds, and adding
+    #: a locale becomes exactly the code change the gate forbids. Additive, and
+    #: it discloses no more than the tenant's own language switch already would.
+    locales: tuple[str, ...]
     #: Already clamped to the deployment floor. The route never sees the raw
     #: tenant column, so there is no code path where somebody uses the
     #: unclamped value by reaching for the wrong attribute.
@@ -87,6 +98,8 @@ async def require_public_tenant(
                     Tenant.slug,
                     Tenant.name,
                     Tenant.public_api_min_aggregate,
+                    Tenant.primary_locale,
+                    Tenant.locales,
                 ).where(
                     Tenant.slug == tenant_slug,
                     Tenant.is_active.is_(True),
@@ -102,10 +115,68 @@ async def require_public_tenant(
         id=row[0],
         slug=row[1],
         name=row[2],
+        locales=_published_locales(primary=row[4], declared=row[5]),
         suppression_threshold=clamp_suppression_threshold(
             row[3], settings.public_api.min_aggregate_floor
         ),
     )
+
+
+def _published_locales(*, primary: str, declared: list[str] | None) -> tuple[str, ...]:
+    """The tenant's languages, primary first, de-duplicated, order preserved.
+
+    Primary first because a language switch is a list somebody reads top down,
+    and the tenant's own language belongs at the top of it. De-duplicated
+    because `locales` is a JSON column a control-plane caller writes, and a
+    repeated entry would render a repeated link rather than fail anything —
+    the kind of defect that survives for months.
+    """
+    out: list[str] = []
+    for locale in (primary, *(declared or ())):
+        if locale and locale not in out:
+            out.append(locale)
+    return tuple(out)
+
+
+#: BCP-47 shaped, and bounded like the slug is. This is an unauthenticated
+#: surface, so an unbounded string reaching a query is the thing to prevent
+#: first; `translations.locale` is `String(35)` and this matches it.
+LOCALE_PATTERN = r"^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$"
+
+
+async def resolve_public_locale(
+    locale: Annotated[
+        str | None,
+        Query(
+            max_length=35,
+            pattern=LOCALE_PATTERN,
+            description=(
+                "Language for tenant-authored names and the §22.2 notices. "
+                "Defaults to English, which is the canonical wording of the notices."
+            ),
+        ),
+    ] = None,
+) -> str:
+    """The locale this response should speak — C7, ADR-0052.
+
+    **A query parameter, and deliberately not `Accept-Language`.** Two reasons,
+    and the second is the one that decided it:
+
+    * These responses are `Cache-Control: public`. Negotiating on a header
+      means `Vary: Accept-Language`, which every intermediary implements
+      slightly differently and some implement by not caching at all.
+    * §16.2's claim is that these URLs are *citable* — "bookmark-able by
+      journalists". A URL whose language depends on the reader's browser
+      settings is not a citation; `?locale=mr` is.
+
+    Defaulting to English rather than to the tenant's primary locale is what
+    makes this additive: a consumer written before ADR-0052 sends no parameter
+    and receives exactly the body it received before.
+    """
+    return locale or notices.DEFAULT_LOCALE
+
+
+PublicLocaleDep = Annotated[str, Depends(resolve_public_locale)]
 
 
 def _not_found() -> ProblemDetailError:

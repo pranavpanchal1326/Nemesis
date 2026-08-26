@@ -39,6 +39,15 @@ import type { Plate, PressPlan } from "./press-model";
  * into alpha, so `feFlood` + `feComposite operator="in"` can lay the ink down
  * at that density. RGB is zeroed because the plate carries one colour — that is
  * what a plate *is*.
+ *
+ * **This is the linear approximation, and it is a stated fidelity difference**
+ * of exactly the kind this module already records for stage 2. The correct
+ * separation is a least-squares solve in *absorbance* space
+ * (`separationRows()`), because overprint is multiplicative — and
+ * `feColorMatrix` is an affine transform that cannot take a logarithm. The TSL
+ * pass does the correct one. On these surfaces the screened overlays carry most
+ * of the picture and the difference is not visible; in 3D the separation *is*
+ * the picture, which is where the shortfall showed up as a blank sheet.
  */
 export function separationMatrix(linear: readonly [number, number, number]): string {
   const [r, g, b] = linear;

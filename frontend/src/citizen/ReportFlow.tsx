@@ -58,12 +58,33 @@ type Phase =
 export function ReportFlow({
   strings,
   locale,
+  landmark: Frame = "main",
+  onComplaint,
 }: {
   readonly strings: Strings;
   /** Carried on the submission so §8.4's transcription uses the right prompt
    *  set — a Marathi voice note scored against English prompts is the failure
    *  `language_uncertain` exists to record. */
   readonly locale: string;
+  /**
+   * Which element wraps the flow. `main` — the default, and what `/report`
+   * uses — or `section`, for the one caller that embeds this inside a page
+   * that already has a landmark: §E16 Act 4, where *"the viewfinder is the
+   * real `<ReportCapture>` in DOM"* and the film owns the document's `main`.
+   *
+   * A prop rather than two components, because two components is two capture
+   * flows and the whole claim of Act 4 is that there is one.
+   */
+  readonly landmark?: "main" | "section";
+  /**
+   * The complaint this flow produced, once the 202 has landed.
+   *
+   * Only the film supplies it: Acts 5 and 6 follow the reader's *own* report
+   * through its own ledger, which is what makes those scenes fire on genuine
+   * backend events rather than on a scroll position. `/report` ignores it —
+   * the citizen surface already shows the theatre itself.
+   */
+  readonly onComplaint?: (complaintId: string) => void;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "capture" });
   const [at, setAt] = useState<Coordinates | null>(null);
@@ -75,6 +96,7 @@ export function ReportFlow({
     onSuccess: (outcome, draft) => {
       setReceipt(outcome);
       setPhase({ kind: "sent", draft, complaintId: outcome.receipt.complaint_id });
+      onComplaint?.(outcome.receipt.complaint_id);
       // The projection exists the moment the 202 lands — `submit()` materialises
       // it in the same transaction as the event. Seeding the cache here means
       // the theatre's first render has a complaint rather than a spinner, and
@@ -113,21 +135,21 @@ export function ReportFlow({
 
   if (phase.kind === "capture") {
     return (
-      <main className="report" data-phase="capture">
+      <Frame className="report" data-phase="capture">
         <Viewfinder
           strings={strings}
           onCapture={(capture) => {
             setPhase({ kind: "place", capture });
           }}
         />
-      </main>
+      </Frame>
     );
   }
 
   if (phase.kind === "place") {
     const capture = phase.capture;
     return (
-      <main className="report" data-phase="place">
+      <Frame className="report" data-phase="place">
         <PlaceCard strings={strings} value={at} onChange={setAt} />
         <button
           type="button"
@@ -148,14 +170,14 @@ export function ReportFlow({
         >
           {t(strings, "capture.back")}
         </button>
-      </main>
+      </Frame>
     );
   }
 
   if (phase.kind === "failed") {
     const draft = phase.draft;
     return (
-      <main className="report" data-phase="failed">
+      <Frame className="report" data-phase="failed">
         <h1 className="report__title type-title">{t(strings, "send.failedTitle")}</h1>
         {/*
          * The server's own sentence, forwarded by the BFF. §25 strips the
@@ -176,14 +198,14 @@ export function ReportFlow({
         >
           {t(strings, "send.retry")}
         </button>
-      </main>
+      </Frame>
     );
   }
 
   return (
-    <main className="report" data-phase="sent">
+    <Frame className="report" data-phase="sent">
       <SentScreen strings={strings} complaintId={phase.complaintId} outcome={receipt} />
-    </main>
+    </Frame>
   );
 }
 

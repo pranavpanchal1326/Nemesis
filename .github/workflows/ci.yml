@@ -246,6 +246,22 @@ jobs:
       - name: Environment parity
         run: python scripts/check_env_parity.py
 
+      # F1. docs/FRONTEND-PHASE-PLAN.md may only exist as a second planning
+      # document because every ship line and every open register row in
+      # docs/FRONTEND-EXECUTION-PLAN.md is claimed by exactly one phase in it.
+      # Unchecked, that is a promise; checked, it is the reason two roadmaps
+      # cannot drift into describing different products.
+      - name: Plan coverage (F1)
+        run: python scripts/check_phase_coverage.py
+
+      # ADR-0051. docs/HARDWARE.md's budget table was missing two services, so
+      # the documented total sat 384 MB below the declared one and the stack
+      # over-subscribed the WSL2 VM with the obs profile up. The symptom was
+      # worker-ml's fork child being SIGKILLed at model load, which reads as a
+      # model problem and is a spreadsheet problem. Now it is arithmetic CI does.
+      - name: Memory budget (ADR-0051)
+        run: python scripts/check_memory_budget.py
+
       - name: Observability cross-references
         run: python scripts/check_observability.py
 
@@ -339,6 +355,12 @@ jobs:
       - name: Token artefacts match their source
         run: npm run tokens:check
 
+      # §E16, M9.4 — the film's camera is authored in src/story/camera-keys.ts
+      # and the Theatre.js project state is generated from it. A hand-edited
+      # project state is a camera move nobody can review in a diff.
+      - name: Camera track matches its keyframes
+        run: npm run camera:check
+
       # §E10, §6 Principle #6 — the faces are committed, not fetched. A missing
       # woff2 is a demo that has no type when the network does not answer.
       - name: Self-hosted type stack is present
@@ -392,6 +414,127 @@ jobs:
           name: storybook
           path: frontend/storybook-static
           retention-days: 14
+
+  # A14, §E23, §E25 Phase 18. Its own job rather than a step in `frontend`,
+  # because it needs a production build and three runs per route — folding that
+  # into `npm run check` would make the local gate take minutes, and a local
+  # gate that takes minutes is one people stop running. `nem web-lighthouse` is
+  # the same command.
+  #
+  # The department route joins the list at F3. A budget on a route that does not
+  # exist yet is a passing check with nothing behind it.
+  lighthouse:
+    name: frontend · lighthouse budgets
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+
+      # Fails the build below >= 90 performance and accessibility, and below
+      # §E23's LCP budget on the citizen route. Assertions and the argument for
+      # each are in frontend/lighthouserc.json.
+      - run: npm run lighthouse
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse
+          path: frontend/.lighthouseci
+          retention-days: 14
+
+  # A9, §E24 — "every visual PR posts its Storybook diff".
+  #
+  # CI already built and uploaded the catalogue, which lets a reviewer browse
+  # it. This renders every story in the base ref's build and in this branch's,
+  # compares them, and posts what changed. It reports rather than gates: the
+  # gate that fails on an unintended visual change is `tests/golden.spec.ts`,
+  # which binds to committed baselines, and a report that fails the build is a
+  # report people learn to route around.
+  storybook-diff:
+    name: frontend · storybook diff
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build this branch's catalogue
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run storybook:build
+          mv storybook-static /tmp/storybook-head
+
+      # The base ref's catalogue is built from the base ref's own dependencies:
+      # a story rendered by this branch's Storybook is not the story the base
+      # ref shipped, and the diff would attribute a toolchain change to a
+      # component.
+      - name: Build the base ref's catalogue
+        working-directory: frontend
+        run: |
+          git worktree add /tmp/base "${{ github.event.pull_request.base.sha }}"
+          cd /tmp/base/frontend
+          npm ci
+          npm run storybook:build
+          mv storybook-static /tmp/storybook-base
+
+      - name: Render and compare
+        working-directory: frontend
+        run: |
+          npx playwright install --with-deps chromium
+          npm run storybook:diff -- /tmp/storybook-base /tmp/storybook-head storybook-diff
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: storybook-diff
+          path: frontend/storybook-diff
+          retention-days: 14
+
+      - name: Post the diff
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = 'frontend/storybook-diff/report.md';
+            if (!fs.existsSync(path)) return;
+            const body = fs.readFileSync(path, 'utf8');
+            const marker = '### Storybook diff — §E24';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            // Edit the existing comment rather than adding one per push: a
+            // pull request with fourteen identical bot comments is a pull
+            // request where nobody reads the bot.
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.data.find(
+              (comment) => comment.user.type === 'Bot' && comment.body.startsWith(marker),
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
 
   secrets:
     name: secret scan

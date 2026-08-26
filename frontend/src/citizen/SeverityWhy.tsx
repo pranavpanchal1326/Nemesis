@@ -6,6 +6,7 @@ import { NotWired } from "@/components/NotWired";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import type { Complaint } from "@/lib/api/complaints";
 import { notTranslatable, t, type Strings } from "@/lib/i18n/strings";
+import { levelFor } from "@/lib/severity";
 
 import "./citizen.css";
 
@@ -173,22 +174,4 @@ function breakdownRows(breakdown: Complaint["severity_breakdown"]): readonly Fac
       return { factor, measured, weight, contribution: measured * weight };
     })
     .sort((a, b) => b.contribution - a.contribution);
-}
-
-/**
- * Which of §E9.4's five rows a score falls in.
- *
- * **The thresholds are the frontend's and that is a defect it is honest about.**
- * §13.1 makes the bands governed data — they live in the severity rubric
- * alongside the weights — and no endpoint publishes them. Until one does, this
- * is a display convenience and it must never be treated as the system's
- * judgement: the *score* is authoritative and is always rendered beside the
- * badge, so a reader sees the number the server produced rather than only the
- * word this function chose for it.
- */
-function levelFor(score: number): "critical" | "high" | "medium" | "low" | "resolved" {
-  if (score >= 80) return "critical";
-  if (score >= 60) return "high";
-  if (score >= 35) return "medium";
-  return "low";
 }

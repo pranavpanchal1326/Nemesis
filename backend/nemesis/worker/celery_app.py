@@ -95,6 +95,30 @@ celery_app.conf.update(
     # idempotent by construction — but it would double the work and make the
     # logs unreadable at exactly the wrong moment.
     broker_transport_options={"visibility_timeout": 360},
+    # **A pool child that loads models needs longer than four seconds to say it
+    # is alive**, and the default is four.
+    #
+    # `worker-ml` was observed in an endless kill/respawn loop: each fork logged
+    # `trust_stages_registered`, the parent logged *"Timed out waiting for UP
+    # message"* about two seconds later, and the child was SIGKILLed — by
+    # billiard, not by the kernel. The loop reads exactly like an OOM and was
+    # diagnosed as one in ADR-0051, whose memory work stands on its own; the
+    # measurement that separates the two is that `worker-ml` sits at ~820 MiB
+    # against a 3 GiB limit with the VM at a quarter of its size while the loop
+    # is running. Nothing is out of memory. The child is simply still importing
+    # torch, CLIP and mediapipe when the parent gives up on it.
+    #
+    # It is intermittent for the reason that made it hard to see: on an idle
+    # machine the import finishes inside four seconds and on a busy one it does
+    # not, so the same commit passes alone and fails while a browser suite is
+    # running beside it. And `--max-tasks-per-child` makes a fresh child routine
+    # rather than rare, so the window is entered continuously.
+    #
+    # 120 seconds, matching this service's compose `start_period`. Long by the
+    # standards of a healthy fork and deliberately so: the cost of waiting too
+    # long is a slow start that is visible, and the cost of waiting too little
+    # is a worker that never serves a task and says something untrue about why.
+    worker_proc_alive_timeout=120.0,
     result_expires=3600,
     task_default_queue=QUEUE_IO,
     task_queues={

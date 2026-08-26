@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { directionOf } from "@/lib/i18n/direction";
 import { formatReceiptTime } from "@/lib/i18n/datetime";
 import { notTranslatable, t, type Strings, type Translated } from "@/lib/i18n/strings";
 import "./public.css";
@@ -26,6 +27,7 @@ export function PublicShell({
   citySlug,
   strings,
   locale,
+  locales,
   generatedAt,
   notice,
   children,
@@ -34,6 +36,21 @@ export function PublicShell({
   readonly citySlug: string;
   readonly strings: Strings;
   readonly locale: string;
+  /**
+   * Every locale the tenant declares, primary first — A2, A11.
+   *
+   * Passed in rather than imported, because the list belongs to the *tenant*
+   * and this component serves any of them. It was a two-element constant here
+   * until F2, with a comment saying it should not be; that constant is what
+   * made Phase 18's gate — *a locale added in the control plane appears in the
+   * UI with no code change* — unmeetable.
+   *
+   * Optional, defaulting to the locale being rendered, for the shells that
+   * have no published body to read a list from: a tenant that does not publish
+   * has told us nothing about its languages, and offering a switch there would
+   * be inventing one.
+   */
+  readonly locales?: readonly string[];
   /** The API's own `generated_at`. Stated because a cached transparency page
    *  with no timestamp is a page whose age the reader has to guess. */
   readonly generatedAt?: string;
@@ -47,8 +64,14 @@ export function PublicShell({
   readonly notice?: string;
   readonly children: ReactNode;
 }) {
+  // Derived from the locale, never passed alongside it. §E22 claims RTL-ready
+  // primitives and every stylesheet here uses logical properties; this
+  // attribute is the one thing that was missing to make that claim do anything
+  // (A11). `dir` sits on the same element as `lang` so the two cannot disagree.
+  const direction = directionOf(locale);
+
   return (
-    <div data-surface="public" lang={locale} className="public">
+    <div data-surface="public" lang={locale} dir={direction} className="public">
       <header className="public__header">
         <p className="public__city type-display-2">
           <Link href={`/${citySlug}`}>{t(strings, "city.published", { city })}</Link>
@@ -68,7 +91,7 @@ export function PublicShell({
           </p>
         )}
         <nav className="public__locales" aria-label={t(strings, "city.published", { city })}>
-          {LOCALES.map((tag) => (
+          {(locales ?? [locale]).map((tag) => (
             <Link
               key={tag}
               href={`?locale=${tag}`}
@@ -97,10 +120,13 @@ export function PublicShell({
  * legal text. `notTranslatable` is the marked escape for exactly this — a value
  * that must reach the screen unaltered.
  *
- * **The cost is stated rather than hidden:** the notice is therefore English on
- * a Marathi page. That is a gap in the *backend* — the disclaimer is a constant
- * in `public/aggregates.py` and does not resolve through the Phase 5 locale
- * registry — and it is recorded as a defect rather than worked around here.
+ * **It is no longer English on a Marathi page.** It was, and this docstring
+ * used to record that as a backend defect. C7 closed it: `public/notices.py`
+ * holds the §22.2 wording per locale, every response says which locale the
+ * notice came back in (`notice_locale`) and who signed that wording off
+ * (`notice_review`), and a locale with no reviewed translation still falls back
+ * to the canonical English rather than to a machine translation of a legal
+ * position. See ADR-0052.
  */
 function SystemNotice({ notice }: { readonly notice: string }) {
   return (
@@ -109,14 +135,6 @@ function SystemNotice({ notice }: { readonly notice: string }) {
     </aside>
   );
 }
-
-/** The locales the application can render before the control plane speaks.
- *  Imported rather than hard-coded would be better; it is `SEEDED_LOCALES`,
- *  and this module cannot import the server module without pulling
- *  `server-only` into a shared component. Kept in step by a unit test. */
-const LOCALES: readonly string[] = ["en", "mr"];
-
-export { LOCALES as SHELL_LOCALES };
 
 /** A heading that names a place and its kind, in the institutional voice. */
 export function PlaceHeading({

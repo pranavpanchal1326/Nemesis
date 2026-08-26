@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notTranslatable, t, type Strings } from "@/lib/i18n/strings";
 import { orderZones, type PublishedZone } from "@/public/figures";
 import { PublicShell } from "@/public/PublicShell";
-import { cityName, fetchCity } from "@/server/public-data";
+import { cityNameFallback, fetchCity } from "@/server/public-data";
 import { publicLocale } from "./locale";
 
 /**
@@ -25,9 +25,21 @@ import { publicLocale } from "./locale";
 type Params = Promise<{ tenant: string }>;
 type Search = Promise<Record<string, string | string[] | undefined>>;
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}): Promise<Metadata> {
   const { tenant } = await params;
-  const city = cityName(tenant);
+  // C8: the title says the city's own name for itself, not a title-cased slug.
+  // The fetch is the same one the body makes and Next de-duplicates it within
+  // the request, so this is a second read of one response rather than a second
+  // round trip.
+  const { locale } = await publicLocale(tenant, await searchParams);
+  const read = await fetchCity(tenant, locale);
+  const city = read.ok ? read.value.cityName : cityNameFallback(tenant);
   return {
     title: city,
     description: `Complaint and resolution figures published by ${city}.`,
@@ -43,13 +55,23 @@ export default async function CityIndex({
   searchParams: Search;
 }) {
   const { tenant } = await params;
-  const { locale, strings } = await publicLocale(await searchParams);
-  const city = cityName(tenant);
-  const read = await fetchCity(tenant);
+  const { locale, locales, strings } = await publicLocale(tenant, await searchParams);
+  const read = await fetchCity(tenant, locale);
 
   if (!read.ok) {
-    return <NotPublishing city={city} citySlug={tenant} locale={locale} strings={strings} />;
+    // Nothing published means no name to publish either, so the heading falls
+    // back to the slug — the one place a guess is still the honest answer.
+    return (
+      <NotPublishing
+        city={cityNameFallback(tenant)}
+        citySlug={tenant}
+        locale={locale}
+        strings={strings}
+      />
+    );
   }
+
+  const city = read.value.cityName;
 
   const ordered = orderZones(read.value.zones);
   const wards = ordered.filter((zone) => zone.zoneKind === "ward");
@@ -61,6 +83,7 @@ export default async function CityIndex({
       citySlug={tenant}
       strings={strings}
       locale={locale}
+      locales={locales}
       generatedAt={read.value.generatedAt}
       notice={read.value.notice}
     >
@@ -91,9 +114,7 @@ function PlaceGroup({
         {zones.map((zone) => (
           <li key={zone.zoneCode} className="place-index__item">
             <Link href={`/${tenant}/ward/${zone.zoneCode}`}>
-              <span className="place-index__kind type-micro">
-                {notTranslatable(zone.zoneCode)}
-              </span>
+              <span className="place-index__kind type-micro">{notTranslatable(zone.zoneCode)}</span>
               <span className="type-heading">{notTranslatable(zone.zoneName)}</span>
               {/*
                * Deliberately no figure on the card.

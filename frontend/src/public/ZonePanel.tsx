@@ -121,16 +121,21 @@ function CategoryBreakdown({
               {zone.byCategory.map((row) => (
                 <tr key={row.category}>
                   {/*
-                   * A taxonomy key, not a sentence. It is tenant-defined, the
-                   * same glyphs in every locale, and the locale registry does
-                   * not hold it — §E10's own reason for `notTranslatable`.
-                   * That it reads as `pothole_or_road_damage` rather than
-                   * "Pothole or road damage" is a real gap: the display name
-                   * lives on the taxonomy node and the public contract does
-                   * not publish it. Recorded rather than papered over.
+                   * The tenant's own display name for the taxonomy key, in the
+                   * locale this page asked for — C7, ADR-0052. Still
+                   * `notTranslatable`: it is the tenant's words, resolved by
+                   * the server through the Phase 5 registry, and the client
+                   * asserting its own translation of a customer's vocabulary is
+                   * exactly what §E10 forbids.
+                   *
+                   * It falls back to the bare key upstream when the tenant has
+                   * not named the category in this locale, which reads as
+                   * `pothole_or_road_damage` — an untranslated entry rather
+                   * than a blank cell, and legible as one. Rendered in the data
+                   * face for the same reason: a key looks like a key.
                    */}
                   <th scope="row" className="type-mono-data">
-                    {notTranslatable(row.category)}
+                    {notTranslatable(row.categoryName)}
                   </th>
                   <td>
                     <Figure figure={row.count} strings={strings} />

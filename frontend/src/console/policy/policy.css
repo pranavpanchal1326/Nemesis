@@ -1,0 +1,195 @@
+/*
+ * §E19.8 — the policy studio.
+ *
+ * No colour, duration or type size is declared here; every one arrives as a
+ * custom property generated from src/design/tokens.json.
+ *
+ * The screen is a stack of sheets rather than a two-pane split, and that is a
+ * reading decision rather than a layout convenience: a revision, its document,
+ * its diff, its backtests and its activation are a single argument read top to
+ * bottom, and an operator who reaches the activate control has passed the
+ * evidence on the way. A split would let them reach it without.
+ */
+
+.policy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--density-gutter);
+}
+
+.policy__kinds {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--density-gutter) / 2);
+}
+
+.policy__kind {
+  display: inline-block;
+  border: 1px solid var(--role-rule);
+  padding-inline: calc(var(--density-gutter) / 2);
+  padding-block: calc(var(--density-gutter) / 4);
+  color: var(--role-text-secondary);
+  text-decoration: none;
+}
+
+.policy__kind[aria-current="page"] {
+  color: var(--role-text-signal);
+  border-color: var(--color-riso-aqua);
+}
+
+.policy__table {
+  border-collapse: collapse;
+  inline-size: 100%;
+}
+
+.policy__table th,
+.policy__table td {
+  text-align: start;
+  padding-block: calc(var(--density-gutter) / 3);
+  padding-inline-end: var(--density-gutter);
+  border-block-end: 1px solid var(--role-rule);
+  vertical-align: baseline;
+}
+
+.policy__table thead th {
+  color: var(--role-text-secondary);
+}
+
+.policy__table tr[aria-current="true"] th,
+.policy__table tr[aria-current="true"] td {
+  color: var(--role-text-signal);
+}
+
+/*
+ * The document, as the record holds it.
+ *
+ * Scrolls rather than wraps, because a policy body is indented JSON and a
+ * wrapped line destroys the indentation that makes it readable. Capped in
+ * height so the diff below it is reachable without a long scroll — the diff is
+ * what an operator came for; the document is what they check afterwards.
+ */
+.policy__document {
+  margin: 0;
+  padding: var(--density-gutter);
+  border: 1px solid var(--role-rule);
+  max-block-size: 40vh;
+  overflow: auto;
+  color: var(--role-text-primary);
+}
+
+.policy__hash {
+  color: var(--role-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.policy__diff,
+.policy__runs,
+.policy__proposals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.policy__change {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--density-gutter);
+  align-items: baseline;
+  padding-block: calc(var(--density-gutter) / 4);
+  border-block-end: 1px solid var(--role-rule);
+}
+
+/*
+ * Added, removed and changed are distinguished by an inline edge and by the
+ * word, never by colour alone. §E9.4 rule 2's argument about severity applies
+ * exactly: this screen is printed into change records, and a red-green diff is
+ * two identical greys on paper.
+ */
+.policy__change[data-change="added"] {
+  border-inline-start: 3px solid var(--color-riso-green);
+  padding-inline-start: calc(var(--density-gutter) / 2);
+}
+
+.policy__change[data-change="removed"] {
+  border-inline-start: 3px solid var(--color-riso-orange);
+  padding-inline-start: calc(var(--density-gutter) / 2);
+}
+
+.policy__change[data-change="changed"] {
+  border-inline-start: 3px solid var(--color-riso-aqua);
+  padding-inline-start: calc(var(--density-gutter) / 2);
+}
+
+.policy__path {
+  color: var(--role-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.policy__run {
+  padding-block: calc(var(--density-gutter) / 3);
+  border-block-end: 1px solid var(--role-rule);
+}
+
+.policy__why {
+  color: var(--role-text-secondary);
+}
+
+.policy__activate,
+.policy__tuning {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--density-gutter) / 2);
+  align-items: start;
+}
+
+.policy__reason {
+  background: none;
+  border: 1px solid var(--role-rule);
+  color: var(--color-chalk);
+  padding: calc(var(--density-gutter) / 2);
+  inline-size: min(100%, 40rem);
+}
+
+.policy__action {
+  background: none;
+  border: 1px solid var(--role-rule);
+  color: var(--role-text-primary);
+  padding-inline: var(--density-gutter);
+  min-block-size: calc(var(--density-row) * 0.8);
+  cursor: pointer;
+}
+
+.policy__action[disabled] {
+  color: var(--role-text-secondary);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+@media print {
+  .policy__document {
+    max-block-size: none;
+    overflow: visible;
+    border-color: var(--color-riso-black);
+  }
+
+  .policy__action,
+  .policy__reason {
+    display: none;
+  }
+
+  .policy__table th,
+  .policy__table td,
+  .policy__change,
+  .policy__run {
+    border-color: var(--color-riso-black);
+  }
+
+  .policy__why,
+  .policy__path,
+  .policy__hash {
+    color: var(--color-riso-black);
+  }
+}

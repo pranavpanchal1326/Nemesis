@@ -91,7 +91,10 @@ interface Tokens {
       readonly dark: { readonly text: string; readonly field: string; readonly min: number };
     };
   };
-  readonly inkSet: Record<string, { stock: string; inks: readonly string[] } | string>;
+  readonly inkSet: Record<
+    string,
+    { stock: string; sheet?: string; inks: readonly string[] } | string
+  >;
   readonly press: {
     readonly screenAngles: { readonly value: readonly number[] };
     readonly halftone: Record<string, number | string>;
@@ -124,18 +127,54 @@ interface Tokens {
   };
   readonly density: Record<string, Record<string, number | string>>;
   readonly layer: Record<string, number | string>;
+  /**
+   * §E7.1, §E7.3, §E23 — the clay engine's numbers.
+   *
+   * Three of these groups are *parameters*, not palettes: `clay` authors no
+   * colour of its own and instead references the inks §E9.2 already assigned
+   * to it, so the clay body and the brown ink in a badge cannot drift apart
+   * any more than the glaze and the severity badge can.
+   */
+  readonly clay: {
+    readonly body: { readonly ref: string };
+    readonly warm: { readonly ref: string };
+    readonly cool: { readonly ref: string };
+    readonly surface: Record<string, number | string>;
+    readonly thumbprint: Record<string, number | string>;
+    readonly ao: Record<string, number | string>;
+    readonly rim: Record<string, number | string>;
+    readonly edge: Record<string, number | string>;
+    readonly glaze: Record<string, number | string>;
+  };
+  readonly lens: {
+    readonly tiltShift: Record<string, number | string>;
+    readonly gateWeave: Record<string, number | string>;
+    readonly vignette: Record<string, number | string>;
+    readonly barrel: Record<string, number | string>;
+    readonly bloom: Record<string, number | string>;
+  };
+  readonly world: {
+    readonly kit: Record<string, number | string>;
+    readonly pin: Record<string, number | string>;
+    readonly camera: Record<string, number | string>;
+    readonly extent: Record<string, number | string>;
+  };
+  readonly weather: Record<string, number | string>;
+  readonly budget: Record<string, number | string>;
 }
 
 /** `$note` keys document the source; they are never emitted. */
-function entries<T>(record: Record<string, T | string>): [string, T][] {
-  return Object.entries(record).filter(
-    (entry): entry is [string, T] => !entry[0].startsWith("$") && typeof entry[1] !== "string",
+function entries<T>(record: Record<string, T | string>): [string, Exclude<T, string>][] {
+  return Object.entries(record).flatMap(([key, value]) =>
+    key.startsWith("$") || typeof value === "string"
+      ? []
+      : [[key, value] as [string, Exclude<T, string>]],
   );
 }
 
 function numbers(record: Record<string, number | string>): [string, number][] {
-  return Object.entries(record).filter(
-    (entry): entry is [string, number] => !entry[0].startsWith("$") && typeof entry[1] === "number",
+  return Object.entries(record).flatMap(([key, value]) =>
+    key.startsWith("$") || typeof value !== "number" ? [] : [[key, value] as [string, number]],
   );
 }
 
@@ -421,6 +460,19 @@ function buildTs(t: Tokens): string {
     )} as const;`,
     "",
     "/**",
+    " * Every stock as linear-sRGB — §E6.1 stage 6, the sheet every plate",
+    " * multiplies onto.",
+    " *",
+    " * The 2D press gets the stock as a CSS colour and the 3D press needs the",
+    " * same stock as a linear triple. Converting it at the call site would be",
+    " * the one hand-written colour conversion in the product, which is the",
+    " * same failure as a hand-written colour with an extra step.",
+    " */",
+    `export const PAPER_LINEAR = ${j(
+      Object.fromEntries(entries<Swatch>(t.paper).map(([k, v]) => [k, linear(v.value).map(round)])),
+    )} as const satisfies Record<PaperName, readonly [number, number, number]>;`,
+    "",
+    "/**",
     " * Semantic roles, per ground (§E22).",
     " *",
     " * `derivation` is carried into the generated output on purpose: a reviewer",
@@ -448,8 +500,24 @@ function buildTs(t: Tokens): string {
     " */",
     `export const SEVERITY_ROLE = ${j(t.role.severity)} as const;`,
     "",
-    "/** Two or three inks per run — the real risograph constraint (§E9.2). */",
-    `export const INK_SET = ${j(Object.fromEntries(entries<{ stock: string; inks: readonly string[] }>(t.inkSet)))} as const;`,
+    "/**",
+    " * Two or three inks per run — the real risograph constraint (§E9.2).",
+    " *",
+    " * `stock` is the page ground; `sheet` is what the press prints on. They",
+    " * differ on exactly one surface — §E9.3's light table, where the ground is",
+    " * the room and the print on it is backlit — and `sheet` is filled in here",
+    " * so no consumer has to remember which case it is in.",
+    " */",
+    `export const INK_SET = ${j(
+      Object.fromEntries(
+        entries<{ stock: string; sheet?: string; inks: readonly string[] }>(t.inkSet).map(
+          ([name, set]) => [
+            name,
+            { stock: set.stock, sheet: set.sheet ?? set.stock, inks: set.inks },
+          ],
+        ),
+      ),
+    )} as const;`,
     "export type InkSetName = keyof typeof INK_SET;",
     "",
     "/** The press (§E6). `quality` is the fallback ladder's first move (§E6.4). */",
@@ -492,6 +560,62 @@ function buildTs(t: Tokens): string {
     "/** The type scale's step names, so a component cannot invent one. */",
     `export const TYPE_STEPS = ${j(entries<TypeStep>(t.type.scale.latin).map(([k]) => k))} as const;`,
     "export type TypeStep = (typeof TYPE_STEPS)[number];",
+    "",
+    "/**",
+    " * The clay material recipe (§E7.1).",
+    " *",
+    " * `bodyLinear`, `warmLinear` and `coolLinear` are the three inks §E9.2",
+    " * already assigned to clay, converted once — the same conversion the",
+    " * glaze above goes through, so the clay body in a shader and the brown ink",
+    " * in a badge are one number by construction rather than by agreement.",
+    " */",
+    `export const CLAY = ${j({
+      body: lookup(t, t.clay.body.ref),
+      bodyLinear: linear(lookup(t, t.clay.body.ref)).map(round),
+      warmLinear: linear(lookup(t, t.clay.warm.ref)).map(round),
+      coolLinear: linear(lookup(t, t.clay.cool.ref)).map(round),
+      surface: Object.fromEntries(numbers(t.clay.surface)),
+      thumbprint: Object.fromEntries(numbers(t.clay.thumbprint)),
+      ao: Object.fromEntries(numbers(t.clay.ao)),
+      rim: Object.fromEntries(numbers(t.clay.rim)),
+      edge: Object.fromEntries(numbers(t.clay.edge)),
+      glaze: Object.fromEntries(numbers(t.clay.glaze)),
+    })} as const;`,
+    "",
+    "/** The lens stack (§E7.3). Applied to the frame before the press prints it. */",
+    `export const LENS = ${j({
+      tiltShift: Object.fromEntries(numbers(t.lens.tiltShift)),
+      gateWeave: Object.fromEntries(numbers(t.lens.gateWeave)),
+      vignette: Object.fromEntries(numbers(t.lens.vignette)),
+      barrel: Object.fromEntries(numbers(t.lens.barrel)),
+      bloom: Object.fromEntries(numbers(t.lens.bloom)),
+    })} as const;`,
+    "",
+    "/** The clay city, in real ground metres — never in scene units (M8.2). */",
+    `export const WORLD = ${j({
+      kit: Object.fromEntries(numbers(t.world.kit)),
+      pin: Object.fromEntries(numbers(t.world.pin)),
+      camera: Object.fromEntries(numbers(t.world.camera)),
+      extent: Object.fromEntries(numbers(t.world.extent)),
+    })} as const;`,
+    "",
+    "/**",
+    " * §E7.4 — how a seasonal SLA multiplier becomes wet clay, and how a solar",
+    " * altitude becomes a key light.",
+    " *",
+    " * Nothing here decides *whether* it is raining. That is the SLA engine's",
+    " * own answer (`clay/sun.ts`), and these are the numbers that render it.",
+    " */",
+    `export const WEATHER = ${j(Object.fromEntries(numbers(t.weather)))} as const;`,
+    "",
+    "/**",
+    " * §E23's budgets, and §E13's two Tier B thresholds.",
+    " *",
+    " * The adaptive quality manager reads these and so does the CI assertion.",
+    " * A budget written in a table and re-typed in a test is two budgets, and",
+    " * the one that gets relaxed is always the one nobody is looking at.",
+    " */",
+    `export const BUDGET = ${j(Object.fromEntries(numbers(t.budget)))} as const;`,
     "",
   ];
   return out.join("\n");

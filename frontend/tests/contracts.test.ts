@@ -75,7 +75,10 @@ describe("§E26.1 — the status vocabulary is complete, and every member render
   it("flagged is never grouped with a severity register", () => {
     // ADR-0039: an unproven anomaly rendered in a severity colour is a §22.2
     // defamation exposure with a design cause.
-    const severityish = new Set(Object.keys(SEVERITY));
+    // Typed as names rather than as the severity union: the question this
+    // asks is whether a *register* is one of the severity levels, and a set
+    // narrowed to the severity levels cannot be asked about anything else.
+    const severityish = new Set<string>(Object.keys(SEVERITY));
     expect(severityish.has(complaintRegister("flagged"))).toBe(false);
   });
 });

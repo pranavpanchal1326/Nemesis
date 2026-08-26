@@ -75,6 +75,13 @@ export function ContractorLedger({
               ? null
               : `${String(metrics.confirmedCount)} / ${String(metrics.disputedCount)}`
           }
+          // §21.2's citizen confirmation is what makes this pair mean anything,
+          // and no public endpoint publishes a *confirmed* count today —
+          // `work_orders_completed` includes closures nobody confirmed. Passing
+          // that as "confirmed by reporters" would be the flattering ledger
+          // §16.1 refuses, so the row renders null behind its chip until the
+          // count exists.
+          phase="Phase 15"
           strings={strings}
         />
         <Metric

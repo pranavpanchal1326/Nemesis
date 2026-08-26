@@ -103,3 +103,22 @@ The concrete signal that should reopen this decision.
 | [0043](0043-a-complaints-history-is-readable-by-whoever-holds-its-id.md) | A complaint's history is readable by whoever holds its id, and every row is disclosed as a row | Accepted | PLT · SEC · PROD |
 | [0044](0044-the-receipt-carries-the-chain-head-the-polled-read-does-not.md) | The receipt carries the chain head; the polled read deliberately does not | Accepted | PLT · PROD |
 | [0045](0045-what-a-browser-may-learn-about-an-exif-check-and-a-redaction.md) | What a browser may learn about an EXIF check and a face redaction | Accepted | SEC · PLT · PROD |
+| [0046](0046-publishing-is-an-act-somebody-takes-not-a-flag-a-template-sets.md) | Publishing is an act somebody takes, not a flag a template sets | Accepted | PLT · LEGAL |
+| [0047](0047-the-clay-city-is-generated-not-modelled.md) | The clay city is generated from the tenant's own origin, not modelled | Accepted | PROD |
+| [0051](0051-the-memory-budget-is-a-checked-artefact-not-a-table.md) | The memory budget is a checked artefact, not a table | Accepted | SRE |
+| [0052](0052-the-public-surface-negotiates-a-locale-and-names-who-owns-the-words.md) | The public surface negotiates a locale, and names who owns the words | Accepted | PLT · LEGAL · PROD |
+| [0053](0053-a-fallback-face-is-adjusted-only-by-what-can-be-measured.md) | A fallback face is adjusted only by what this repository can measure | Accepted | PROD |
+| [0054](0054-a-pool-child-that-loads-models-is-given-time-to-say-it-is-alive.md) | A pool child that loads models is given time to say it is alive | Accepted | SRE |
+| [0055](0055-the-films-camera-is-authored-as-keys-and-generated-into-theatre.md) | The film's camera is authored as keys and generated into Theatre.js | Accepted | PROD |
+
+## Reserved numbers
+
+**0048–0050 remain reserved** by `docs/FRONTEND-PHASE-PLAN.md` §4 for three of
+the four asset decisions Stage 2 onward depends on — the Rive state machines,
+Tier C's riso prints, and the sound library. They are named and argued in that
+document at plan time and will be written before the phases that consume them
+(F14, F15, F16). The gap is a reservation somebody made in public, not a missing
+record.
+
+**0047 is written** — the clay city kit, taken at F9, which is the phase that
+consumes it.

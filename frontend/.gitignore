@@ -7,5 +7,11 @@ next-env.d.ts
 test-results
 playwright-report
 storybook-static
+
+# F1. Lighthouse reports (A14) and the Storybook diff’s before/after images
+# (A9) are run output: CI uploads them as artefacts, and a committed copy would
+# be a snapshot of one machine on one afternoon.
+.lighthouseci
+storybook-diff
 CLAUDE.md
 AGENTS.md

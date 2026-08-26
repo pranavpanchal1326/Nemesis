@@ -1,0 +1,101 @@
+{
+  "$comment": [
+    "A14, §E23, §E25 Phase 18 — Lighthouse in CI, not as a thing somebody runs.",
+    "",
+    "The register's words: 'Lighthouse >= 90 performance and accessibility on",
+    "citizen and department routes. Not in CI. Neither route exists yet.' All",
+    "three clauses are answered here: M5 built the citizen route, F3 built the",
+    "department shell, and this file puts the budget on both in CI. A budget on a",
+    "route that does not exist is a passing check with nothing behind it.",
+    "",
+    "Mobile emulation, which is the default and is kept deliberately: the citizen",
+    "route is a phone surface (§E17.1 opens with a camera), and holding it to a",
+    "desktop preset would budget the wrong device. Three runs and the median,",
+    "because a single Lighthouse run on a shared CI worker is a measurement of how",
+    "busy the worker was.",
+    "",
+    "The console joins under that same mobile emulation, which is the stricter",
+    "reading rather than the accurate one: an officer's console is a desktop",
+    "surface, so a mobile-throttled score is a harder budget than the device it",
+    "ships to. Passing it is a stronger claim than A14 asks for, and it avoids a",
+    "second collect block whose settings would quietly drift from this one. Its",
+    "accessibility is additionally swept by console.spec.ts across three densities",
+    "and two scripts, because a category score is an average and §E22's floor is",
+    "not.",
+    "",
+    "Port 3311, not 3210: 3210 is the port `playwright.config.ts` starts a *dev*",
+    "server on, and a Lighthouse run that silently measures a dev build reports a",
+    "performance score around 0.65 for reasons that have nothing to do with the",
+    "product — unminified bundles, no tree shaking, a 470 ms blocking time. The",
+    "score is a measurement of the build, so the build has to be the right one.",
+    "",
+    "CLS is asserted on all three routes and LCP only on the citizen one, and the",
+    "asymmetry is deliberate. A14 asks for the two category scores; the Web Vitals",
+    "are added because a category score can absorb a CLS regression that the",
+    "citizen route cannot, which is A1's whole consequence. But LCP < 2.0 s is a",
+    "number §E23 states about the *citizen* route, and inventing a second budget",
+    "for the others would be this file asserting a requirement nobody wrote.",
+    "Measured today: /report 1.98 s median, /honesty 3.06 s — the honesty table is",
+    "a forty-row document and its LCP is that document. If a budget is ever wanted",
+    "there, it belongs in §E23 first."
+  ],
+  "ci": {
+    "collect": {
+      "startServerCommand": "npm run start -- --port 3311",
+      "startServerReadyPattern": "Ready in",
+      "startServerReadyTimeout": 120000,
+      "url": [
+        "http://127.0.0.1:3311/report",
+        "http://127.0.0.1:3311/pune-demo/honesty",
+        "http://127.0.0.1:3311/console"
+      ],
+      "numberOfRuns": 3,
+      "settings": {
+        "chromeFlags": "--no-sandbox --disable-dev-shm-usage",
+        "skipAudits": ["uses-http2", "canonical", "is-crawlable"]
+      }
+    },
+    "assert": {
+      "assertMatrix": [
+        {
+          "matchingUrlPattern": ".*",
+          "assertions": {
+            "categories:performance": [
+              "error",
+              {
+                "minScore": 0.9
+              }
+            ],
+            "categories:accessibility": [
+              "error",
+              {
+                "minScore": 0.9
+              }
+            ],
+            "cumulative-layout-shift": [
+              "error",
+              {
+                "maxNumericValue": 0.1
+              }
+            ]
+          }
+        },
+        {
+          "matchingUrlPattern": ".*/report$",
+          "assertions": {
+            "largest-contentful-paint": [
+              "error",
+              {
+                "maxNumericValue": 2000
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lighthouseci"
+    }
+  }
+}

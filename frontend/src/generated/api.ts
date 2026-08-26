@@ -796,6 +796,37 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/control-plane/tenants/{slug}/locales": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Declare the languages this tenant offers
+     * @description A2 — the door Phase 18's gate needs.
+     *
+     *     > A locale added in the control plane appears in the UI with no code change.
+     *
+     *     ``ProvisioningRequest`` declares a tenant's locales once, at birth, and
+     *     nothing could change them afterwards — so the sentence above had no
+     *     mechanism behind its first clause, and adding a language to a running city
+     *     meant an ``UPDATE`` in ``psql``. See ``control_plane/locales.py`` for why
+     *     this is a route with a justification rather than a column write.
+     *
+     *     A PUT rather than a POST: the body states the desired list, so re-sending it
+     *     is safe and two operators running the same deployment script converge.
+     */
+    put: operations["set_tenant_locales_api_v1_control_plane_tenants__slug__locales_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/control-plane/tenants/{slug}/publication": {
     parameters: {
       query?: never;
@@ -1557,10 +1588,20 @@ export interface components {
       fiscal_year: string;
       /** Generated At */
       generated_at: string;
+      /** Locale */
+      locale: string;
+      /** Locales */
+      locales: string[];
       /** Notice */
       notice: string;
+      /** Notice Locale */
+      notice_locale: string;
+      /** Notice Review */
+      notice_review: string;
       /** Tenant */
       tenant: string;
+      /** Tenant Name */
+      tenant_name: string;
       /** Zone Code */
       zone_code: string;
     };
@@ -1634,6 +1675,8 @@ export interface components {
     CategoryCountResponse: {
       /** Category */
       category: string;
+      /** Category Name */
+      category_name: string;
       /** Count */
       count: number;
     };
@@ -1845,12 +1888,24 @@ export interface components {
       disputed_count: number;
       /** Generated At */
       generated_at: string;
+      /** Locale */
+      locale: string;
+      /** Locales */
+      locales: string[];
       /** Notice */
       notice: string;
+      /** Notice Locale */
+      notice_locale: string;
+      /** Notice Review */
+      notice_review: string;
       /** On Time Rate */
       on_time_rate: number | null;
       /** Rating Disclaimer */
       rating_disclaimer: string;
+      /** Rating Disclaimer Locale */
+      rating_disclaimer_locale: string;
+      /** Rating Disclaimer Review */
+      rating_disclaimer_review: string;
       /** Registration Id */
       registration_id: string;
       /** Suppressed */
@@ -1859,6 +1914,8 @@ export interface components {
       suppression_threshold: number;
       /** Tenant */
       tenant: string;
+      /** Tenant Name */
+      tenant_name: string;
       /** Work Orders Completed */
       work_orders_completed: number;
       /** Work Orders Open */
@@ -2235,6 +2292,44 @@ export interface components {
       expected_severity_tier: string | null;
       /** Rationale */
       rationale: string;
+    };
+    /** LocaleResponse */
+    LocaleResponse: {
+      /** Changed */
+      changed: boolean;
+      /** Locales */
+      locales: string[];
+      /** Primary Locale */
+      primary_locale: string;
+      /** Slug */
+      slug: string;
+      /**
+       * Tenant Id
+       * Format: uuid
+       */
+      tenant_id: string;
+    };
+    /**
+     * LocaleSpec
+     * @description The languages a tenant offers — A2, Phase 18's gate.
+     *
+     *     Deliberately *not* a second way to write :class:`TenantSpec`. Provisioning
+     *     declares a tenant's locales once, at birth, and until this schema existed
+     *     that was the only time they could be declared at all — so *"a locale added
+     *     in the control plane"* had no door to be added through, and Phase 18's gate
+     *     was unmeetable rather than unmet.
+     *
+     *     Stating the whole list rather than an increment, because a PUT that states a
+     *     desired state is re-sendable and an ``{"add": "kok"}`` is not: two operators
+     *     running the same deployment script would produce different lists.
+     */
+    LocaleSpec: {
+      /** Justification */
+      justification: string;
+      /** Locales */
+      locales: string[];
+      /** Primary Locale */
+      primary_locale?: string | null;
     };
     /**
      * MilestoneStage
@@ -2673,6 +2768,34 @@ export interface components {
       | "safety_trigger_fired"
       | "severity_scored"
       | "work_order_created";
+    /**
+     * RegisteredContractorResponse
+     * @description What was created, including the identifier it is addressed by.
+     *
+     *     **``contractor_id`` was missing, and its absence had a consequence.**
+     *     §26.4's public profile is keyed on the contractor's UUID
+     *     (``/public/{slug}/contractor/{contractor_id}/profile``), and this handler —
+     *     the only way to create one — returned the registration id and the name. So
+     *     a caller could register a contractor over HTTP and then had no way, short of
+     *     SQL, to learn the identifier needed to link to that contractor's own public
+     *     record. §E18's contractor page was reachable only by somebody holding a
+     *     database session, which is the same defect shape as "no endpoint maps a
+     *     tenant slug to its id".
+     *
+     *     A POST that creates a resource returns its identity. Additive, so v1 is
+     *     unaffected and the lock is re-taken by addition.
+     */
+    RegisteredContractorResponse: {
+      /**
+       * Contractor Id
+       * Format: uuid
+       */
+      contractor_id: string;
+      /** Name */
+      name: string;
+      /** Registration Id */
+      registration_id: string;
+    };
     /**
      * ReloadNotice
      * @description How long until this change is live everywhere.
@@ -3368,10 +3491,20 @@ export interface components {
       count: number;
       /** Generated At */
       generated_at: string;
+      /** Locale */
+      locale: string;
+      /** Locales */
+      locales: string[];
       /** Notice */
       notice: string;
+      /** Notice Locale */
+      notice_locale: string;
+      /** Notice Review */
+      notice_review: string;
       /** Tenant */
       tenant: string;
+      /** Tenant Name */
+      tenant_name: string;
       /** Zones */
       zones: components["schemas"]["ZoneSummaryResponse"][];
     };
@@ -3383,10 +3516,20 @@ export interface components {
       count: number;
       /** Generated At */
       generated_at: string;
+      /** Locale */
+      locale: string;
+      /** Locales */
+      locales: string[];
       /** Notice */
       notice: string;
+      /** Notice Locale */
+      notice_locale: string;
+      /** Notice Review */
+      notice_review: string;
       /** Tenant */
       tenant: string;
+      /** Tenant Name */
+      tenant_name: string;
       /** Zones */
       zones: components["schemas"]["ZoneSummaryV2"][];
     };
@@ -3432,10 +3575,18 @@ export interface components {
       count_suppressed_buckets: number;
       /** Generated At */
       generated_at: string;
+      /** Locale */
+      locale: string;
+      /** Locales */
+      locales: string[];
       /** Median Resolution Hours */
       median_resolution_hours: number | null;
       /** Notice */
       notice: string;
+      /** Notice Locale */
+      notice_locale: string;
+      /** Notice Review */
+      notice_review: string;
       /** Open Reports */
       open_reports: number;
       /** Resolution Rate */
@@ -3448,6 +3599,8 @@ export interface components {
       suppression_threshold: number;
       /** Tenant */
       tenant: string;
+      /** Tenant Name */
+      tenant_name: string;
       /** Total Reports */
       total_reports: number;
       /** Zone Code */
@@ -3468,14 +3621,24 @@ export interface components {
       count_suppressed_buckets: number;
       /** Generated At */
       generated_at: string;
+      /** Locale */
+      locale: string;
+      /** Locales */
+      locales: string[];
       /** Notice */
       notice: string;
+      /** Notice Locale */
+      notice_locale: string;
+      /** Notice Review */
+      notice_review: string;
       /** Suppressed */
       suppressed: boolean;
       /** Suppression Threshold */
       suppression_threshold: number;
       /** Tenant */
       tenant: string;
+      /** Tenant Name */
+      tenant_name: string;
       totals: components["schemas"]["ZoneTotals"];
       /** Zone Code */
       zone_code: string;
@@ -3842,9 +4005,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            [key: string]: string;
-          };
+          "application/json": components["schemas"]["RegisteredContractorResponse"];
         };
       };
       /** @description Control-plane token missing or wrong */
@@ -5052,6 +5213,55 @@ export interface operations {
       };
     };
   };
+  set_tenant_locales_api_v1_control_plane_tenants__slug__locales_put: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Control-Plane-Token"?: string | null;
+      };
+      path: {
+        slug: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LocaleSpec"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LocaleResponse"];
+        };
+      };
+      /** @description Control-plane token missing or wrong */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No tenant by that name */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The list is empty, or the primary locale is not in it */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   set_publication_api_v1_control_plane_tenants__slug__publication_put: {
     parameters: {
       query?: never;
@@ -5714,6 +5924,8 @@ export interface operations {
     parameters: {
       query: {
         fiscal_year: string;
+        /** @description Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices. */
+        locale?: string | null;
       };
       header?: never;
       path: {
@@ -5746,7 +5958,10 @@ export interface operations {
   };
   contractor_profile_api_v1_public__tenant_slug__contractor__contractor_id__profile_get: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices. */
+        locale?: string | null;
+      };
       header?: never;
       path: {
         contractor_id: string;
@@ -5778,7 +5993,10 @@ export interface operations {
   };
   ward_summary_api_v1_public__tenant_slug__ward__zone_code__summary_get: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices. */
+        locale?: string | null;
+      };
       header?: never;
       path: {
         zone_code: string;
@@ -5813,6 +6031,8 @@ export interface operations {
       query?: {
         limit?: number;
         offset?: number;
+        /** @description Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices. */
+        locale?: string | null;
       };
       header?: never;
       path: {
@@ -6006,7 +6226,10 @@ export interface operations {
   };
   zone_summary_api_v2_public__tenant_slug__zone__zone_code__summary_get: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices. */
+        locale?: string | null;
+      };
       header?: never;
       path: {
         zone_code: string;
@@ -6041,6 +6264,8 @@ export interface operations {
       query?: {
         limit?: number;
         offset?: number;
+        /** @description Language for tenant-authored names and the §22.2 notices. Defaults to English, which is the canonical wording of the notices. */
+        locale?: string | null;
       };
       header?: never;
       path: {

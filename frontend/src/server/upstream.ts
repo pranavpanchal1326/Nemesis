@@ -47,6 +47,34 @@ export function resolveTenant(): string | undefined {
 }
 
 /**
+ * The control-plane token, for the writes that redefine what a complaint means.
+ *
+ * `control_plane.py` is explicit that these are not open: *"Control-plane
+ * writes redefine what a complaint means and are not open."* A review decision,
+ * a policy activation and a tenant provisioning all carry
+ * `X-Control-Plane-Token`, and until Phase 13 replaces it with a real session
+ * that token is a shared secret.
+ *
+ * **It is held here and it is never sent to the browser.** Not in a prop, not
+ * in a cookie, not in a `NEXT_PUBLIC_` variable — this module imports
+ * `server-only`, so a client bundle that reaches for it is a build error rather
+ * than a review catch. That is the whole reason the console's writes go through
+ * route handlers instead of `fetch` from a component.
+ *
+ * **Returned per call rather than added by middleware.** A middleware would
+ * attach the secret to every upstream request this application makes, including
+ * the public transparency reads, which is a wider blast radius than the feature
+ * needs. A route that performs a control-plane write says so by asking.
+ */
+export function controlPlaneHeaders(): Readonly<Record<string, string>> {
+  const token = process.env["NEMESIS_CONTROL_PLANE_TOKEN"];
+  // Absent rather than empty. An empty string would be *supplied and wrong*,
+  // which the backend answers with a 403 that reads like a misconfigured token
+  // instead of an unconfigured one.
+  return token === undefined || token === "" ? {} : { "X-Control-Plane-Token": token };
+}
+
+/**
  * Problem+JSON is the backend's error contract (`nemesis/api/errors.py`), and
  * it is deliberately not forwarded verbatim to the browser: an upstream problem
  * document can carry internal detail, and §25 treats error responses as a
