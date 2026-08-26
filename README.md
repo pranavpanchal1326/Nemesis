@@ -36,28 +36,34 @@ NEMESIS is a municipal accountability platform built on one premise: **a civic s
 ## The product
 
 <div align="center">
-<img src="docs/images/landing-map.jpg" alt="The landing film — a clay model of the city with a peer list of every ward beside it" width="880">
-<br><sub><b>The Walk</b> — a nine-act scroll film over a 3D clay model of the city. Every place the model draws is listed beside it in text, at full contrast, for anyone the canvas fails.</sub>
+
+<img src="assets/landing-map.jpg" alt="The landing film — a clay model of the city with a peer list of every ward beside it" width="880">
+
+<br>
+
+<sub><b>The Walk</b> — a nine-act scroll film over a 3D clay model of the city. Every place the model draws is listed beside it in text, at full contrast, for anyone the canvas fails.</sub>
+
 </div>
 
 <br>
 
-<table>
-<tr>
-<td width="50%" valign="top">
-<img src="docs/images/portal-residents.jpg" alt="The residents' door" width="100%">
-<br><sub><b>For residents</b> — report it, follow it, read what the city publishes.</sub>
-</td>
-<td width="50%" valign="top">
-<img src="docs/images/portal-staff.jpg" alt="The staff door" width="100%">
-<br><sub><b>For staff</b> — thirteen console screens, each carrying its own honesty chip.</sub>
-</td>
-</tr>
-</table>
+<div align="center">
+
+| <img src="assets/portal-residents.jpg" width="420" alt="The residents' door"><br><sub><b>For residents</b> — report it, follow it, read what the city publishes.</sub> | <img src="assets/portal-staff.jpg" width="420" alt="The staff door"><br><sub><b>For staff</b> — thirteen console screens, each carrying its own honesty chip.</sub> |
+|:---:|:---:|
+
+</div>
+
+<br>
 
 <div align="center">
-<img src="docs/images/receipts.jpg" alt="The receipts — a live public API call, honesty counts, and every published place" width="880">
-<br><sub><b>The receipts</b> — the last act is deliberately boring. A live <code>curl</code>, the honesty counts, and every place this deployment publishes.</sub>
+
+<img src="assets/receipts.jpg" alt="The receipts — a live public API call, honesty counts, and every published place" width="880">
+
+<br>
+
+<sub><b>The receipts</b> — the last act is deliberately boring. A live <code>curl</code>, the honesty counts, and every place this deployment publishes.</sub>
+
 </div>
 
 <br>
