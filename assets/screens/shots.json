@@ -1,0 +1,344 @@
+[
+  {
+    "file": "01-landing-cold-open.png",
+    "title": "Landing — cold open",
+    "caption": "The wordmark over a clay model of the city, lit by that city's real local time and its real weather.",
+    "url": "/",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "01-landing-cold-open.jpg"
+  },
+  {
+    "file": "02-landing-walk.png",
+    "title": "Act 1 — the walk",
+    "caption": "A pothole gets reported. The app says “In Progress”. Weeks pass.",
+    "url": "/",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "02-landing-walk.jpg"
+  },
+  {
+    "file": "03-landing-stop.png",
+    "title": "Act 2 — the stop",
+    "caption": "The camera drops to ankle height and the problem fills the lower third.",
+    "url": "/",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "03-landing-stop.jpg"
+  },
+  {
+    "file": "04-landing-silence.png",
+    "title": "Act 3 — the silence",
+    "caption": "One ghost flag for every report that was never closed. They dim together.",
+    "url": "/",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "04-landing-silence.jpg"
+  },
+  {
+    "file": "05-landing-report.png",
+    "title": "Act 4 — the report",
+    "caption": "The camera pushes through the phone into the real citizen app, running in the page.",
+    "url": "/",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "05-landing-report.jpg"
+  },
+  {
+    "file": "06-landing-pipeline.png",
+    "title": "Act 5 — the pipeline",
+    "caption": "Every gate stamps the card with what it found. A stamp is an event from the log, never a status flag.",
+    "url": "/",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "06-landing-pipeline.jpg"
+  },
+  {
+    "file": "07-landing-merge.png",
+    "title": "Act 6 — the merge",
+    "caption": "Duplicate reports fuse into one cluster — and the scene waits for a real match rather than playing one.",
+    "url": "/",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "07-landing-merge.jpg"
+  },
+  {
+    "file": "08-landing-city-awake.png",
+    "title": "Act 7 — the city, awake",
+    "caption": "The survey: every ward this deployment publishes, drawn from the live open-data API.",
+    "url": "/",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "08-landing-city-awake.jpg"
+  },
+  {
+    "file": "09-landing-table.png",
+    "title": "Act 8 — the table",
+    "caption": "The model, photographed on the bench it was made on. The next frame is the console.",
+    "url": "/",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "09-landing-table.jpg"
+  },
+  {
+    "file": "10-landing-receipts.png",
+    "title": "Act 9 — the receipts",
+    "caption": "Deliberately boring: a live curl against the public API, and every claim carrying a status label.",
+    "url": "/",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "10-landing-receipts.jpg"
+  },
+  {
+    "file": "11-resident-home.png",
+    "title": "Resident — the three doors",
+    "caption": "Report a problem, follow a report by its receipt id, or read what the city publishes about itself.",
+    "url": "/citizen",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "11-resident-home.jpg"
+  },
+  {
+    "file": "12-resident-capture.png",
+    "title": "Resident — step 1, capture",
+    "caption": "Photograph it, say where, send. About thirty seconds, and the viewfinder is the first screen.",
+    "url": "/report",
+    "surface": "phone",
+    "availability": "live",
+    "image": "12-resident-capture.jpg"
+  },
+  {
+    "file": "13-resident-describe.png",
+    "title": "Resident — step 1, in your own words",
+    "caption": "A four-second undo on the photograph, and one optional line. The flow completes if it is left empty.",
+    "url": "/report",
+    "surface": "phone",
+    "availability": "live",
+    "image": "13-resident-describe.jpg"
+  },
+  {
+    "file": "14-resident-place.png",
+    "title": "Resident — step 2, where",
+    "caption": "A card, not a picker. The ward resolves against the city's own zone tree — never a third-party geocoder.",
+    "url": "/report",
+    "surface": "phone",
+    "availability": "live",
+    "image": "14-resident-place.jpg"
+  },
+  {
+    "file": "15-resident-receipt.png",
+    "title": "Resident — step 3, the receipt",
+    "caption": "Filed. The receipt is a document, and its claim is a SHA-256 of the event the log actually wrote.",
+    "url": "/report",
+    "surface": "phone",
+    "availability": "live",
+    "image": "15-resident-receipt.jpg"
+  },
+  {
+    "file": "16-resident-track.png",
+    "title": "Resident — the evidence trail",
+    "caption": "The receipt id is the only way in — nobody can look the report up by name. Each gate it passed is an event, not a status.",
+    "url": "/t/b00ce383-ba80-45d2-b175-460f84b08170",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "16-resident-track.jpg"
+  },
+  {
+    "file": "17-public-city.png",
+    "title": "Public — the city",
+    "caption": "The open-data portal: every zone and ward, with what is counted and what is withheld.",
+    "url": "/pune-demo",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "17-public-city.jpg"
+  },
+  {
+    "file": "18-public-ward.png",
+    "title": "Public — one ward",
+    "caption": "Kothrud, by category, with the suppression threshold stated rather than implied.",
+    "url": "/pune-demo/ward/W-KOTHRUD",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "18-public-ward.jpg"
+  },
+  {
+    "file": "19-public-budget.png",
+    "title": "Public — the money",
+    "caption": "Allocated against spent for a zone, in a fiscal year a resident can name.",
+    "url": "/pune-demo/budget/Z-WEST?fiscal_year=2026",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "19-public-budget.jpg"
+  },
+  {
+    "file": "20-public-contractor.png",
+    "title": "Public — the contractor ledger",
+    "caption": "Four independent metrics, published side by side. There is no overall score, because an average would hide the one that matters.",
+    "url": "/pune-demo/contractor/f5e3e2fb-82de-4b1d-93e5-344f2d82ffe9",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "20-public-contractor.jpg"
+  },
+  {
+    "file": "21-public-honesty.png",
+    "title": "Public — what is real",
+    "caption": "Every claim the product makes about itself, labelled REAL, SIMULATED, ROADMAP, CUT or REFRAMED.",
+    "url": "/pune-demo/honesty",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "21-public-honesty.jpg"
+  },
+  {
+    "file": "22-staff-home.png",
+    "title": "Staff — the thirteen surfaces",
+    "caption": "The whole operating surface, with the ones that are not wired yet saying so on the tile.",
+    "url": "/staff",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "22-staff-home.jpg"
+  },
+  {
+    "file": "23-console-command.png",
+    "title": "Console — command",
+    "caption": "What breaches first, the city as a clay model, and the queue underneath it.",
+    "url": "/console",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "23-console-command.jpg"
+  },
+  {
+    "file": "24-console-review.png",
+    "title": "Console — the review queue",
+    "caption": "The reports the pipeline would not decide alone, ordered by priority then oldest first.",
+    "url": "/console/review",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "24-console-review.jpg"
+  },
+  {
+    "file": "25-console-review-item.png",
+    "title": "Console — one decision",
+    "caption": "Why the gate stopped, the redacted photograph, the evidence, and the decisions a reviewer may take.",
+    "url": "/console/review",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "25-console-review-item.jpg"
+  },
+  {
+    "file": "26-console-palette.png",
+    "title": "Console — the command palette",
+    "caption": "Every screen one keystroke away. The console is a keyboard surface first.",
+    "url": "/console",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "26-console-palette.jpg"
+  },
+  {
+    "file": "27-console-policy.png",
+    "title": "Console — the policy studio",
+    "caption": "Rules as documents, with a backtest before they bite.",
+    "url": "/console/policy",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "27-console-policy.jpg"
+  },
+  {
+    "file": "28-console-control.png",
+    "title": "Console — the control plane",
+    "caption": "Taxonomy, zones, departments, calendars, locales and tenants.",
+    "url": "/console/control",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "28-console-control.jpg"
+  },
+  {
+    "file": "29-console-developers.png",
+    "title": "Console — the developer portal",
+    "caption": "Keys, webhooks, usage and the version clock.",
+    "url": "/console/developers",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "29-console-developers.jpg"
+  },
+  {
+    "file": "30-console-area.png",
+    "title": "Console — area view",
+    "caption": "One ward over time, including what it is not telling us.",
+    "url": "/console/area",
+    "surface": "desktop",
+    "availability": "roadmap",
+    "image": "30-console-area.jpg"
+  },
+  {
+    "file": "31-console-work.png",
+    "title": "Console — work orders",
+    "caption": "Assignment, the contractor picker and the rate card.",
+    "url": "/console/work",
+    "surface": "desktop",
+    "availability": "roadmap",
+    "image": "31-console-work.jpg"
+  },
+  {
+    "file": "32-console-closure.png",
+    "title": "Console — closure",
+    "caption": "Evidence or nothing. The conditions for closing a job are shown before they are hit.",
+    "url": "/console/closure",
+    "surface": "desktop",
+    "availability": "roadmap",
+    "image": "32-console-closure.jpg"
+  },
+  {
+    "file": "33-console-money.png",
+    "title": "Console — money",
+    "caption": "Allocated against spent, and what a citizen sees of it.",
+    "url": "/console/money",
+    "surface": "desktop",
+    "availability": "roadmap",
+    "image": "33-console-money.jpg"
+  },
+  {
+    "file": "34-console-integrity.png",
+    "title": "Console — integrity",
+    "caption": "Signals, case files, and the requirements a blacklist has to meet before it is one.",
+    "url": "/console/integrity",
+    "surface": "desktop",
+    "availability": "roadmap",
+    "image": "34-console-integrity.jpg"
+  },
+  {
+    "file": "35-console-reports.png",
+    "title": "Console — the report builder",
+    "caption": "A document that carries its own proof.",
+    "url": "/console/reports",
+    "surface": "desktop",
+    "availability": "roadmap",
+    "image": "35-console-reports.jpg"
+  },
+  {
+    "file": "36-console-roles.png",
+    "title": "Console — roles",
+    "caption": "What each role sees, and what it may do.",
+    "url": "/console/roles",
+    "surface": "desktop",
+    "availability": "roadmap",
+    "image": "36-console-roles.jpg"
+  },
+  {
+    "file": "37-field-app.png",
+    "title": "Field — the crew's phone",
+    "caption": "Capture and close jobs outdoors and offline. Installs to a phone; built for sunlight and gloves.",
+    "url": "/field",
+    "surface": "phone",
+    "availability": "live",
+    "image": "37-field-app.jpg"
+  },
+  {
+    "file": "38-developers-portal.png",
+    "title": "Developers — the proof surfaces",
+    "caption": "The routes each rendering pipeline is photographed through, and the contracts it holds.",
+    "url": "/developers",
+    "surface": "desktop",
+    "availability": "live",
+    "image": "38-developers-portal.jpg"
+  }
+]

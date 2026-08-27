@@ -107,7 +107,21 @@ export function ColdOpen({ strings }: { readonly strings: Strings }) {
          * that means nothing, on the surface that introduces the product.
          */}
         <p className="cold-open__expand type-micro">{t(strings, "story.expand")}</p>
-        <p className="cold-open__motto type-heading">{t(strings, "story.motto")}</p>
+        {/*
+         * The motto is the film's thesis, and it was set in the interface face
+         * at `type-heading` — 20px of the console's workhorse, under a 154px
+         * masthead, with an eyebrow between them. The ladder had no second
+         * voice: it went from the loudest thing on the page to the quietest but
+         * one, and "Prove, don't log." is the sentence the whole nine acts are
+         * an argument for.
+         *
+         * `type-display-2` is the narrative face, and it is exactly what Act 1
+         * gives its three lines. Setting the motto at the same step is what
+         * makes the cold open read as the first beat of the same film rather
+         * than a title card in front of one: name, what it is, the promise, the
+         * cue — four steps, one voice change, and the promise is audible.
+         */}
+        <p className="cold-open__motto type-display-2">{t(strings, "story.motto")}</p>
 
         <div className="cold-open__cue">
           <span className="cold-open__cue-rule" aria-hidden="true" />

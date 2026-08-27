@@ -377,6 +377,22 @@ function buildCss(t: Tokens): string {
   lines.push(`  --step-ms: ${String(t.motion.step.ms)}ms;`);
   lines.push(`  --measure: ${String(t.type.measure.ch)}ch;`);
   lines.push(`  --numeric: ${t.type.numeric.value};`);
+  // The Latin scale's *sizes*, as properties.
+  //
+  // The `.type-*` classes below are the whole step — face, weight, tracking and
+  // leading together — and that is what copy should carry. But a component
+  // sometimes needs one step's size on an element that already belongs to
+  // another step: the unscored severity badge sits inside a peer row and has to
+  // be a caption next to a body label, and there is no class it can wear
+  // without also taking the caption's face and leading.
+  //
+  // Without these it re-declared `0.8125rem` by hand, which is the one thing
+  // §E24 exists to stop — a second copy of a scale value that no longer moves
+  // when the scale does. `globals.css` was already asking for `--text-body`
+  // with a fallback, against a property nothing emitted.
+  for (const [name, step] of entries<TypeStep>(t.type.scale.latin)) {
+    lines.push(`  --text-${name}: ${step.size};`);
+  }
   const angles = t.press.screenAngles.value;
   angles.forEach((a, i) => lines.push(`  --press-angle-${String(i + 1)}: ${String(a)}deg;`));
   for (const [k, v] of numbers(t.press.halftone)) lines.push(`  --press-${k}: ${String(v)};`);

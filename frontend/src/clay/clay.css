@@ -192,9 +192,31 @@ a.clay-peers__cell {
   color: var(--role-text-primary);
 }
 
+/*
+ * **A row has one voice, and the badge was speaking in it.**
+ *
+ * The pass above took caps off the values and left the *size* alone, and the
+ * badge is the one value with no type class of its own — `<SeverityBadge>` sets
+ * ink and shape and inherits its metrics, which inside a peer row means body.
+ * So every row printed its place name and its severity at the same size, side
+ * by side, and on a published map where nothing is scored yet that is "Not yet
+ * scored" set as large as "Kothrud", nine times, down the one card on a screen
+ * whose subject is the model behind it. The name stopped being the row.
+ *
+ * The other two values are already `type-caption`. This puts the badge on the
+ * same step, which is all it ever needed: the row now reads name first, and its
+ * three facts underneath at one weight below. Nothing is removed and nothing is
+ * dimmed — §E3.3's "not yet scored" is still printed in full, at the size the
+ * rest of the metadata is printed at.
+ *
+ * The size comes from `--text-caption` rather than a number, because a second
+ * copy of a scale value is exactly what §E24 is for; the property is emitted by
+ * the token generator alongside the `.type-*` classes.
+ */
 .clay-peers__cell .severity-badge {
   grid-area: badge;
   justify-self: end;
+  font-size: var(--text-caption);
 }
 
 .clay-peers__state {
