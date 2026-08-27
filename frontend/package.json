@@ -25,6 +25,7 @@
     "api:types": "node scripts/generate-api-types.ts",
     "api:types:check": "node scripts/generate-api-types.ts --check",
     "guards": "node scripts/check-guards.ts",
+    "screens": "node scripts/capture-product-shots.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",

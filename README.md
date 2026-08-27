@@ -35,13 +35,57 @@ NEMESIS is a municipal accountability platform built on one premise: **a civic s
 
 ## The product
 
+Every image below is a photograph of the running application, taken by [`frontend/scripts/capture-product-shots.ts`](frontend/scripts/capture-product-shots.ts) against a live stack seeded with `nem seed-demo` — a demo tenant for Pune. Nothing here is a mockup, a rendering, or a retouched frame. The captions are the ones in [`assets/screens/shots.json`](assets/screens/shots.json), which the capture writes as it shoots.
+
 <div align="center">
 
-<img src="assets/landing-map.jpg" alt="The landing film — a clay model of the city with a peer list of every ward beside it" width="880">
+<img src="assets/screens/01-landing-cold-open.jpg" alt="The landing film's cold open — the NEMESIS wordmark over a clay model of Pune, with a list of every ward beside it" width="900">
 
 <br>
 
-<sub><b>The Walk</b> — a nine-act scroll film over a 3D clay model of the city. Every place the model draws is listed beside it in text, at full contrast, for anyone the canvas fails.</sub>
+<sub><b>The cold open</b> — the wordmark over a clay model of the city, lit by that city's real local time and its real weather. Every place the model draws is listed beside it in text, at full contrast, for anyone the canvas fails.</sub>
+
+</div>
+
+<br>
+
+### The Walk — nine acts
+
+<sub>A scroll-driven film. The camera is on a spine with one normalised position, so an act is a number somebody can write down rather than wherever the smooth-scroll happened to stop.</sub>
+
+<div align="center">
+
+| <img src="assets/screens/02-landing-walk.jpg" width="280" alt="Act 1, the walk"><br><sub><b>1 · The walk</b><br>A pothole gets reported. The app says “In Progress”. Weeks pass.</sub> | <img src="assets/screens/03-landing-stop.jpg" width="280" alt="Act 2, the stop"><br><sub><b>2 · The stop</b><br>The camera drops to ankle height and the problem fills the lower third.</sub> | <img src="assets/screens/04-landing-silence.jpg" width="280" alt="Act 3, the silence"><br><sub><b>3 · The silence</b><br>One ghost flag per report that was never closed. They dim together.</sub> |
+|:---:|:---:|:---:|
+| <img src="assets/screens/05-landing-report.jpg" width="280" alt="Act 4, the report"><br><sub><b>4 · The report</b><br>The camera pushes through the phone into the real citizen app, running in the page.</sub> | <img src="assets/screens/06-landing-pipeline.jpg" width="280" alt="Act 5, the pipeline"><br><sub><b>5 · The pipeline</b><br>Every gate stamps the card with what it found. A stamp is an event, never a status flag.</sub> | <img src="assets/screens/07-landing-merge.jpg" width="280" alt="Act 6, the merge"><br><sub><b>6 · The merge</b><br>Duplicates fuse into one cluster — and the scene waits for a real match rather than playing one.</sub> |
+| <img src="assets/screens/08-landing-city-awake.jpg" width="280" alt="Act 7, the city awake"><br><sub><b>7 · The city, awake</b><br>Every ward this deployment publishes, from the live open-data API.</sub> | <img src="assets/screens/09-landing-table.jpg" width="280" alt="Act 8, the table"><br><sub><b>8 · The table</b><br>The model, photographed on the bench it was made on. The next frame is the console.</sub> | <img src="assets/screens/10-landing-receipts.jpg" width="280" alt="Act 9, the receipts"><br><sub><b>9 · The receipts</b><br>Deliberately boring. A live <code>curl</code>, the honesty counts, every published place.</sub> |
+
+</div>
+
+<br>
+
+<div align="center"><sub>─────────────────  ○  ─────────────────</sub></div>
+
+### For residents
+
+<div align="center">
+
+<img src="assets/screens/11-resident-home.jpg" alt="The residents' door — report a problem, follow a report, read what the city publishes" width="900">
+
+<br>
+
+<sub><b>Three doors</b> — report a problem, follow a report by its receipt id, or read what the city publishes about itself. <code>/citizen</code></sub>
+
+</div>
+
+<br>
+
+<sub>The four frames below are one continuous session against the live stack: a real photograph uploaded, a real ward resolved from a real coordinate, a real complaint written to the log, and a receipt whose hash is the hash of the event the backend actually wrote.</sub>
+
+<div align="center">
+
+| <img src="assets/screens/12-resident-capture.jpg" width="205" alt="Step 1, the viewfinder"><br><sub><b>1 · Capture</b><br>Photograph it, say where, send. About thirty seconds.</sub> | <img src="assets/screens/13-resident-describe.jpg" width="205" alt="Step 1, describing the problem"><br><sub><b>2 · In your words</b><br>A four-second undo, and one optional line.</sub> | <img src="assets/screens/14-resident-place.jpg" width="205" alt="Step 2, the place card"><br><sub><b>3 · Where</b><br>A card, not a picker — resolved against the city's own zone tree.</sub> | <img src="assets/screens/15-resident-receipt.jpg" width="205" alt="Step 3, the receipt with its chain hash"><br><sub><b>4 · The receipt</b><br>A document. Its claim is a SHA-256 of the event that was written.</sub> |
+|:---:|:---:|:---:|:---:|
 
 </div>
 
@@ -49,22 +93,124 @@ NEMESIS is a municipal accountability platform built on one premise: **a civic s
 
 <div align="center">
 
-| <img src="assets/portal-residents.jpg" width="420" alt="The residents' door"><br><sub><b>For residents</b> — report it, follow it, read what the city publishes.</sub> | <img src="assets/portal-staff.jpg" width="420" alt="The staff door"><br><sub><b>For staff</b> — thirteen console screens, each carrying its own honesty chip.</sub> |
+<img src="assets/screens/16-resident-track.jpg" alt="The evidence trail for a filed report — each gate it passed through, with hashes" width="900">
+
+<br>
+
+<sub><b>The evidence trail</b> — the receipt id is the only way in. Nobody can look the report up by name, and neither can we. Each gate it passed is an event with a hash, not a status. <code>/t/&lt;id&gt;</code></sub>
+
+</div>
+
+<br>
+
+<div align="center"><sub>─────────────────  ○  ─────────────────</sub></div>
+
+### What the city publishes
+
+<sub>Open data, on public URLs, with the disclaimer as first-class UI rather than a footnote. A contractor's record is a ledger of four independent metrics — the API publishes no single score, so there is nothing to collapse into a rating.</sub>
+
+<div align="center">
+
+| <img src="assets/screens/17-public-city.jpg" width="420" alt="The city's open-data portal"><br><sub><b>The city</b> — every zone and ward, with what is counted and what is withheld. <code>/&lt;tenant&gt;</code></sub> | <img src="assets/screens/18-public-ward.jpg" width="420" alt="One ward's public page"><br><sub><b>One ward</b> — by category, with the suppression threshold stated rather than implied.</sub> |
+|:---:|:---:|
+| <img src="assets/screens/19-public-budget.jpg" width="420" alt="A zone's budget page"><br><sub><b>The money</b> — allocated against spent, in a fiscal year a resident can name.</sub> | <img src="assets/screens/20-public-contractor.jpg" width="420" alt="A contractor's public ledger"><br><sub><b>The contractor ledger</b> — four metrics side by side. No overall score, because an average would hide the one that matters.</sub> |
+
+</div>
+
+<br>
+
+<div align="center">
+
+<img src="assets/screens/21-public-honesty.jpg" alt="The honesty table — every claim the product makes about itself with a status label" width="900">
+
+<br>
+
+<sub><b>What is real</b> — every claim this product makes about <i>itself</i>, labelled <code>REAL</code>, <code>SIMULATED</code>, <code>ROADMAP</code>, <code>CUT</code> or <code>REFRAMED</code>. The counts are generated, not typed. <code>/&lt;tenant&gt;/honesty</code></sub>
+
+</div>
+
+<br>
+
+<div align="center"><sub>─────────────────  ○  ─────────────────</sub></div>
+
+### For staff
+
+<div align="center">
+
+<img src="assets/screens/23-console-command.jpg" alt="The console's command screen — what breaches first, the city, and the queue" width="900">
+
+<br>
+
+<sub><b>Command</b> — what breaches first, the city as a clay model, and the queue underneath it. Where the contract carries no deadline yet, the screen states the order it is actually in rather than deriving one that would look measured. <code>/console</code></sub>
+
+</div>
+
+<br>
+
+<div align="center">
+
+| <img src="assets/screens/22-staff-home.jpg" width="420" alt="The staff door — thirteen surfaces"><br><sub><b>Thirteen surfaces</b> — each tile says on its face whether it is wired. <code>/staff</code></sub> | <img src="assets/screens/24-console-review.jpg" width="420" alt="The review queue"><br><sub><b>The review queue</b> — the reports the pipeline would not decide alone.</sub> |
+|:---:|:---:|
+| <img src="assets/screens/25-console-review-item.jpg" width="420" alt="One review decision"><br><sub><b>One decision</b> — why the gate stopped, the redacted photograph, and the evidence behind it.</sub> | <img src="assets/screens/26-console-palette.jpg" width="420" alt="The command palette"><br><sub><b>The palette</b> — every screen one keystroke away. A keyboard surface first.</sub> |
+| <img src="assets/screens/27-console-policy.jpg" width="420" alt="The policy studio"><br><sub><b>Policy studio</b> — rules as documents, with a backtest before they bite.</sub> | <img src="assets/screens/28-console-control.jpg" width="420" alt="The control plane"><br><sub><b>Control plane</b> — taxonomy, zones, departments, calendars, locales, tenants.</sub> |
+
+</div>
+
+<br>
+
+<div align="center">
+
+<img src="assets/screens/29-console-developers.jpg" alt="The console's developer portal — keys, webhooks, usage and the version clock" width="900">
+
+<br>
+
+<sub><b>Developer portal</b> — keys, webhooks, usage, and the version clock. <code>/console/developers</code></sub>
+
+</div>
+
+<br>
+
+<div align="center"><sub>─────────────────  ○  ─────────────────</sub></div>
+
+### Designed, not wired yet
+
+> A console screen whose contract still returns nulls **is not routed to a public URL**. In a production build each of the seven below is a 404, and the rail does not render a link to it. They exist, they are designed against the published contract, and every field on them says which it is. The frames were taken from the development build for that reason — and this paragraph is the reason they are labelled rather than quietly shown.
+
+<div align="center">
+
+| <img src="assets/screens/30-console-area.jpg" width="280" alt="Area view"><br><sub><b>Area view</b> — one ward over time, including what it is not telling us.</sub> | <img src="assets/screens/31-console-work.jpg" width="280" alt="Work orders"><br><sub><b>Work orders</b> — assignment, the contractor picker, the rate card.</sub> | <img src="assets/screens/32-console-closure.jpg" width="280" alt="Closure"><br><sub><b>Closure</b> — evidence or nothing, with the conditions shown before they are hit.</sub> |
+|:---:|:---:|:---:|
+| <img src="assets/screens/33-console-money.jpg" width="280" alt="Money"><br><sub><b>Money</b> — allocated against spent, and what a citizen sees of it.</sub> | <img src="assets/screens/34-console-integrity.jpg" width="280" alt="Integrity"><br><sub><b>Integrity</b> — signals, case files, and what a blacklist has to meet.</sub> | <img src="assets/screens/35-console-reports.jpg" width="280" alt="Report builder"><br><sub><b>Report builder</b> — a document that carries its own proof.</sub> |
+| <img src="assets/screens/36-console-roles.jpg" width="280" alt="Roles"><br><sub><b>Roles</b> — what each role sees, and what it may do.</sub> | | |
+
+</div>
+
+<br>
+
+<div align="center"><sub>─────────────────  ○  ─────────────────</sub></div>
+
+### Outdoors, and under the hood
+
+<div align="center">
+
+| <img src="assets/screens/37-field-app.jpg" width="230" alt="The field app on a phone"><br><sub><b>The crew's phone</b> — capture and close jobs outdoors and offline. Installs to a phone; built for sunlight and gloves. <code>/field</code></sub> | <img src="assets/screens/38-developers-portal.jpg" width="600" alt="The developer proof surfaces"><br><sub><b>The proof surfaces</b> — the dev-only routes each rendering pipeline is photographed through, and the contracts it holds. <code>/developers</code></sub> |
 |:---:|:---:|
 
 </div>
 
 <br>
 
-<div align="center">
+<sub><b>Reproducing these.</b> Start the stack and seed a city, build and serve the frontend, then run the capture — it writes both image sets and the manifest the deck reads.</sub>
 
-<img src="assets/receipts.jpg" alt="The receipts — a live public API call, honesty counts, and every published place" width="880">
+```bash
+nem up && nem seed-demo
+cd frontend && npm run build && npx next start --port 3210 &
+npm run dev -- --port 3211 &          # the roadmap screens are dev-only by design
+node scripts/capture-product-shots.ts
+cd .. && python scripts/build_screen_derivatives.py && python scripts/build_prototype_deck.py
+```
 
-<br>
-
-<sub><b>The receipts</b> — the last act is deliberately boring. A live <code>curl</code>, the honesty counts, and every place this deployment publishes.</sub>
-
-</div>
+<sub>The last line also rebuilds <a href="Nemesis_Prototype.pptx"><code>Nemesis_Prototype.pptx</code></a> — the same walkthrough as a 49-slide deck, generated from the same manifest.</sub>
 
 <br>
 

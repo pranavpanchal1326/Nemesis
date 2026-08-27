@@ -494,10 +494,41 @@
   justify-items: start;
 }
 
+/*
+ * **The masthead is signage, and signage is not prose.**
+ *
+ * `.act__panel` caps itself at `--measure`, which is right for every act in the
+ * film and wrong for the one element that is a name rather than a sentence. 68ch
+ * of Switzer is about 550px; NEMESIS in Panchang at the poster step is about
+ * 1030px at a desk. So the name broke across two lines as **NEM / ESIS** — a
+ * wordmark cut in half by a reading measure it was never meant to obey.
+ *
+ * The panel keeps its measure for everything under the name; the copy below is
+ * `<p>`, and `globals.css` already caps those at `--measure` on its own. Only
+ * the `<h1>` steps out, and what it steps out into is the frame: it starts at
+ * the inline-start gutter and takes the width the name is, which up to about
+ * 1440px is very nearly the whole sheet and above it is the poster step holding
+ * its cap. That is the composition §E16 asks for — the name set across the
+ * sheet, and the film beginning under it.
+ */
+.cold-open .act__panel {
+  max-inline-size: none;
+}
+
 .cold-open__name {
   margin: 0;
   display: flex;
-  flex-wrap: wrap;
+  /*
+   * **Never wraps, and the poster step is what makes that safe.**
+   *
+   * `wrap` was the safety net for a name that did not fit, and a wrapped
+   * wordmark is not a safer failure than an overflowing one — it is the same
+   * failure, printed. The step's floor is sized against Panchang's own advance
+   * (see `tokens.json`), so the name fits gutter to gutter from 320px up; this
+   * declaration is the guarantee that if that ever stops being true, it breaks
+   * somewhere a golden image will show it rather than quietly hyphenating.
+   */
+  flex-wrap: nowrap;
 }
 
 /* Glyph by glyph at a 24 ms stagger — §E16's own number, expressed as a

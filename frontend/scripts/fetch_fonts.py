@@ -796,6 +796,61 @@ def write_licences() -> None:
     print(f"  wrote public/fonts/LICENSES.md")
 
 
+#: The first four bytes of each container this script writes. A font file is the
+#: one kind of artefact in this repository that fails *silently*: the browser
+#: drops an unparseable face, walks the stack to the next entry, and renders the
+#: page in a system fallback with no console error a reviewer would notice. The
+#: whole type system can be gone and the screenshot still looks like a website.
+#:
+#: It happened. A UTF-8 text round-trip over the working tree replaced every
+#: byte that was not valid UTF-8 with U+FFFD — 14 280 of them in Panchang alone —
+#: and destroyed all fifty-one WOFF2 files and all four share-card faces. Every
+#: file was still on disk and still the right name, and the landing page shipped
+#: set in Impact: `type-poster` carries -0.04em of tracking chosen for Panchang's
+#: advances, so against a condensed system fallback the wordmark printed its
+#: letters on top of each other. That was the only visible symptom.
+#:
+#: `--verify` did not pass, but it did not *report* either. `verify_fallbacks`
+#: opens the ten faces it derives metrics from, so it raised a fontTools
+#: traceback about a UIntBase128 field — a message that names neither the file
+#: nor the cause — and the other forty-five files were never opened at all.
+#: "All present" was never the claim worth making, and a stack trace is not a
+#: gate. This runs first, over every file, and says what is wrong with which.
+_MAGIC = {".woff2": b"wOF2", ".woff": b"wOFF", ".ttf": bytes([0, 1, 0, 0])}
+
+#: The UTF-8 replacement character, encoded. Its presence in a binary is not
+#: proof of damage — any file may contain those three bytes by chance — but a
+#: *density* of them is, and the ratio below is three orders of magnitude above
+#: what chance produces in a compressed font.
+_REPLACEMENT = "�".encode("utf-8")
+
+
+def verify_intact(path: Path) -> str | None:
+    """Return a problem with ``path``'s bytes, or ``None`` if it looks like a font.
+
+    Deliberately not a full parse. This script has no font library dependency and
+    should not grow one to run a gate; a container magic and a mojibake density
+    catch the failure that actually occurs — a binary carried through a text
+    codec — without pretending to validate a glyph table.
+    """
+    data = path.read_bytes()
+    expected = _MAGIC.get(path.suffix.lower())
+    if expected is not None and not data.startswith(expected):
+        return (
+            f"fonts: {path.name} is not a {path.suffix.lstrip('.')} — "
+            f"header is {data[:4]!r}, expected {expected!r}. "
+            "The bytes were damaged; re-run `nem web-fonts` to fetch them again."
+        )
+    replacements = data.count(_REPLACEMENT)
+    if replacements and replacements * len(_REPLACEMENT) > len(data) * 0.01:
+        return (
+            f"fonts: {path.name} carries {replacements} U+FFFD replacement characters "
+            f"in {len(data)} bytes — it has been through a text codec and no browser "
+            "will parse it. Re-run `nem web-fonts` to fetch it again."
+        )
+    return None
+
+
 def verify() -> int:
     if not CSS_OUT.exists():
         print("fonts: not fetched — run `nem web-fonts`", file=sys.stderr)
@@ -807,6 +862,27 @@ def verify() -> int:
     families = {face.family for face in FACES}
     declared = set(re.findall(r'font-family: "([^"]+)"', css))
     absent = families - declared
+
+    # Present is not the same as loadable, and this runs before anything tries to
+    # *parse* a face: `verify_fallbacks` reads real metrics out of ten of these
+    # files and would otherwise answer a damaged one with a traceback from inside
+    # fontTools instead of the name of the file that is broken. See `verify_intact`.
+    damaged = [
+        problem
+        for problem in (
+            verify_intact(path)
+            for path in (
+                [OUT_DIR / name for name in sorted(re.findall(r'url\("/fonts/([^"]+)"\)', css))]
+                + [OG_DIR / f"{face.name}.ttf" for face in OG_FACES]
+            )
+            if path.exists()
+        )
+        if problem is not None
+    ]
+    if damaged:
+        for problem in damaged:
+            print(problem, file=sys.stderr)
+        return 1
 
     fallback_problems = verify_fallbacks(css)
 
@@ -832,7 +908,7 @@ def verify() -> int:
     print(
         f"fonts: {len(declared)} families, {len(files)} files, "
         f"{len(OG_FACES)} share-card faces, "
-        f"{len(FALLBACK_FACES)} metric-matched fallbacks, all present"
+        f"{len(FALLBACK_FACES)} metric-matched fallbacks, all present and intact"
     )
     return 0
 

@@ -45,5 +45,6 @@ backend/nemesis/events/schema_lock.json    text eol=lf
 *.otf    binary
 *.wasm   binary
 *.zip    binary
+*.pptx   binary
 *.onnx   binary
 *.safetensors binary
