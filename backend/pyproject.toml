@@ -68,7 +68,7 @@ ml = [
     "faster-whisper>=1.1.0",
     "sentence-transformers>=3.3.0",
     "scikit-learn>=1.5.0",
-    "scikit-image>=0.24.0",
+    "scikit-image>=0.26.0",
     "mediapipe>=0.10.18",
 ]
 # `imagehash` and `exifread` were listed here and are deliberately gone. Phase 8
