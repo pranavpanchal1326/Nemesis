@@ -85,7 +85,7 @@ dev = [
     # httpx moved to the base dependency list in Phase 4 — the webhook
     # dispatcher needs it at runtime, so listing it here as well would be a
     # second place for the version floor to drift.
-    "ruff>=0.8.0",
+    "ruff>=0.16.5",
     "mypy>=1.13.0",
     "types-redis>=4.6.0",
     # Invariants worth proving over generated inputs rather than three examples:
