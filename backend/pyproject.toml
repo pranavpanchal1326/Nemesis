@@ -40,7 +40,7 @@ dependencies = [
     "opentelemetry-instrumentation-asyncpg>=0.50b0",
     "opentelemetry-instrumentation-redis>=0.50b0",
     "opentelemetry-instrumentation-celery>=0.50b0",
-    "prometheus-client>=0.21.0",
+    "prometheus-client>=0.26.0",
     # Phase 8 promotes Pillow from the `ml` extra to a base dependency. The §22.1
     # face-blur obligation, the §11.1 perceptual hash, and the EXIF cross-check
     # all need to *decode an image*, and only the face-detection step needs
