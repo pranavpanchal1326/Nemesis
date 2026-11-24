@@ -277,6 +277,13 @@ def _check(_: list[str]) -> int:
             # self-tests its own rules before it scans, rather than relying on a
             # pytest that would be skipped in exactly this environment.
             ("media redaction", [sys.executable, "scripts/check_media_redaction.py"]),
+            # Every committed binary still decodes as the format its name
+            # claims. A text round-trip destroyed every image in the repository
+            # once (4b31099) and nothing noticed for eleven commits, because the
+            # only consumer that cared — Playwright — reports an undecodable
+            # baseline as a failing *visual assertion*. Host-side and
+            # dependency-free: it reads magic bytes, not pixels.
+            ("binary integrity", [sys.executable, "scripts/check_binary_integrity.py"]),
             # ADR-0051. The budget in docs/HARDWARE.md drifted 384 MB from the
             # compose file and the stack over-subscribed the VM, whose symptom
             # was worker-ml's fork child being SIGKILLed at model load — a
@@ -831,11 +838,33 @@ def _web_golden(args: list[str]) -> int:
 
         nem web-golden                 capture what is missing, compare the rest
         nem web-golden --update-snapshots   re-baseline after a reviewed change
+
+    **Which specs it drives is discovered, not hardcoded.** This task used to
+    name `tests/golden.spec.ts` alone, which was true when that was the only
+    spec holding baselines. `story.spec.ts` (ten acts) and `clay.spec.ts` (the
+    WebGL2 golden) grew baselines later and were never added — so eleven of the
+    ninety-five committed PNGs had **no sanctioned way to be captured at all**,
+    and the only route left was a host run, which is the one thing both this
+    docstring and golden.spec.ts's header forbid. That is almost certainly how
+    the `-chromium-win32` set came to exist.
+
+    So the spec list is every file under `tests/` that asserts
+    `toHaveScreenshot`. A new spec that grows a baseline is covered the day it
+    does, without anyone remembering this function exists.
     """
     playwright_version = json.loads((WEB / "package.json").read_text(encoding="utf-8"))[
         "devDependencies"
     ]["@playwright/test"].lstrip("^~")
     image = f"mcr.microsoft.com/playwright:v{playwright_version}-noble"
+
+    specs = sorted(
+        f"tests/{path.name}"
+        for path in (WEB / "tests").glob("*.spec.ts")
+        if "toHaveScreenshot" in path.read_text(encoding="utf-8")
+    )
+    if not specs:
+        print("web-golden: no spec asserts toHaveScreenshot — nothing to capture")
+        return 1
 
     return run(
         [
@@ -862,11 +891,41 @@ def _web_golden(args: list[str]) -> int:
             image,
             "bash",
             "-lc",
-            "[ -x node_modules/.bin/playwright ] || npm ci --no-audit --no-fund; "
+            # Reinstall when the lockfile has moved, and ABORT if the install
+            # fails.
+            #
+            # This used to be `[ -x node_modules/.bin/playwright ] || npm ci`,
+            # which has two failure modes that between them cost an afternoon:
+            #
+            #  1. The guard only asks whether playwright is present, so a named
+            #     volume populated under an older `package-lock.json` is reused
+            #     forever. After the F2 dependency bumps the volume still held
+            #     the old tree, and `deck.gl`, `maplibre-gl` and `three-mesh-bvh`
+            #     were simply absent — which surfaces as Next's
+            #     `Module not found` against `src/clay/FlatMap.tsx`, i.e. as a
+            #     *source* error in a file nobody had touched.
+            #  2. `;` rather than `&&`, so a failed or partial `npm ci` fell
+            #     straight through into the test run. A capture against a
+            #     half-installed tree does not fail loudly — the pages that
+            #     need the missing modules fail to compile, their assertions
+            #     fail on a visibly empty element, and the baselines they would
+            #     have written are silently not written.
+            #
+            # So: stamp the lock's hash beside the install, compare it, and exit
+            # non-zero if the install does not succeed.
+            'LOCK_HASH="$(sha256sum package-lock.json | cut -d" " -f1)"; '
+            'STAMP="node_modules/.nemesis-lock-hash"; '
+            'if [ ! -x node_modules/.bin/playwright ] '
+            '|| [ "$(cat "$STAMP" 2>/dev/null)" != "$LOCK_HASH" ]; then '
+            "  npm ci --no-audit --no-fund || exit 1; "
+            '  printf %s "$LOCK_HASH" > "$STAMP"; '
+            "fi; "
             # Quoted for the *container's* shell, not this one: `-g "citizen's
             # four"` is an ordinary thing to type and an unquoted apostrophe
             # ends the command mid-word.
-            "npx playwright test tests/golden.spec.ts "
+            "npx playwright test "
+            + " ".join(shlex.quote(spec) for spec in specs)
+            + " "
             + " ".join(shlex.quote(argument) for argument in args),
         ]
     )

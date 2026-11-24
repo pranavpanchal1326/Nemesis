@@ -94,6 +94,93 @@ updates:
       - dependency-name: torch
         update-types: [version-update:semver-major]
 
+  # Track E's tree, which this file did not watch until 2026-11-24 — and the
+  # omission is why `npm audit` had reached four criticals, one of them an
+  # unauthenticated RCE in the framework, while the backend's PRs were current.
+  # Grouped on the same argument as pip above, with two groups that exist
+  # because of what breaks together here rather than what is convenient:
+  #
+  #   `three-stack` — three, @react-three/fiber, drei, three-mesh-bvh and
+  #   @types/three share an interlocking peer range. drei pins a fiber range,
+  #   fiber pins a three range, and @types/three tracks three's minor exactly
+  #   (ADR-0037's TSL shaders are written against that minor). Bumping one
+  #   produces a PR that cannot be evaluated without the others.
+  #
+  #   `next-stack` — next, react, react-dom and their @types move as one unit.
+  #   React 19's types are a peer requirement of Next 16, so a lone @types/react
+  #   bump is a typecheck failure wearing a patch version.
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels: [dependencies, frontend]
+    commit-message:
+      prefix: build
+      prefix-development: chore
+      include: scope
+
+    groups:
+      three-stack:
+        patterns:
+          - three
+          - "@types/three"
+          - "@react-three/*"
+          - three-mesh-bvh
+        update-types: [minor, patch]
+
+      next-stack:
+        patterns:
+          - next
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
+          - "@next/*"
+        update-types: [minor, patch]
+
+      geo-stack:
+        patterns:
+          - maplibre-gl
+          - deck.gl
+          - "@deck.gl/*"
+        update-types: [minor, patch]
+
+      motion-stack:
+        patterns:
+          - gsap
+          - lenis
+          - "@theatre/*"
+        update-types: [minor, patch]
+
+      dev-tooling:
+        patterns:
+          - "@playwright/*"
+          - playwright
+          - vitest
+          - "@vitest/*"
+          - eslint
+          - "@eslint/*"
+          - typescript-eslint
+          - prettier*
+          - storybook
+          - "@storybook/*"
+          - "@lhci/*"
+          - "@axe-core/*"
+          - axe-core
+          - "@types/node"
+        update-types: [minor, patch, major]
+
+    ignore:
+      # ADR-0042: Next 16 ships TypeScript 7 support and this project waits.
+      # A TypeScript major is that ADR's decision to revisit, not a dependency
+      # bump, and it belongs in an RFC.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+
   - package-ecosystem: docker
     directories:
       - /backend

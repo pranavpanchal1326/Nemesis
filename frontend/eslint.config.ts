@@ -126,4 +126,29 @@ export default defineConfig(
       "no-console": "off",
     },
   },
+
+  {
+    /**
+     * The TSL node graphs — ADR-0037, which says shaders here are authored in
+     * TSL rather than GLSL.
+     *
+     * `no-unsafe-class-instance-assignment` (new in typescript-eslint 8.7x)
+     * fires on every TSL assignment and cannot be satisfied by any correct TSL
+     * program. Three.js types `material.colorNode` and `material.normalNode` as
+     * instances of the `Node` class, while TSL's entire public API is factory
+     * functions — `vec4()`, `normalMap()`, `texture()` — returning node proxies
+     * that are deliberately not built with `new`. Satisfying the rule would
+     * mean not using TSL.
+     *
+     * Scoped to the two directories that hold node graphs rather than disabled
+     * globally: the rule is worth keeping everywhere a class really is a class,
+     * and it stays on for the other 213 modules. Off here as a property of the
+     * shading language, not as a concession about these two call sites — a
+     * third TSL assignment must not reopen this.
+     */
+    files: ["src/clay/**/*.ts", "src/press/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-class-instance-assignment": "off",
+    },
+  },
 );

@@ -191,30 +191,62 @@ jobs:
         if: failure()
         run: docker compose logs
 
+  # Every image this repository deploys, and both dependency trees.
+  #
+  # Until 2026-11-24 this job built exactly one image — `./backend` with
+  # `INSTALL_ML=false` — and SBOM'd and scanned that. Two things were therefore
+  # never looked at, and the audit in docs/reports/senior-audit-2026-11-24.md
+  # found four criticals living in the second of them:
+  #
+  #   1. `worker-ml`. INSTALL_ML=true is the image that holds torch, mediapipe,
+  #      open_clip, faster-whisper, scikit-* and pillow — the largest and most
+  #      CVE-dense dependency set in the repository, and one compose actually
+  #      runs. An SBOM that omits it does not describe the deployment.
+  #   2. The frontend. 215 modules and their transitive tree, scanned by
+  #      nothing, in a job whose name claims to answer this question.
+  #
+  # The matrix exists so a new image cannot be added to compose without a line
+  # here being conspicuously absent.
   supply-chain:
-    name: supply chain · SBOM & vulnerabilities
+    name: supply chain · ${{ matrix.name }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
+    strategy:
+      # Both legs report. One image failing must not cancel the scan that would
+      # have told us about the other.
+      fail-fast: false
+      matrix:
+        include:
+          - name: api image
+            tag: nemesis-api:ci
+            install_ml: "false"
+            slug: api
+          - name: worker-ml image
+            tag: nemesis-worker-ml:ci
+            install_ml: "true"
+            slug: worker-ml
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build API image
-        run: docker build -t nemesis-api:ci --build-arg INSTALL_ML=false ./backend
+      - name: Build image
+        run: |
+          docker build -t ${{ matrix.tag }} \
+            --build-arg INSTALL_ML=${{ matrix.install_ml }} ./backend
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: nemesis-api:ci
+          image: ${{ matrix.tag }}
           format: spdx-json
-          artifact-name: sbom-api.spdx.json
+          artifact-name: sbom-${{ matrix.slug }}.spdx.json
 
       - name: Scan for vulnerabilities
         uses: anchore/scan-action@v5
         id: scan
         with:
-          image: nemesis-api:ci
+          image: ${{ matrix.tag }}
           fail-build: true
           severity-cutoff: high
 
@@ -222,6 +254,74 @@ jobs:
         if: always()
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
+          # Without a distinct category each matrix leg overwrites the other's
+          # findings, and the alert list silently describes one image.
+          category: supply-chain-${{ matrix.slug }}
+
+  # The frontend half of the same question. Its own job rather than a third
+  # matrix leg: this one scans a lockfile rather than an image, so it needs node
+  # and not docker, and it finishes in seconds instead of minutes.
+  supply-chain-frontend:
+    name: supply chain · frontend dependencies
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      # `npm audit` reads the registry's advisory database rather than the
+      # lockfile's age, so this is the "did a pinned version acquire a CVE
+      # overnight?" question for npm — the one the weekly schedule exists for.
+      #
+      # The cutoff is `high` to match the image scan above. Production
+      # dependencies are the gate; the dev tree is reported and does not fail
+      # the build, because a devDependency CVE cannot reach a citizen and
+      # blocking a release on one is how a team learns to pass --force.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit the full tree (report only)
+        if: always()
+        run: npm audit || true
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: frontend
+          format: spdx-json
+          artifact-name: sbom-frontend.spdx.json
+
+      # A second opinion, and deliberately NOT the gate. Grype reads a different
+      # advisory database from npm's and has no notion of a devDependency, so
+      # making it fail the build would gate releases on dev tooling and on two
+      # databases agreeing. `npm audit --omit=dev` above is the gate; this
+      # reports into the security tab so a finding npm has not picked up yet is
+      # still visible.
+      - name: Scan the dependency tree
+        uses: anchore/scan-action@v5
+        id: scan
+        with:
+          path: frontend
+          fail-build: false
+          severity-cutoff: high
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+          category: supply-chain-frontend
 
   # Phase 1a gates that are checkable without running anything. Fast, and it
   # fails for reasons that are cheap to fix — so it runs alongside `static`
@@ -296,6 +396,15 @@ jobs:
       # a template is covered without touching the check.
       - name: Domain literals (Phase 5)
         run: python scripts/check_domain_literals.py
+
+      # Every committed binary still decodes as the format its name claims.
+      # A text round-trip destroyed every image in the repository once
+      # (4b31099) and CI stayed green for eleven commits, because the only
+      # consumer that cared — Playwright — reports an undecodable baseline as a
+      # failing *visual assertion*, which reads as a renderer regression and
+      # invites re-recording the baselines over the damage.
+      - name: Binary integrity
+        run: python scripts/check_binary_integrity.py
 
       # A rule file that does not parse means Prometheus keeps serving the LAST
       # GOOD config and logs the failure — the stack looks healthy and every

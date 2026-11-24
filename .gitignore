@@ -16,8 +16,15 @@ desktop.ini
 .vscode/
 
 # Secrets & local config
+#
+# `.env.*` with `.env.example` exempted, rather than the two exact names this
+# used to list. `.env` and `.env.local` were covered; `.env.production`,
+# `.env.staging` and a hand-made `.env.bak-<date>` were not — and a backup of a
+# populated .env is the same secrets under a name nothing was watching.
+# `.env.example` is the one that must stay tracked: `nem parity` reads it.
 .env
-.env.local
+.env.*
+!.env.example
 *.pem
 *.key
 
@@ -65,3 +72,8 @@ out/
 # docs/reports/hnsw-recall.json, cited by ADR-0012) is not swept up with them.
 /reports/*.json
 !reports/.gitkeep
+
+# Agent scratch space. `.claude/worktrees/` holds full duplicate checkouts (tens
+# of MB each), so a single `git add -A` would otherwise commit a second copy of
+# the repository. Anchored at the root because only the root directory is ours.
+/.claude/

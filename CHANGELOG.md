@@ -16,7 +16,29 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- generate comprehensive product screenshots, prototype slide deck, and typography enhancements
+- implement field operator mobile app, synthesized foley sound engine, character ink state machines, and ADRs 0048-0061
+- implement clay 3D city generator, console operational suite, story landing film, visual regression snapshots, and ADRs 0047-0055
+- implement public portal, tenant open-data endpoints, honesty breakdowns, and ADR 0046
+- M5 citizen loop, the four backend decisions it needed, and a demo city
+- implement frontend components, realtime stream client, OpenAPI generation, and i18n subsystem
+- bootstrap frontend architecture, design system tokens, press filter, and ADRs 0037-0042
+- implement Phase 10 deduplication and clustering pipeline
+- complete Phase 9 perception layer, calibration pipeline, and gate suite
+- implement Phase 9 perception and calibration pipeline
+- implement Phase 7 simulation engine and Phase 8 trust & safety spine
+- implement Phase 6 policy and rules engine
+- implement Phase 4 public API, webhooks, versioning, and developer portal
+- implement Phase 5 multi-tenant control plane, provisioning, taxonomy, and calendars
+- implement Phase 3 transactional outbox, pipeline orchestration, realtime hub, and rate limiting
+- implement projection writer service and environment parity checks
+- implement Phase 2 event store, schema registry, projections, and tenancy model
+- add NEMESIS core architecture, backend services, docs, and infrastructure setup
 - initial release of NEMESIS blueprint and documentation
+
+### Fixed
+
+- **assets:** restore binary images destroyed by a UTF-8 text round-trip
 
 ### Changed
 
@@ -24,9 +46,15 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Documentation
 
+- relocate product preview images to assets/ and fix README rendering
+- update frontend blueprint, execution plan, and token schema
+- add handover guide, backlog, upgrades roadmap, and renumber ADR-0036
+- add ADRs 0018-0020 and taxonomy misconfiguration runbook
 - finalize full aesthetic README
 - finalize complete aesthetic README
 - modernize README with aesthetic layout, manifesto narrative, and new logo assets
+
+> 2 commit(s) did not parse as conventional commits and are not listed. If this number is not zero, the commit-msg hook is being bypassed.
 
 <!-- generated:end -->
 
