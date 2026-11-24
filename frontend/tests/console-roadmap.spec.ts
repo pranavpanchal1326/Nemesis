@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
 
 import { test } from "./fixtures/origin.ts";
+import { signInAsOperator } from "./fixtures/operator.ts";
 
 /**
  * F7's gate — the nine console screens with no backend behind them yet.
@@ -41,6 +42,10 @@ const SCREENS = {
 } as const;
 
 async function open(page: Page, href: string): Promise<void> {
+  // ADR-0062. These seven screens are 404 in a production build and gated in
+  // every build, and the gate comes first — a redirect to /sign-in would make
+  // "this route is not routed" and "you are not signed in" the same assertion.
+  await signInAsOperator(page);
   await page.goto(href);
   await expect(page.locator(".console")).toBeVisible();
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import type { components } from "@/generated/api";
-import { controlPlaneHeaders, upstream } from "@/server/upstream";
+import { controlPlaneHeaders, noOperatorSession, upstream } from "@/server/upstream";
 
 /**
  * Provision a tenant, through the seam — Phase 5, ADR-0040.
@@ -16,6 +16,13 @@ import { controlPlaneHeaders, upstream } from "@/server/upstream";
 type ProvisioningRequest = components["schemas"]["ProvisioningRequest"];
 
 export async function POST(request: Request): Promise<Response> {
+  // ADR-0062: authenticate before reading the body. An unauthenticated caller
+  // must not get a 400 for malformed input and learn that the route exists and
+  // what shape it wants — and parsing untrusted input is work this request has
+  // not earned.
+  const privileged = await controlPlaneHeaders();
+  if (privileged === null) return noOperatorSession();
+
   let body: unknown;
   try {
     body = await request.json();
@@ -27,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
   if (spec === null) return problem(422, "A tenant needs a slug and a name.");
 
   const result = await upstream.POST("/api/v1/control-plane/tenants", {
-    headers: controlPlaneHeaders(),
+    headers: privileged,
     body: spec,
   });
 

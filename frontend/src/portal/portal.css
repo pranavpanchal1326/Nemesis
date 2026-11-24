@@ -552,3 +552,66 @@
   margin: 0;
   color: var(--color-role-text-signal);
 }
+
+/* The console's door — ADR-0062.
+ *
+ * Deliberately the same vocabulary as `.portal__track-*` above, which is the
+ * other form on a door: a single field, a plain submit, one line of refusal in
+ * the signal ink. A sign-in that looked more designed than the tracking form
+ * would be claiming more importance than it has — it is furniture in front of
+ * the console, not a product surface. Every colour is a role token, so the
+ * paper and light-table grounds both resolve without a second rule. */
+
+.sign-in {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 0.5rem;
+  max-inline-size: var(--measure);
+  padding-inline: var(--portal-gutter);
+  padding-block-end: 3rem;
+}
+
+.sign-in__label {
+  color: var(--color-role-text-secondary);
+}
+
+.sign-in__input {
+  inline-size: min(100%, 24rem);
+  padding: 0.5rem 0.75rem;
+  background: var(--color-role-ground);
+  color: var(--color-role-text-primary);
+  border: 1px solid var(--color-role-rule);
+}
+
+.sign-in__input:focus-visible {
+  /* The rule goes to the primary ink rather than a new accent: §E9.4 keeps
+   * colour for meaning, and "this field has focus" is not severity. */
+  border-color: var(--color-role-text-primary);
+}
+
+.sign-in__submit {
+  margin-block-start: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-role-ground);
+  color: var(--color-role-text-primary);
+  border: 1px solid var(--color-role-text-primary);
+  cursor: pointer;
+}
+
+.sign-in__hint,
+.sign-in__shared {
+  margin: 0;
+  color: var(--color-role-text-secondary);
+}
+
+.sign-in__refused {
+  margin: 0;
+  color: var(--color-role-text-signal);
+}
+
+.sign-in__notice {
+  padding-inline: var(--portal-gutter);
+  padding-block-end: 3rem;
+  max-inline-size: var(--measure);
+}

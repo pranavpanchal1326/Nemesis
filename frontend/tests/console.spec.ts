@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
 
 import { test } from "./fixtures/origin.ts";
+import { signInAsOperator } from "./fixtures/operator.ts";
 
 /**
  * F3's gate — §E19, §E22, §E9.3, §E9.4.
@@ -35,6 +36,9 @@ const CONSOLE = "/console";
 const PALETTE_CHORD = process.platform === "darwin" ? "Meta+k" : "Control+k";
 
 async function openConsole(page: Page): Promise<void> {
+  // ADR-0062: the console redirects to /sign-in without an operator session,
+  // so every one of these tests would otherwise assert against the door.
+  await signInAsOperator(page);
   await page.goto(CONSOLE);
   await expect(page.locator(".console")).toBeVisible();
 }

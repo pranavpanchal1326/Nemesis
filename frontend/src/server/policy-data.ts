@@ -29,7 +29,30 @@ export type EvaluationSet = components["schemas"]["EvaluationSetResponse"];
 /** Never cached. Every read here backs a decision an operator is about to take
  *  about what the pipeline does next; a stale revision list is how somebody
  *  activates the revision before the one they meant. */
-const live = { headers: controlPlaneHeaders(), cache: "no-store" } as const;
+/**
+ * The control-plane request options, including the privileged header.
+ *
+ * Awaited per call rather than held as a module constant, because
+ * `controlPlaneHeaders()` now requires an operator session (ADR-0062) and a
+ * session is a property of a request, not of a process.
+ *
+ * **It throws rather than reading without the token.** Every read here happens
+ * behind the console's gate, so `null` means the gate was bypassed — and the
+ * quiet alternative is worse than a stack trace: an unauthenticated read gets
+ * the backend's 403, `read()` below turns a refusal into `null`, and the screen
+ * renders as though the control plane were empty. A city with no taxonomy and
+ * no wards is exactly the confidently-wrong screen §E3.3 forbids.
+ */
+async function live(): Promise<{
+  readonly headers: Readonly<Record<string, string>>;
+  readonly cache: "no-store";
+}> {
+  const headers = await controlPlaneHeaders();
+  if (headers === null) {
+    throw new Error("a control-plane read was attempted without an operator session");
+  }
+  return { headers, cache: "no-store" } as const;
+}
 
 /**
  * **The dedup tuning proposals are deliberately not read here.**
@@ -97,7 +120,7 @@ export async function fetchPolicyStudio(
 async function listVersions(kind: PolicyKind): Promise<readonly PolicyVersionSummary[]> {
   const { data } = await upstream.GET("/api/v1/control-plane/policies", {
     params: { query: { kind, limit: 50 } },
-    ...live,
+    ...(await live()),
   });
   // Newest first. The endpoint's own order is not promised by the contract, and
   // a studio whose history reversed on a backend change would be a studio whose
@@ -108,7 +131,7 @@ async function listVersions(kind: PolicyKind): Promise<readonly PolicyVersionSum
 async function getActive(kind: PolicyKind): Promise<ActivePolicy | null> {
   const { data } = await upstream.GET("/api/v1/control-plane/policies/{kind}/active", {
     params: { path: { kind } },
-    ...live,
+    ...(await live()),
   });
   return data ?? null;
 }
@@ -116,7 +139,7 @@ async function getActive(kind: PolicyKind): Promise<ActivePolicy | null> {
 async function getVersion(kind: PolicyKind, revision: number): Promise<PolicyVersionDetail | null> {
   const { data } = await upstream.GET("/api/v1/control-plane/policies/{kind}/{revision}", {
     params: { path: { kind, revision } },
-    ...live,
+    ...(await live()),
   });
   return data ?? null;
 }
@@ -124,7 +147,7 @@ async function getVersion(kind: PolicyKind, revision: number): Promise<PolicyVer
 async function listRuns(kind: PolicyKind): Promise<readonly RunSummary[]> {
   const { data } = await upstream.GET("/api/v1/control-plane/simulations/runs", {
     params: { query: { kind, limit: 20 } },
-    ...live,
+    ...(await live()),
   });
   return data ?? [];
 }
@@ -132,7 +155,7 @@ async function listRuns(kind: PolicyKind): Promise<readonly RunSummary[]> {
 async function listEvaluationSets(kind: PolicyKind): Promise<readonly EvaluationSet[]> {
   const { data } = await upstream.GET("/api/v1/control-plane/simulations/evaluation-sets", {
     params: { query: { kind } },
-    ...live,
+    ...(await live()),
   });
   return data ?? [];
 }

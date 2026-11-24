@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import type { components } from "@/generated/api";
-import { controlPlaneHeaders, upstream } from "@/server/upstream";
+import { controlPlaneHeaders, noOperatorSession, upstream } from "@/server/upstream";
 
 /**
  * Define a defect category, through the seam — Phase 5, ADR-0040.
@@ -18,6 +18,13 @@ import { controlPlaneHeaders, upstream } from "@/server/upstream";
 type NodeSpec = components["schemas"]["TaxonomyNodeSpec"];
 
 export async function POST(request: Request): Promise<Response> {
+  // ADR-0062: authenticate before reading the body. An unauthenticated caller
+  // must not get a 400 for malformed input and learn that the route exists and
+  // what shape it wants — and parsing untrusted input is work this request has
+  // not earned.
+  const privileged = await controlPlaneHeaders();
+  if (privileged === null) return noOperatorSession();
+
   let body: unknown;
   try {
     body = await request.json();
@@ -29,7 +36,7 @@ export async function POST(request: Request): Promise<Response> {
   if (spec === null) return problem(422, "A category needs a key and a display name.");
 
   const { data, error, response } = await upstream.POST("/api/v1/control-plane/taxonomy", {
-    headers: controlPlaneHeaders(),
+    headers: privileged,
     body: spec,
   });
 

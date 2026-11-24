@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { POLICY_KINDS, type PolicyKind } from "@/generated/enums";
-import { controlPlaneHeaders, upstream } from "@/server/upstream";
+import { controlPlaneHeaders, noOperatorSession, upstream } from "@/server/upstream";
 
 /**
  * Activation, through the seam — §E19.8, ADR-0028, ADR-0040.
@@ -39,6 +39,13 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ kind: string; revision: string }> },
 ): Promise<Response> {
+  // ADR-0062: authenticate before reading the body. An unauthenticated caller
+  // must not get a 400 for malformed input and learn that the route exists and
+  // what shape it wants — and parsing untrusted input is work this request has
+  // not earned.
+  const privileged = await controlPlaneHeaders();
+  if (privileged === null) return noOperatorSession();
+
   const { kind, revision } = await context.params;
 
   if (!isPolicyKind(kind)) return problem(404, "No such policy kind.");
@@ -58,7 +65,7 @@ export async function POST(
     "/api/v1/control-plane/policies/{kind}/{revision}/activate",
     {
       params: { path: { kind, revision: number } },
-      headers: controlPlaneHeaders(),
+      headers: privileged,
       body: { reason },
     },
   );

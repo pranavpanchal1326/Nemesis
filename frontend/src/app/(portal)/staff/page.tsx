@@ -16,12 +16,19 @@ import { loadStrings, negotiateLocale, SEEDED_LOCALES } from "@/server/strings";
  * actually wired?* — thirteen console screens, four of them real, and the rest
  * naming the phase that populates them.
  *
- * **`noindex`, unlike the citizen door.** Nothing here is secret — the chips
- * and the 404s do the protecting, and Phase 13 does the authenticating — but a
- * municipal back office in a search index invites the kind of traffic that
- * makes an unauthenticated deployment somebody's afternoon. §16.3 wants a
- * journalist to find a ward page; it does not want them to find the review
- * queue.
+ * **`noindex`, unlike the citizen door.** Nothing on *this* page is secret —
+ * it is a list of destinations, and the chips and the 404s say which of them
+ * exist — but a municipal back office in a search index invites the kind of
+ * traffic a deployment does not need. §16.3 wants a journalist to find a ward
+ * page; it does not want them to find the review queue.
+ *
+ * **The door is open and the console behind it is not.** This page is
+ * deliberately left ungated: it names what exists and reveals nothing, and an
+ * officer who has to sign in before being told where to sign in is a worse
+ * surface. Every link from here into `/console` passes through the operator
+ * session (ADR-0062), and the sign-in page is one of this group's own siblings.
+ * Until ADR-0062 landed the sentence here read *"Phase 13 does the
+ * authenticating"*, which was true of the plan and not of the deployment.
  */
 export const metadata: Metadata = {
   title: "For staff",

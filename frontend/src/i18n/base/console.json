@@ -337,5 +337,16 @@
   "roadmap.what": "What lands here",
   "roadmap.phaseLine": "Phase {phase} populates this screen's contract. Until it does, every value above is a fixture behind a published type — the shape is real and the numbers are not.",
   "roadmap.traces": "Implements {section}",
-  "roadmap.until": "What this city publishes about the same subject today"
+  "roadmap.until": "What this city publishes about the same subject today",
+  "signIn.title": "Sign in to the console",
+  "signIn.lede": "This console is for municipal staff. It is not a public surface.",
+  "signIn.passphrase": "Operator passphrase",
+  "signIn.passphrase.hint": "Issued by whoever runs this deployment. Not your own password — there are no accounts yet.",
+  "signIn.submit": "Sign in",
+  "signIn.refused": "That passphrase was not accepted.",
+  "signIn.unconfigured": "This deployment has no operator passphrase set, so nobody can sign in.",
+  "signIn.unconfigured.hint": "Whoever deployed it needs to set it. Until then the console stays closed, which is the designed answer rather than a fault.",
+  "signIn.shared": "One passphrase, shared by the team. It records that somebody signed in, not who — named operators arrive with Phase 13.",
+  "signIn.signedOut": "You are signed out.",
+  "signOut": "Sign out"
 }

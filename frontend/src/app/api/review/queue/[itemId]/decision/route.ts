@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import type { components } from "@/generated/api";
-import { controlPlaneHeaders, upstream } from "@/server/upstream";
+import { controlPlaneHeaders, noOperatorSession, upstream } from "@/server/upstream";
 
 /**
  * One judgement, recorded — §11.4, §E19.1, ADR-0040.
@@ -43,6 +43,13 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ itemId: string }> },
 ): Promise<Response> {
+  // ADR-0062: authenticate before reading the body. An unauthenticated caller
+  // must not get a 400 for malformed input and learn that the route exists and
+  // what shape it wants — and parsing untrusted input is work this request has
+  // not earned.
+  const privileged = await controlPlaneHeaders();
+  if (privileged === null) return noOperatorSession();
+
   const { itemId } = await context.params;
 
   let body: unknown;
@@ -59,7 +66,7 @@ export async function POST(
 
   const { data, error, response } = await upstream.POST("/api/v1/review/queue/{item_id}/decision", {
     params: { path: { item_id: itemId } },
-    headers: controlPlaneHeaders(),
+    headers: privileged,
     body: parsed,
   });
 

@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 import { test } from "./fixtures/origin.ts";
+import { signInAsOperator } from "./fixtures/operator.ts";
 
 /**
  * F4, F5 and F6's gates — the three console screens that are **REAL** today.
@@ -90,6 +91,10 @@ async function pinTo(page: Page, item: OpenItem): Promise<void> {
 test.describe("F4 — a decision is a write, and the log is where it lands", () => {
   test.beforeEach(async ({ page }) => {
     test.skip(!(await stackIsUp(page)), "the backend is not reachable — run `nem up`");
+    // ADR-0062. After the stack check, because a missing backend is the more
+    // useful thing to be told first: sign-in would fail too, and reporting the
+    // session before the stack would send somebody looking at the wrong half.
+    await signInAsOperator(page);
   });
 
   test("a decision taken in the browser reaches the event log and moves the item", async ({
@@ -234,6 +239,10 @@ test.describe("F4 — a decision is a write, and the log is where it lands", () 
 test.describe("F5 — the guardrail is the server's, and the screen says so", () => {
   test.beforeEach(async ({ page }) => {
     test.skip(!(await stackIsUp(page)), "the backend is not reachable — run `nem up`");
+    // ADR-0062. After the stack check, because a missing backend is the more
+    // useful thing to be told first: sign-in would fail too, and reporting the
+    // session before the stack would send somebody looking at the wrong half.
+    await signInAsOperator(page);
   });
 
   test("the studio renders a revision as a document, with its hash and its diff", async ({
@@ -332,6 +341,10 @@ test.describe("F5 — the guardrail is the server's, and the screen says so", ()
 test.describe("F6 — a city is provisioned through the UI, not through SQL", () => {
   test.beforeEach(async ({ page }) => {
     test.skip(!(await stackIsUp(page)), "the backend is not reachable — run `nem up`");
+    // ADR-0062. After the stack check, because a missing backend is the more
+    // useful thing to be told first: sign-in would fail too, and reporting the
+    // session before the stack would send somebody looking at the wrong half.
+    await signInAsOperator(page);
   });
 
   test("a tenant is provisioned, given an invented category, and published", async ({ page }) => {

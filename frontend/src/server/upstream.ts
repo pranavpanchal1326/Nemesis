@@ -3,6 +3,7 @@ import "server-only";
 import createClient, { type Middleware } from "openapi-fetch";
 
 import type { paths } from "@/generated/api";
+import { readOperatorSession } from "@/server/console-session";
 
 /**
  * The BFF seam — §E14.1, ADR-0040. Corrects §E2 defect #11.
@@ -65,13 +66,62 @@ export function resolveTenant(): string | undefined {
  * attach the secret to every upstream request this application makes, including
  * the public transparency reads, which is a wider blast radius than the feature
  * needs. A route that performs a control-plane write says so by asking.
+ *
+ * **It requires an operator session, and that is why this is `async`** —
+ * ADR-0062, closing audit finding F5. The token was never stealable; its
+ * *authority* was being lent to the public, because nothing authenticated the
+ * caller and this function handed the header to whoever asked. Six route
+ * handlers call it, so an anonymous visitor could record the one permitted
+ * judgement on a citizen's report, activate a policy, redefine a taxonomy, or
+ * change what a city publishes about itself.
+ *
+ * The check lives **here**, in the function that produces the secret, rather
+ * than at the top of each of those six handlers. Six checks is six places to be
+ * right and one place to forget, and the seventh handler — written later by
+ * someone reading the other six — is the one that ships open. Putting the
+ * requirement where the capability lives means the token cannot be attached to
+ * a request that has no session, because this is the only code path that can
+ * produce the header. It is the argument `projections/writer.py` makes about
+ * being the only module that writes current-state tables.
+ *
+ * **A refusal is `null`, not `{}`.** The two are different facts and the
+ * difference is load-bearing: `{}` already means *the deployment has no token
+ * configured*, which the backend answers with its own 403 naming the missing
+ * header. Returning `{}` for "no session" would send the write upstream
+ * anyway, to be refused there for the wrong reason — an authorization failure
+ * reported as a configuration one, in a log an operator reads during an
+ * incident. `null` means the caller must refuse locally, before the network.
  */
-export function controlPlaneHeaders(): Readonly<Record<string, string>> {
+export async function controlPlaneHeaders(): Promise<Readonly<Record<string, string>> | null> {
+  if ((await readOperatorSession()) === null) return null;
+
   const token = process.env["NEMESIS_CONTROL_PLANE_TOKEN"];
   // Absent rather than empty. An empty string would be *supplied and wrong*,
   // which the backend answers with a 403 that reads like a misconfigured token
   // instead of an unconfigured one.
   return token === undefined || token === "" ? {} : { "X-Control-Plane-Token": token };
+}
+
+/**
+ * The refusal a privileged route returns when there is no session.
+ *
+ * One shape, in one place, so six handlers cannot disagree about what an
+ * unauthenticated write looks like. `403` rather than `401`, for the reason
+ * `backend/tests/test_control_plane_api.py` already records about the upstream:
+ * *"403 rather than 401: there is no authentication scheme to challenge with"*.
+ * A `WWW-Authenticate` header would name a scheme this product does not
+ * implement, and a browser would raise a basic-auth dialog that cannot succeed.
+ */
+export function noOperatorSession(): Response {
+  return Response.json(
+    {
+      type: "about:blank",
+      title: "This action needs an operator session.",
+      status: 403,
+      detail: "Sign in at /sign-in.",
+    },
+    { status: 403, headers: { "Content-Type": "application/problem+json" } },
+  );
 }
 
 /**

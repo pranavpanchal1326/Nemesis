@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { controlPlaneHeaders, upstream } from "@/server/upstream";
+import { controlPlaneHeaders, noOperatorSession, upstream } from "@/server/upstream";
 
 /**
  * Publish, or stop publishing — ADR-0046, §16.2, ADR-0040.
@@ -21,6 +21,13 @@ export async function PUT(
   request: Request,
   context: { params: Promise<{ slug: string }> },
 ): Promise<Response> {
+  // ADR-0062: authenticate before reading the body. An unauthenticated caller
+  // must not get a 400 for malformed input and learn that the route exists and
+  // what shape it wants — and parsing untrusted input is work this request has
+  // not earned.
+  const privileged = await controlPlaneHeaders();
+  if (privileged === null) return noOperatorSession();
+
   const { slug } = await context.params;
 
   let body: unknown;
@@ -49,7 +56,7 @@ export async function PUT(
 
   const result = await upstream.PUT("/api/v1/control-plane/tenants/{slug}/publication", {
     params: { path: { slug } },
-    headers: controlPlaneHeaders(),
+    headers: privileged,
     body: { enabled, justification },
   });
 
