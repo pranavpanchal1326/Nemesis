@@ -31,7 +31,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,6 +44,7 @@ from nemesis.api.errors import (
     PROBLEM_BASE,
     ProblemDetailError,
 )
+from nemesis.api.identity_deps import public, requires_or_control_plane_token
 from nemesis.api.v1.control_plane import TokenDep, _require_token
 from nemesis.db.models.policy import PolicyVersion
 from nemesis.observability.logging import get_correlation_id
@@ -305,7 +306,11 @@ async def _revision_index(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/facts", summary="The vocabulary routing conditions may use")
+@router.get(
+    "/facts",
+    summary="The vocabulary routing conditions may use",
+    dependencies=[Depends(public())],
+)
 async def list_facts() -> list[FactResponse]:
     """Read-only and tenant-free: the fact schema is a property of the build.
 
@@ -320,7 +325,11 @@ async def list_facts() -> list[FactResponse]:
     ]
 
 
-@router.get("", summary="Policy revision history")
+@router.get(
+    "",
+    summary="Policy revision history",
+    dependencies=[Depends(public())],
+)
 async def list_policies(
     tenant: TenantDep,
     session: SessionDep,
@@ -341,7 +350,11 @@ async def list_policies(
     return [_summary(version, revisions=revisions) for version in versions]
 
 
-@router.get("/{kind}/active", summary="The document currently deciding")
+@router.get(
+    "/{kind}/active",
+    summary="The document currently deciding",
+    dependencies=[Depends(public())],
+)
 async def get_active(
     kind: PolicyKind,
     tenant: TenantDep,
@@ -377,7 +390,11 @@ async def get_active(
     )
 
 
-@router.get("/{kind}/{revision}", summary="One revision, with its body")
+@router.get(
+    "/{kind}/{revision}",
+    summary="One revision, with its body",
+    dependencies=[Depends(public())],
+)
 async def get_version(
     kind: PolicyKind,
     revision: int,
@@ -400,7 +417,11 @@ async def get_version(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/seed-baselines", summary="Give a tenant the platform baseline documents")
+@router.post(
+    "/seed-baselines",
+    summary="Give a tenant the platform baseline documents",
+    dependencies=[Depends(requires_or_control_plane_token("policy:draft"))],
+)
 async def seed_baselines(
     tenant: TenantDep,
     session: SessionDep,
@@ -435,6 +456,7 @@ async def seed_baselines(
         403: {"description": "Control-plane token missing or wrong"},
         422: {"description": "The document is not valid for its kind"},
     },
+    dependencies=[Depends(requires_or_control_plane_token("policy:draft"))],
 )
 async def draft_policy(
     kind: PolicyKind,
@@ -470,7 +492,11 @@ async def draft_policy(
     return _detail(version, revisions=revisions)
 
 
-@router.put("/{kind}/{revision}", summary="Replace a draft's body")
+@router.put(
+    "/{kind}/{revision}",
+    summary="Replace a draft's body",
+    dependencies=[Depends(requires_or_control_plane_token("policy:draft"))],
+)
 async def update_draft(
     kind: PolicyKind,
     revision: int,
@@ -503,6 +529,7 @@ async def update_draft(
     "/{kind}/{revision}/activate",
     summary="Make an approved revision live",
     responses={409: {"description": "Not approved, or already active"}},
+    dependencies=[Depends(requires_or_control_plane_token("policy:activate"))],
 )
 async def activate_policy(
     kind: PolicyKind,
@@ -545,6 +572,7 @@ async def activate_policy(
     "/{kind}/rollback",
     summary="Restore a previously live revision",
     responses={409: {"description": "The target revision was never approved"}},
+    dependencies=[Depends(requires_or_control_plane_token("policy:activate"))],
 )
 async def rollback_policy(
     kind: PolicyKind,
@@ -608,6 +636,7 @@ _SIMPLE_TRANSITIONS = {
     "/{kind}/{revision}/{verb}",
     summary="Move a revision through review",
     responses={409: {"description": "Not a legal transition from the current status"}},
+    dependencies=[Depends(requires_or_control_plane_token("policy:activate"))],
 )
 async def transition_policy(
     kind: PolicyKind,

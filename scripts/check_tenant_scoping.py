@@ -66,6 +66,11 @@ DOMAIN_PACKAGES = (
     # package that decides whether one citizen's report is another's, and a
     # category name compiled into that decision would be the moat hardcoded.
     "nemesis/dedup",
+    # Phase 13. Listed from its first commit, for the reason `policy` teaches by
+    # having been missed: the identity package is where every authorization
+    # decision is made, so a package this check reported "clean" for without
+    # reading would be the worst possible omission in the repository.
+    "nemesis/identity",
 )
 
 MODELS_PACKAGE = BACKEND / "nemesis" / "db" / "models"

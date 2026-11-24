@@ -522,7 +522,7 @@ Not style preferences. Every one fails a build.
 
 The product publishes its own answer to this question at `/{tenant}/honesty` and in Act 9 of the landing — generated from the same source, so it cannot drift into a flattering summary. **Trust those over this table.**
 
-Thirty phases across nine tracks. Roughly a third are built and gated.
+Thirty phases across nine tracks. Just over half are built; twelve are gated outright.
 
 | Track | Phases | State |
 |---|---|---|
@@ -530,7 +530,7 @@ Thirty phases across nine tracks. Roughly a third are built and gated.
 | **A · Platform** | 2, 3, 4 | ✅ event store, ingestion, public API |
 | **B · Control plane** | 5, 6, 7 | ✅ tenants, policy engine, backtesting |
 | **C · Intelligence** | 8, 9, 10 | ✅ safety, perception, dedup · 11–12 not started |
-| **D · Accountability** | 13–17 | ❌ identity, work orders, closure, agent, contractor transparency |
+| **D · Accountability** | 13–17 | ✅ identity, authorization and audited support access · ❌ 14–17 work orders, closure, agent, contractor transparency |
 | **E · Experience** | 18–22 | 🟡 design system, 3D engine, film, console and doors built ahead of schedule |
 | **F–I · Data, trust, commercial, release** | 23–29 | ❌ not started |
 

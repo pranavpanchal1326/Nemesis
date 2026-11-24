@@ -25,7 +25,7 @@ teaches nobody, and the same mistakes get made again by the next person.
 | 4 | **One environment.** No dev/staging/prod, no IaC, no promotion pipeline | "It works on the laptop" is not a release process. First real customer has nowhere to run | Phase 1 |
 | 5 | **ML without an ML platform.** A single validation run is not MLOps | No drift detection, no model registry, no champion/challenger. Accuracy rots silently and nobody finds out until a citizen does | Phase 11 |
 | 6 | **The feedback loop was thrown away.** Human review decisions and citizen disputes are free, high-quality labels | The system never gets smarter. §4.3's entire moat thesis — the accumulating proprietary dataset — was asserted but never built | Phase 11 |
-| 7 | **Authorization was RBAC over a fixed enum** | Real orgs need custom roles, ward-scoped grants, delegation during leave, contractor sub-users, and audited impersonation for support | Phase 15 (ABAC/ReBAC) |
+| 7 | **Authorization was RBAC over a fixed enum** | Real orgs need custom roles, ward-scoped grants, delegation during leave, contractor sub-users, and audited impersonation for support | Phase 13 (ABAC/ReBAC) ✅ |
 | 8 | **Compliance was a checklist, not a program** | DPDP requires a consent registry, data-subject-request fulfilment, automated retention, DPIA, and a breach runbook — as *running systems*, not policy prose | Phase 26 |
 | 9 | **No commercial layer at all.** §28 states pricing with no implementation anywhere | Cannot onboard a tenant, meter usage, invoice, or support a customer. The business model existed only on a slide | Track H |
 | 10 | **No analytics.** §41 KPIs were "instrumented" with nothing to instrument into | Metrics with no warehouse, no metrics layer, and no experimentation cannot drive a decision | Phase 24 |
@@ -93,11 +93,11 @@ that satisfies more of these wins.
 | 6 | Policy & rules engine ✅ | B · Control Plane | PLT · DATA | 5 |
 | 7 | Configuration simulation & backtesting ✅ | B · Control Plane | DATA | 6 |
 | 8 | Trust & safety spine ✅ | C · Intelligence | DATA · SEC | 3, 6 |
-| 9 | Perception layer & model registry | C · Intelligence | DATA | 3, 5 |
-| 10 | Deduplication & clustering engine | C · Intelligence | DATA | 2, 9 |
+| 9 | Perception layer & model registry ✅ | C · Intelligence | DATA | 3, 5 |
+| 10 | Deduplication & clustering engine ⚠️ gate 3/4 | C · Intelligence | DATA | 2, 9 |
 | 11 | ML platform: labelling, drift & feedback loop | C · Intelligence | DATA | 9, 10 |
 | 12 | Severity, routing & SLA engine | C · Intelligence | DATA | 6, 10 |
-| 13 | Identity, authorization & org modelling | D · Accountability | SEC | 5 |
+| 13 | Identity, authorization & org modelling ✅ | D · Accountability | SEC | 5 |
 | 14 | Department workflow & work orders | D · Accountability | PROD · PLT | 12, 13 |
 | 15 | Closure loop & evidence verification | D · Accountability | PLT | 14 |
 | 16 | Investigation Agent & agent platform | D · Accountability | DATA | 9, 10 |
@@ -2057,21 +2057,45 @@ decays quietly and the "system that gets better" claim is marketing.
 
 # Track D — Accountability
 
-## Phase 13 — Identity, authorization & org modelling · SEC
+## Phase 13 — Identity, authorization & org modelling ✅ · SEC
+
+The longest-lead blocker, closed. Track D and every authenticated surface sat
+behind this, and until it landed the system's only credentials were a per-consumer
+API key (Phase 4) and one shared control-plane secret (ADR-0020) that identified
+nobody.
 
 **Ships**
-- OIDC-capable identity with JWT, refresh rotation, revocation, and optional SSO for institutional tenants
-- **Attribute/relationship-based authorization**, not a fixed role enum: custom roles composed from permissions, scoped by department, zone, site, or taxonomy node
-- Delegation and temporary grants with expiry, for leave and shift coverage
-- Contractor organisations with their own sub-users and scoped access
-- **Audited impersonation** for support, requiring justification and producing an event visible to the tenant
-- Default-deny posture with a centralised decision point and a decision log
+- OIDC-capable identity with JWT, refresh rotation, revocation, and optional SSO for institutional tenants — **and three of those four words are first-party, with ADRs saying why.** The access token is a strict single-algorithm JWT (ADR-0063): the header is compared *as a whole*, so `alg: none` and algorithm confusion have no code path rather than a defence. Local passwords are stdlib `scrypt` with the cost parameters stored per credential (ADR-0065). The OIDC flow verifies no signature in process and is sound because it never accepts a token from a browser — authorization-code with PKCE, back-channel over TLS, OIDC Core §3.1.3.7 (ADR-0064). **Zero new dependencies**, which is the Phase 8 argument about which image a dependency lands in, applied to the one path that runs in all of them
+- **Attribute/relationship-based authorization**, not a fixed role enum: custom roles composed from permissions, scoped by department, zone, site, or taxonomy node — plus `contractor_org` and `self`, which is a *relationship* and the §18.1 field-staff line. Containment is prefix containment over the materialised paths Phase 5 already maintains, through the same `is_descendant` the three trees use. **The role names NEMESIS ships are data too** (`identity/role_library.json`), because `check_domain_literals.py` would otherwise — correctly — fail the build for a role name compiled into a domain module
+- Delegation and temporary grants with expiry, for leave and shift coverage. Capped at 90 days, requiring a reason, attributed to the delegator, and bounded by one invariant proved over generated matrices: **nobody delegates authority they do not hold, on a scope they do not cover**
+- Contractor organisations with their own sub-users and scoped access — a `kind` on `users` rather than a second table, because §16 needs a contractor's actions queryable *beside* a department's rather than in a union somebody will forget
+- **Audited impersonation** for support, requiring justification and producing an event visible to the tenant. Three mechanisms, deliberately overlapping (ADR-0067): a row scoped to the *impersonated* tenant and readable through a **tenant** permission support cannot hold; an event on the customer's own hash chain; and every decision the session makes in the decision log. Read-only unless the justification asked otherwise, capped at two hours, and endable by the customer
+- Default-deny posture with a centralised decision point and a decision log. One function answers "may this principal do this", and `api.identity_deps` is the only thing routes can reach. Denials are always logged; allows only for the permissions the registry marks `audited`, because `complaints:read` allows would be one row per list request per officer per refresh
 
-**Gate**
-- A negative-authorisation test **per role pair**: department head A provably cannot read department B's rows through any endpoint, including error messages and pagination counts
-- Adding an endpoint without a declared permission fails CI
-- Authorization decisions are property-tested against a generated role/scope matrix
-- Every impersonation session is visible to the impersonated tenant
+**Gate** — all four clauses closed, drilled against the running stack by
+`nem gate-phase13`, with two carries recorded below rather than absorbed.
+
+- ✅ **A negative-authorisation test per role pair** — two officers, two wards, one flagged complaint each; each sees their own and not the other's through the list, the item route, the decision route and the media route. **Including the count**: the restriction is a condition passed into `trust.review.list_items` and applied to the `COUNT(*)` as well as the page, because a total computed before the filter describes somebody else's work. The 403 names the permission and never the resource. Both halves for both officers, plus a tenant-wide positive control — a build that denies everybody passes a one-sided test and is an outage
+- ✅ **Adding an endpoint without a declared permission fails CI** — `scripts/check_endpoint_permissions.py`, host-side AST, in `nem check`. All **99** routes across 13 modules now declare one of five postures, and the checker enforces a second rule the clause implies: a route declaring a *scopable* permission must narrow it in the handler, because `requires()` only proves the caller holds it somewhere. The gate *seeds* the checker with an undeclared route and requires it to fail — a check nobody has watched fail is a script
+- ✅ **Authorization decisions are property-tested against a generated role/scope matrix** — `tests/test_identity_authorization.py`, over a pure decision function. Containment in both directions (a grant on a descendant never covers its ancestor is the one a reversed call inverts), no prefix bleed (`roads` is not an ancestor of `roadside_waste`), unprovable-is-denied, and `visibility` agreeing with the per-row decision — if those two can disagree, the list endpoint is the one that leaks
+- ✅ **Every impersonation session is visible to the impersonated tenant** — asserted from the customer's side, through their own endpoint, with the justification attached; the event is on their chain; and they can end a session they did not ask for
+
+> **Two carries, neither absorbed.**
+>
+> **No screen renders impersonation.** The customer can *call*
+> `GET /api/v1/access/impersonation`, and an officer whose session is being
+> driven by support is **not told so by the product they are looking at** — the
+> banner is a Track E surface and no console screen owns it.
+> `check_surface_traceability.py` records both events as unsurfaced with that
+> reason, so the gap is in a check rather than only in prose.
+>
+> **The shared control-plane token is deprecated, not removed.** 32 routes still
+> accept it, each logging `control_plane_token.deprecated` at warning, and the
+> count is printed by CI so it cannot grow. Removing it in the same commit would
+> have left every running deployment — and the console BFF that holds it
+> server-side (ADR-0062) — unable to configure anything until somebody ran the
+> bootstrap. ADR-0066 holds the three-release schedule, and ADR-0062's console
+> passphrase stays until step two of it.
 
 ## Phase 14 — Department workflow & work orders · PROD · PLT
 

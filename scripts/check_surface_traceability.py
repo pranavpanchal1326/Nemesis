@@ -120,10 +120,35 @@ DRIVEN: dict[str, str] = {
 
 #: Registered event types that are deliberately on no §E27 row, with the reason.
 #:
-#: Empty, and it should stay that way. It exists so that the answer to *"this
-#: event has no visual"* is a reviewed line rather than a silent omission — and
-#: so that the first person who needs one has to write down why.
-UNSURFACED: dict[str, str] = {}
+#: It exists so that the answer to *"this event has no visual"* is a reviewed
+#: line rather than a silent omission — and so that the first person who needs
+#: one has to write down why.
+UNSURFACED: dict[str, str] = {
+    # Phase 13, and these two are an **honest gap rather than an exemption**.
+    #
+    # Both events are already visible to the impersonated tenant through
+    # `GET /api/v1/access/impersonation`, which is the Phase 13 gate clause and
+    # which a tenant administrator can call today. What does not exist is a
+    # *screen*: no console surface lists support sessions, and nothing renders
+    # the banner an impersonated officer should see across the top of their own
+    # console. §E27 is Track E's audit table and the surface that would occupy
+    # those rows is Track E's to build, so a backend phase adding rows to it
+    # would be describing a screen that nobody has committed to.
+    #
+    # Recorded here with the consequence stated plainly: until that screen
+    # lands, the visibility obligation is met by an API read and by the event
+    # log, and an officer whose session is being driven by support is not told
+    # so by the product they are looking at. `docs/PHASES.md` carries this as
+    # Phase 13's one open clause.
+    "impersonation_started": (
+        "visible through GET /access/impersonation and in the tenant's own event "
+        "chain; no console screen or banner renders it yet — Track E owns the "
+        "surface, and Phase 13's gate notes carry it as the open clause"
+    ),
+    "impersonation_ended": (
+        "as impersonation_started: the read exists, the screen does not"
+    ),
+}
 
 #: `frontend/src/` files whose match is prose rather than a binding. A line
 #: beginning with a comment marker is already skipped; this covers the generated

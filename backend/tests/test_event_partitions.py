@@ -14,7 +14,7 @@ from __future__ import annotations
 import itertools
 import uuid
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import text
@@ -200,15 +200,31 @@ async def test_detachable_partitions_reports_only_fully_expired_months(
     session: AsyncSession,
 ) -> None:
     """Reports candidates; never detaches. Retention on an append-only civic
-    record is a decision with legal weight, so the automated half stops here."""
-    await ensure_partitions(session, now=datetime(2026, 8, 16, tzinfo=UTC))
+    record is a decision with legal weight, so the automated half stops here.
+
+    **The months are derived from the clock, not written down.** This test used
+    fixed August 2026 dates and passed for about three months — the Phase 2
+    migration creates its initial window from ``now() - interval '1 month'``, so
+    ``events_2026_07`` existed while the suite was being run in the summer and
+    has not existed since. The failure that followed said "assert
+    'events_2026_07' in []", which reads as a broken partition maintainer rather
+    than as a test that expired. Deriving both months from the same clock the
+    migration used is what makes the assertion mean what it says.
+    """
+    now = datetime.now(tz=UTC)
+    this_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # The migration's window starts one month back, so the previous month is the
+    # newest partition that is guaranteed to exist *and* to be fully expired.
+    previous_month = (this_month - timedelta(days=1)).replace(day=1)
+
+    await ensure_partitions(session, now=now)
     await session.commit()
 
-    eligible = await detachable_partitions(session, older_than=datetime(2026, 8, 1, tzinfo=UTC))
-    assert "events_2026_07" in eligible
+    eligible = await detachable_partitions(session, older_than=this_month)
+    assert f"events_{previous_month:%Y_%m}" in eligible
     # The current month is still being written to; its range end is *after* the
     # horizon, so it must never be eligible.
-    assert "events_2026_08" not in eligible
+    assert f"events_{this_month:%Y_%m}" not in eligible
     assert "events_default" not in eligible
 
 

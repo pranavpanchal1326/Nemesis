@@ -12,6 +12,565 @@
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 
 export interface paths {
+  "/api/v1/access/decisions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * This tenant's authorization decision log
+     * @description "Who tried to open Ward 7 last night", without an engineer running SQL.
+     *
+     *     Rows are retained for ninety days (``identity.decisions.DECISION_RETENTION``)
+     *     and the response does not say so — the API documentation does, because a
+     *     field in every row repeating a constant is noise.
+     */
+    get: operations["list_decisions_api_v1_access_decisions_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/grants": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Who holds what
+     * @description An access review, scoped to what the caller may see.
+     *
+     *     ``visible`` first, and the filter is applied to the query rather than to the
+     *     result. A department head reviewing access sees grants held by users in
+     *     their own department and no others — and crucially gets the same answer from
+     *     a count as from a list, which is the clause about pagination counts.
+     */
+    get: operations["list_grants_api_v1_access_grants_get"];
+    put?: never;
+    /**
+     * Assign a role on a scope
+     * @description Assign a role. The caller must be permitted *on the scope being granted*.
+     *
+     *     That second check is the one that matters and it is easy to leave out: a
+     *     department head with ``grants:write`` on their own department must not be
+     *     able to grant a role over the tenant. The resource handed to ``authorize``
+     *     is therefore the *scope of the grant*, not the user receiving it.
+     */
+    post: operations["create_grant_api_v1_access_grants_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/grants/delegate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Hand a subset of your own authority to a colleague
+     * @description Leave and shift cover, bounded and attributed.
+     *
+     *     The delegator's own grants are passed to the service from the principal
+     *     resolved for *this* request — ``identity.roles.delegate`` explains why
+     *     loading them again inside the service would make its answer race with this
+     *     authorization check.
+     */
+    post: operations["delegate_grant_api_v1_access_grants_delegate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/grants/{grant_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Revoke a grant
+     * @description Revoke, with the scope of the grant checked before anything is written.
+     *
+     *     The grant is loaded first so the authorization can be against *its* scope.
+     *     Checking only ``grants:write`` somewhere would let a department head revoke
+     *     a grant in another department, which is the same defect as granting one
+     *     there, reached from the other direction.
+     */
+    delete: operations["revoke_grant_api_v1_access_grants__grant_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/impersonation": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * What support has done in this tenant
+     * @description The gate clause, as an endpoint the customer can call.
+     *
+     *     Held by tenant roles and not by support: the whole point is that the
+     *     impersonated party can see this and the operator cannot suppress it.
+     */
+    get: operations["list_impersonations_api_v1_access_impersonation_get"];
+    put?: never;
+    /**
+     * Begin an audited support session
+     * @description Platform-only, justified, capped, and visible to the tenant.
+     *
+     *     ``requires("impersonation:start")`` is the whole authorization check here,
+     *     and it is sufficient because the permission is declared with
+     *     ``resource_kind=None``: there is no narrower subject than "may this operator
+     *     impersonate", and the *target* is validated by the service rather than by a
+     *     scope — a support engineer with the permission may support any customer, and
+     *     the control on that is the audit rather than a grant per tenant.
+     */
+    post: operations["start_impersonation_api_v1_access_impersonation_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/impersonation/{impersonation_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * End a support session
+     * @description Endable by the operator inside it **or** by the tenant it is against.
+     *
+     *     Two callers, two permissions, one route — and no ``requires`` declaration,
+     *     because which permission applies depends on who is asking. The checker
+     *     permits that only for a route that calls ``authorize`` itself, which this
+     *     does, twice, with the two possibilities named. A tenant being unable to
+     *     close a support session it did not ask for would make the visibility this
+     *     phase is built around decorative.
+     */
+    delete: operations["end_impersonation_api_v1_access_impersonation__impersonation_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/permissions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The permission vocabulary this build recognises
+     * @description What a role may be composed from.
+     *
+     *     Served from the code-declared registry rather than a table, which is the
+     *     whole argument of ``identity.permissions`` — and the reason this endpoint
+     *     exists at all: an administrator composing a role needs the list, and the
+     *     list cannot be fetched from the database because it is not in the database.
+     *
+     *     A platform principal sees the platform-only permissions as well. A tenant
+     *     administrator does not, because a role they composed could not hold one
+     *     anyway and offering it in a picker would be an invitation to a 422.
+     */
+    get: operations["list_permissions_api_v1_access_permissions_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/providers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Configure an OIDC provider for this tenant */
+    post: operations["register_provider_api_v1_access_providers_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/roles": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** This tenant's roles */
+    get: operations["list_roles_api_v1_access_roles_get"];
+    put?: never;
+    /** Compose a role */
+    post: operations["create_role_api_v1_access_roles_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/roles/{role_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Amend a role */
+    patch: operations["update_role_api_v1_access_roles__role_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/access/users": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * This tenant's users, scoped to the caller
+     * @description The clause about pagination counts, implemented.
+     *
+     *     A contractor lead holding ``contractor_users:manage`` on their own
+     *     organisation sees their own crew. A department head sees their own
+     *     department. Neither sees a count that includes the other's people, because
+     *     the constraint reaches the query rather than filtering the response.
+     */
+    get: operations["list_users_api_v1_access_users_get"];
+    put?: never;
+    /**
+     * Create a user
+     * @description Create a user. A new user holds nothing until somebody grants it.
+     *
+     *     A contractor sub-user is created through this route too, by a caller holding
+     *     ``contractor_users:manage`` on that contractor — which is why the resource
+     *     for the decision carries ``contractor_id`` when one is named. A foreman
+     *     creating their own crew is the case this serves; a foreman creating a
+     *     municipal operator is the case it refuses.
+     */
+    post: operations["create_user_api_v1_access_users_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/users/{user_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Deactivate a user
+     * @description Deactivate, never delete. Grants are kept for the access review.
+     *
+     *     ``DELETE`` on a route that deactivates is a deliberate choice of verb over
+     *     literalism: the client's intent is "remove this person's access", that is
+     *     what happens, and offering a ``DELETE`` that actually deleted would make the
+     *     audit trail destructible from the API.
+     */
+    delete: operations["deactivate_user_api_v1_access_users__user_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/access/users/{user_id}/password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reset a user's password
+     * @description Set a password on somebody else's account, and sign them out everywhere.
+     *
+     *     Both halves are deliberate. ``must_change`` is set because a password
+     *     somebody else chose is a password somebody else knows, and every session is
+     *     revoked because the usual reason for an administrative reset is that
+     *     somebody who should not have the old credential does.
+     */
+    post: operations["reset_password_api_v1_access_users__user_id__password_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/logout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke the current session
+     * @description Revokes this session only, not the family.
+     *
+     *     Signing out of one browser must not sign you out of the field app. Revoking
+     *     everything is a separate, deliberate action (``POST /auth/logout-all``),
+     *     because the two intents look identical in a UI and have very different
+     *     consequences for somebody mid-shift.
+     *
+     *     Carries no permission declaration beyond authentication: the thing being
+     *     acted on is the caller's own session, and a permission that every session
+     *     necessarily holds over itself would be a permission that means nothing.
+     */
+    post: operations["logout_api_v1_auth_logout_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/logout-all": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke every session for the caller
+     * @description "Sign me out everywhere" — the response to a lost phone.
+     */
+    post: operations["logout_everywhere_api_v1_auth_logout_all_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/oidc/callback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Complete a provider sign-in */
+    post: operations["complete_oidc_api_v1_auth_oidc_callback_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/oidc/start": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Begin a provider sign-in */
+    post: operations["start_oidc_api_v1_auth_oidc_start_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Change the caller's own password
+     * @description Verify the current password, set the new one, keep this session.
+     *
+     *     The current password is required even though the caller already holds a
+     *     valid session. A session is a bearer credential that might have been stolen;
+     *     requiring the password means a stolen token cannot be used to lock the owner
+     *     out of their own account, which is the first thing an attacker does with one.
+     *
+     *     Other sessions are revoked and this one is not — ``identity.users.set_password``
+     *     explains why that choice belongs to the caller rather than the service.
+     */
+    post: operations["change_password_api_v1_auth_password_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/providers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Which identity providers this tenant offers
+     * @description Public because a sign-in page renders from it before anybody is signed in.
+     *
+     *     Returns the slug and the display name and nothing else — not the issuer, not
+     *     the client id, not the allowed domains. A sign-in page needs a button label;
+     *     everything else is configuration an unauthenticated caller has no business
+     *     enumerating.
+     */
+    get: operations["list_sign_in_providers_api_v1_auth_providers_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/refresh": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Rotate a refresh token
+     * @description Public by necessity: the caller's access token has usually expired.
+     *
+     *     The refresh token *is* the credential here, and it names the tenant by
+     *     itself (``sessions.rotate`` resolves it with no tenant in context, exactly
+     *     as ``integrations.keys`` resolves an API key).
+     */
+    post: operations["refresh_token_api_v1_auth_refresh_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/session": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Who the caller is and what they hold
+     * @description The console's first call. See the module docstring on ``permissions``.
+     */
+    get: operations["current_session_api_v1_auth_session_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/sessions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Where the caller is signed in
+     * @description The caller's own sessions, and only ever the caller's own.
+     *
+     *     Declares no permission beyond authentication, for the reason ``logout``
+     *     gives: the subject is the caller themself, and a permission that every
+     *     session necessarily holds over itself would mean nothing. There is no
+     *     ``user_id`` parameter and there must not be one -- reading somebody
+     *     else's session list is an administrative act that belongs on
+     *     ``/access/users/{user_id}/sessions``, where it is scoped and audited.
+     */
+    get: operations["my_sessions_api_v1_auth_sessions_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/token": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Exchange a password for a session */
+    post: operations["issue_token_api_v1_auth_token_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/complaints": {
     parameters: {
       query?: never;
@@ -1268,6 +1827,14 @@ export interface paths {
      *     deduplicates identical bytes by design — so resolving the path from the URL
      *     alone would let any tenant fetch any other tenant's photograph by guessing
      *     or by observing a hash. The row is what says this artefact belongs here.
+     *
+     *     **Phase 13 adds the second boundary: which reviewer, not just which
+     *     tenant.** The artefact is reached through the complaint that produced it,
+     *     so the authorization is the same decision the queue item gets — a
+     *     reviewer scoped to one ward cannot fetch the photograph attached to a
+     *     report in another, even holding its content address. Without this the
+     *     queue would be scoped and the evidence behind it would not, which is the
+     *     §25 disclosure surface ADR-0062 found on the console.
      */
     get: operations["get_media_api_v1_review_media__redacted_sha256__get"];
     put?: never;
@@ -1288,6 +1855,20 @@ export interface paths {
     /**
      * The §11.4 review queue
      * @description Open items first, by priority then age. See ``review.list_items``.
+     *
+     *     **Scoped to what this reviewer may see, in the query.** The Phase 13 gate
+     *     clause is that one department's officer cannot read another's rows
+     *     *including pagination counts*, so the restriction is a condition passed
+     *     into the service and applied to the count and the page alike. Filtering
+     *     the response instead would give a correct page under a total describing
+     *     somebody else's work, which is the leak the clause names.
+     *
+     *     A reviewer whose grants are zone- or taxonomy-scoped sees their part of
+     *     the queue. One with a tenant-wide grant sees all of it. One whose only
+     *     grant is department-scoped sees **nothing today**, because nothing writes
+     *     ``complaints.department_id`` until Phase 12 routes a report —
+     *     ``identity.resources`` states that consequence rather than leaving it to
+     *     be discovered.
      */
     get: operations["list_queue_api_v1_review_queue_get"];
     put?: never;
@@ -1305,7 +1886,17 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** One item and its bundle */
+    /**
+     * One item and its bundle
+     * @description One item, and the decision that it is this reviewer's to read.
+     *
+     *     The item is loaded first and authorized second, which is the only order
+     *     that works: what a grant is tested against are the *complaint's*
+     *     attributes (``identity.resources.review_item_resource``), and those are not
+     *     knowable from an item id. The load is tenant-scoped, so the worst an
+     *     out-of-scope caller can do is cause a read they never see the result of —
+     *     and the 403 that follows names the permission and nothing about the row.
+     */
     get: operations["get_queue_item_api_v1_review_queue__item_id__get"];
     put?: never;
     post?: never;
@@ -1327,6 +1918,23 @@ export interface paths {
     /**
      * Record the human judgement (§11.4), and the Phase 11 label
      * @description Approve, reject, or escalate. One judgement per item, ever.
+     *
+     *     **The judgement is now attributed to a person.** Phase 8 recorded a
+     *     ``decided_by_label`` the caller supplied and said plainly that it was a
+     *     label rather than an identity because there was no identity to record.
+     *     There is now: ``decided_by`` carries the operator's user id and the label
+     *     is derived from the principal rather than accepted from the request.
+     *
+     *     A caller-supplied label is still accepted and still stored — but only
+     *     appended to the derived one, never replacing it. Phase 11 will train on
+     *     these rows, and a label that can claim any author is a training set that
+     *     cannot be audited.
+     *
+     *     An impersonated support session reaches here only if it was opened with
+     *     write authorisation; ``identity.scopes.evaluate`` refuses a write on a
+     *     read-only impersonation before the scope is even considered. A judgement
+     *     on a citizen's report made by support acting as an officer is exactly
+     *     the case that must be deliberate.
      */
     post: operations["decide_item_api_v1_review_queue__item_id__decision_post"];
     delete?: never;
@@ -1548,6 +2156,48 @@ export interface components {
      * @enum {string}
      */
     AssigneeType: "staff" | "contractor";
+    /**
+     * AuthorizationDecisionResponse
+     * @description One row of the decision log.
+     *
+     *     Named at length rather than ``DecisionResponse``, and the reason is a
+     *     mistake worth not repeating: ``api.v1.review`` already publishes a
+     *     ``DecisionResponse`` — a *review* decision, an entirely different thing —
+     *     and two Pydantic models with one class name make FastAPI qualify both
+     *     schema components with their full module paths. The generated TypeScript
+     *     client's ``DecisionResponse`` then stops existing, and the breakage surfaces
+     *     in the frontend rather than here.
+     */
+    AuthorizationDecisionResponse: {
+      /** Allowed */
+      allowed: boolean;
+      /**
+       * Decided At
+       * Format: date-time
+       */
+      decided_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Matched Scope */
+      matched_scope: string | null;
+      /** Operator Subject */
+      operator_subject: string | null;
+      /** Permission */
+      permission: string;
+      /** Reason Code */
+      reason_code: string;
+      /** Resource Id */
+      resource_id: string | null;
+      /** Resource Kind */
+      resource_kind: string | null;
+      /** Route */
+      route: string | null;
+      /** User Id */
+      user_id: string | null;
+    };
     /** Body_submit_complaint_api_v1_complaints_post */
     Body_submit_complaint_api_v1_complaints_post: {
       /** Audio */
@@ -1729,6 +2379,13 @@ export interface components {
       valid_from?: string | null;
       /** Valid Until */
       valid_until?: string | null;
+    };
+    /** ChangePasswordRequest */
+    ChangePasswordRequest: {
+      /** Current Password */
+      current_password: string;
+      /** New Password */
+      new_password: string;
     };
     /**
      * ComplaintHistory
@@ -2037,7 +2694,7 @@ export interface components {
     DecisionRequest: {
       /**
        * Decided By Label
-       * @default control-plane token
+       * @default unspecified
        */
       decided_by_label?: string;
       decision: components["schemas"]["ReviewDecisionKind"];
@@ -2080,6 +2737,30 @@ export interface components {
      * @enum {string}
      */
     DegradationFallback: "pending_classification" | "halted_for_review" | "skipped_stage";
+    /** DelegationSpec */
+    DelegationSpec: {
+      /** Reason */
+      reason: string;
+      /**
+       * Role Id
+       * Format: uuid
+       */
+      role_id: string;
+      /** Scope Kind */
+      scope_kind: string;
+      /** Scope Ref */
+      scope_ref?: string | null;
+      /**
+       * To User Id
+       * Format: uuid
+       */
+      to_user_id: string;
+      /**
+       * Valid Until
+       * Format: date-time
+       */
+      valid_until: string;
+    };
     /** DeliveryLogResponse */
     DeliveryLogResponse: {
       /** Deliveries */
@@ -2243,10 +2924,122 @@ export interface components {
       /** Name */
       name: string;
     };
+    /** GrantSpec */
+    GrantSpec: {
+      /** Reason */
+      reason?: string | null;
+      /**
+       * Role Id
+       * Format: uuid
+       */
+      role_id: string;
+      /**
+       * Scope Kind
+       * @default tenant
+       */
+      scope_kind?: string;
+      /** Scope Ref */
+      scope_ref?: string | null;
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+      /** Valid From */
+      valid_from?: string | null;
+      /** Valid Until */
+      valid_until?: string | null;
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
+    };
+    /** ImpersonationResponse */
+    ImpersonationResponse: {
+      /** Allows Writes */
+      allows_writes: boolean;
+      /** Decisions Allowed */
+      decisions_allowed: number;
+      /** Decisions Denied */
+      decisions_denied: number;
+      /** Ended At */
+      ended_at: string | null;
+      /** Ended Reason */
+      ended_reason: string | null;
+      /**
+       * Ends At
+       * Format: date-time
+       */
+      ends_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Justification */
+      justification: string;
+      /** Operator Subject */
+      operator_subject: string;
+      /**
+       * Started At
+       * Format: date-time
+       */
+      started_at: string;
+      /**
+       * Subject User Id
+       * Format: uuid
+       */
+      subject_user_id: string;
+      /**
+       * Tenant Id
+       * Format: uuid
+       */
+      tenant_id: string;
+      /** Ticket Ref */
+      ticket_ref: string | null;
+    };
+    /** ImpersonationSpec */
+    ImpersonationSpec: {
+      /**
+       * Allows Writes
+       * @default false
+       */
+      allows_writes?: boolean;
+      /** Justification */
+      justification: string;
+      /**
+       * Minutes
+       * @default 30
+       */
+      minutes?: number;
+      /**
+       * Tenant Id
+       * Format: uuid
+       */
+      tenant_id: string;
+      /** Ticket Ref */
+      ticket_ref?: string | null;
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+    };
+    /** ImpersonationTokenResponse */
+    ImpersonationTokenResponse: {
+      /** Access Token */
+      access_token: string;
+      /** Expires In */
+      expires_in: number;
+      impersonation: components["schemas"]["ImpersonationResponse"];
+      /** Refresh Token */
+      refresh_token: string;
+      /**
+       * Token Type
+       * @default Bearer
+       */
+      token_type?: string;
     };
     /** KeyResponse */
     KeyResponse: {
@@ -2384,6 +3177,42 @@ export interface components {
       /** Revision */
       revision: number;
     };
+    /**
+     * OidcCallbackRequest
+     * @description Deliberately has no ``id_token`` field, and must never gain one.
+     *
+     *     ``identity.oidc`` trusts an ID token because of the channel it arrived on —
+     *     a back-channel TLS request to the issuer's own token endpoint (ADR-0064).
+     *     A token handed to us through a browser has no such channel, and accepting
+     *     one here would turn a documented design decision into a vulnerability.
+     */
+    OidcCallbackRequest: {
+      /** Code */
+      code: string;
+      /** State */
+      state: string;
+    };
+    /** OidcStartRequest */
+    OidcStartRequest: {
+      /** Provider */
+      provider: string;
+      /** Redirect Uri */
+      redirect_uri: string;
+      /** Return To */
+      return_to?: string | null;
+    };
+    /** OidcStartResponse */
+    OidcStartResponse: {
+      /** Authorization Url */
+      authorization_url: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /** State */
+      state: string;
+    };
     /** OrgUnitResponse */
     OrgUnitResponse: {
       /** Code */
@@ -2400,6 +3229,31 @@ export interface components {
       parent_code: string | null;
       /** Path */
       path: string;
+    };
+    /** PasswordGrantRequest */
+    PasswordGrantRequest: {
+      /** Identifier */
+      identifier: string;
+      /** Password */
+      password: string;
+    };
+    /** PasswordResetSpec */
+    PasswordResetSpec: {
+      /** Password */
+      password: string;
+    };
+    /** PermissionResponse */
+    PermissionResponse: {
+      /** Audited */
+      audited: boolean;
+      /** Description */
+      description: string;
+      /** Name */
+      name: string;
+      /** Resource Kind */
+      resource_kind: string | null;
+      /** Scopable */
+      scopable: boolean;
     };
     /**
      * PlaceResolution
@@ -2614,6 +3468,30 @@ export interface components {
       /** Window Start */
       window_start?: string | null;
     };
+    /** ProviderSpec */
+    ProviderSpec: {
+      /** Allowed Email Domains */
+      allowed_email_domains?: string[] | null;
+      /**
+       * Auto Provision
+       * @default false
+       */
+      auto_provision?: boolean;
+      /** Auto Provision Role Id */
+      auto_provision_role_id?: string | null;
+      /** Client Id */
+      client_id: string;
+      /** Client Secret Setting */
+      client_secret_setting: string;
+      /** Display Name */
+      display_name: string;
+      /** Issuer */
+      issuer: string;
+      /** Scopes */
+      scopes?: string[] | null;
+      /** Slug */
+      slug: string;
+    };
     /**
      * ProvisioningRequest
      * @description Everything needed to bring a tenant into existence, in one transaction.
@@ -2768,6 +3646,11 @@ export interface components {
       | "safety_trigger_fired"
       | "severity_scored"
       | "work_order_created";
+    /** RefreshRequest */
+    RefreshRequest: {
+      /** Refresh Token */
+      refresh_token: string;
+    };
     /**
      * RegisteredContractorResponse
      * @description What was created, including the identifier it is addressed by.
@@ -2907,6 +3790,50 @@ export interface components {
     RevokeKeyRequest: {
       /** Reason */
       reason: string;
+    };
+    /** RoleResponse */
+    RoleResponse: {
+      /** Code */
+      code: string;
+      /** Description */
+      description: string | null;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Is Active */
+      is_active: boolean;
+      /** Is System */
+      is_system: boolean;
+      /** Live Grants */
+      live_grants: number;
+      /** Name */
+      name: string;
+      /** Permissions */
+      permissions: string[];
+    };
+    /** RoleSpec */
+    RoleSpec: {
+      /** Code */
+      code: string;
+      /** Description */
+      description?: string | null;
+      /** Name */
+      name: string;
+      /** Permissions */
+      permissions: string[];
+    };
+    /** RoleUpdate */
+    RoleUpdate: {
+      /** Description */
+      description?: string | null;
+      /** Is Active */
+      is_active?: boolean | null;
+      /** Name */
+      name?: string | null;
+      /** Permissions */
+      permissions?: string[] | null;
     };
     /** RollbackRequest */
     RollbackRequest: {
@@ -3064,6 +3991,46 @@ export interface components {
       seeded_kinds: components["schemas"]["PolicyKind"][];
       /** Skipped Kinds */
       skipped_kinds: components["schemas"]["PolicyKind"][];
+    };
+    /** SessionResponse */
+    SessionResponse: {
+      /** Contractor Id */
+      contractor_id: string | null;
+      /** Department Id */
+      department_id: string | null;
+      /** Display Name */
+      display_name: string | null;
+      /** Email */
+      email: string | null;
+      /** Grants */
+      grants: components["schemas"]["nemesis__api__v1__auth__GrantResponse"][];
+      /** Impersonated By */
+      impersonated_by?: string | null;
+      /**
+       * Impersonation Allows Writes
+       * @default false
+       */
+      impersonation_allows_writes?: boolean;
+      /** Impersonation Ends At */
+      impersonation_ends_at?: string | null;
+      /** Is Platform */
+      is_platform: boolean;
+      /** Kind */
+      kind: string;
+      /** Permissions */
+      permissions: string[];
+      /** Subject */
+      subject: string;
+      /**
+       * Tenant Id
+       * Format: uuid
+       */
+      tenant_id: string;
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
     };
     /** SetWebhookActiveRequest */
     SetWebhookActiveRequest: {
@@ -3338,6 +4305,30 @@ export interface components {
        */
       timezone?: string;
     };
+    /**
+     * TokenResponse
+     * @description What a client stores. The refresh token is returned once per rotation.
+     */
+    TokenResponse: {
+      /** Access Token */
+      access_token: string;
+      /** Expires In */
+      expires_in: number;
+      /**
+       * Must Change Password
+       * @default false
+       */
+      must_change_password?: boolean;
+      /** Refresh Expires In */
+      refresh_expires_in: number;
+      /** Refresh Token */
+      refresh_token: string;
+      /**
+       * Token Type
+       * @default Bearer
+       */
+      token_type?: string;
+    };
     /** TransitionRequest */
     TransitionRequest: {
       /** Reason */
@@ -3391,6 +4382,54 @@ export interface components {
       throttled_count: number;
       /** Usage Date */
       usage_date: string;
+    };
+    /** UserResponse */
+    UserResponse: {
+      /** Contractor Id */
+      contractor_id: string | null;
+      /** Department Id */
+      department_id: string | null;
+      /** Display Name */
+      display_name: string | null;
+      /** Email */
+      email: string | null;
+      /** Has Password */
+      has_password: boolean;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Is Active */
+      is_active: boolean;
+      /** Kind */
+      kind: string;
+      /** Last Login At */
+      last_login_at: string | null;
+      /** Role Label */
+      role_label: string | null;
+      /** Subject */
+      subject: string;
+    };
+    /** UserSpec */
+    UserSpec: {
+      /** Contractor Id */
+      contractor_id?: string | null;
+      /** Department Id */
+      department_id?: string | null;
+      /** Display Name */
+      display_name: string;
+      /** Email */
+      email?: string | null;
+      /**
+       * Kind
+       * @default operator
+       */
+      kind?: string;
+      /** Password */
+      password?: string | null;
+      /** Role Label */
+      role_label?: string | null;
     };
     /** ValidationError */
     ValidationError: {
@@ -3672,6 +4711,60 @@ export interface components {
       /** Total Reports */
       total_reports: number;
     };
+    /** GrantResponse */
+    nemesis__api__v1__access__GrantResponse: {
+      /** Delegated By User Id */
+      delegated_by_user_id: string | null;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Reason */
+      reason: string | null;
+      /** Revoked At */
+      revoked_at: string | null;
+      /** Role Code */
+      role_code: string;
+      /**
+       * Role Id
+       * Format: uuid
+       */
+      role_id: string;
+      /** Scope Kind */
+      scope_kind: string;
+      /** Scope Ref */
+      scope_ref: string | null;
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+      /** Valid From */
+      valid_from: string | null;
+      /** Valid Until */
+      valid_until: string | null;
+    };
+    /** GrantResponse */
+    nemesis__api__v1__auth__GrantResponse: {
+      /** Delegated */
+      delegated: boolean;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Permissions */
+      permissions: string[];
+      /** Role Code */
+      role_code: string;
+      /** Scope Kind */
+      scope_kind: string;
+      /** Scope Path */
+      scope_path: string | null;
+      /** Scope Ref */
+      scope_ref: string | null;
+    };
   };
   responses: never;
   parameters: never;
@@ -3681,6 +4774,812 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  list_decisions_api_v1_access_decisions_get: {
+    parameters: {
+      query?: {
+        user_id?: string | null;
+        allowed?: boolean | null;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorizationDecisionResponse"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_grants_api_v1_access_grants_get: {
+    parameters: {
+      query?: {
+        user_id?: string | null;
+        include_revoked?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["nemesis__api__v1__access__GrantResponse"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_grant_api_v1_access_grants_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GrantSpec"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["nemesis__api__v1__access__GrantResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delegate_grant_api_v1_access_grants_delegate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DelegationSpec"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["nemesis__api__v1__access__GrantResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  revoke_grant_api_v1_access_grants__grant_id__delete: {
+    parameters: {
+      query: {
+        reason: string;
+      };
+      header?: never;
+      path: {
+        grant_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_impersonations_api_v1_access_impersonation_get: {
+    parameters: {
+      query?: {
+        only_open?: boolean;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImpersonationResponse"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  start_impersonation_api_v1_access_impersonation_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ImpersonationSpec"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImpersonationTokenResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  end_impersonation_api_v1_access_impersonation__impersonation_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        impersonation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_permissions_api_v1_access_permissions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PermissionResponse"][];
+        };
+      };
+    };
+  };
+  register_provider_api_v1_access_providers_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProviderSpec"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_roles_api_v1_access_roles_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RoleResponse"][];
+        };
+      };
+    };
+  };
+  create_role_api_v1_access_roles_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RoleSpec"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RoleResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_role_api_v1_access_roles__role_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        role_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RoleUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RoleResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_users_api_v1_access_users_get: {
+    parameters: {
+      query?: {
+        include_inactive?: boolean;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserResponse"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_user_api_v1_access_users_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UserSpec"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  deactivate_user_api_v1_access_users__user_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reset_password_api_v1_access_users__user_id__password_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasswordResetSpec"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  logout_api_v1_auth_logout_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  logout_everywhere_api_v1_auth_logout_all_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  complete_oidc_api_v1_auth_oidc_callback_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Tenant-ID"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OidcCallbackRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TokenResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  start_oidc_api_v1_auth_oidc_start_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Tenant-ID"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OidcStartRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OidcStartResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  change_password_api_v1_auth_password_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChangePasswordRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_sign_in_providers_api_v1_auth_providers_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Tenant-ID"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          }[];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  refresh_token_api_v1_auth_refresh_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RefreshRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TokenResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  current_session_api_v1_auth_session_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SessionResponse"];
+        };
+      };
+    };
+  };
+  my_sessions_api_v1_auth_sessions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          }[];
+        };
+      };
+    };
+  };
+  issue_token_api_v1_auth_token_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Tenant-ID"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasswordGrantRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TokenResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   submit_complaint_api_v1_complaints_post: {
     parameters: {
       query?: never;
@@ -6065,9 +7964,7 @@ export interface operations {
   get_media_api_v1_review_media__redacted_sha256__get: {
     parameters: {
       query?: never;
-      header?: {
-        "X-Tenant-ID"?: string | null;
-      };
+      header?: never;
       path: {
         redacted_sha256: string;
       };
@@ -6105,9 +8002,7 @@ export interface operations {
         limit?: number;
         offset?: number;
       };
-      header?: {
-        "X-Tenant-ID"?: string | null;
-      };
+      header?: never;
       path?: never;
       cookie?: never;
     };
@@ -6136,9 +8031,7 @@ export interface operations {
   get_queue_item_api_v1_review_queue__item_id__get: {
     parameters: {
       query?: never;
-      header?: {
-        "X-Tenant-ID"?: string | null;
-      };
+      header?: never;
       path: {
         item_id: string;
       };
@@ -6169,10 +8062,7 @@ export interface operations {
   decide_item_api_v1_review_queue__item_id__decision_post: {
     parameters: {
       query?: never;
-      header?: {
-        "X-Control-Plane-Token"?: string | null;
-        "X-Tenant-ID"?: string | null;
-      };
+      header?: never;
       path: {
         item_id: string;
       };

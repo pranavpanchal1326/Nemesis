@@ -563,6 +563,48 @@ feature_flag_state = Gauge(
 )
 
 
+# --- Identity & authorization (Phase 13) -----------------------------------
+# `outcome` is granted / denied; `reason` is one of
+# `identity.scopes.REASON_CODES`, a closed vocabulary for exactly this reason.
+# **No user, tenant, or resource label.** Per-user authorization numbers belong
+# in `authorization_decisions`, which the tenant can query and which retention
+# can expire; a label here would give every officer in every tenant their own
+# time series, which is the unbounded-cardinality defect
+# `test_metrics_cardinality.py` exists to prevent.
+#
+# `permission` is labelled and is safe to label: the vocabulary is the
+# code-declared registry in `identity.permissions`, so it is bounded by the
+# build exactly as `flag` is.
+authorization_decisions_total = Counter(
+    "nemesis_authorization_decisions_total",
+    "Authorization decisions, by permission, outcome and reason.",
+    labelnames=("permission", "outcome", "reason"),
+    registry=REGISTRY,
+)
+
+# `outcome` is issued / rejected / rotated / reuse_detected; `method` is
+# password / oidc / impersonation. Reuse detection having its own outcome is the
+# point of the metric: it is the one value here that should alert, because it
+# means a refresh token was presented twice and the family was torn down.
+authentication_attempts_total = Counter(
+    "nemesis_authentication_attempts_total",
+    "Authentication attempts, by method and outcome.",
+    labelnames=("method", "outcome"),
+    registry=REGISTRY,
+)
+
+# A gauge because the question is "is support inside a customer's tenant right
+# now", which must be able to return to zero. No tenant label: which customer is
+# being supported is not a fact for anybody scraping /metrics, and the tenant's
+# own impersonation view answers it with the justification attached.
+impersonation_sessions_active = Gauge(
+    "nemesis_impersonation_sessions_active",
+    "Impersonation sessions currently open across the deployment.",
+    multiprocess_mode="livesum",
+    registry=REGISTRY,
+)
+
+
 def render() -> tuple[bytes, str]:
     """Serialise the registry for the /metrics endpoint."""
     from prometheus_client import CONTENT_TYPE_LATEST, generate_latest

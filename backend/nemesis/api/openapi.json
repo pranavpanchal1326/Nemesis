@@ -211,6 +211,117 @@
         "title": "AssigneeType",
         "type": "string"
       },
+      "AuthorizationDecisionResponse": {
+        "additionalProperties": false,
+        "description": "One row of the decision log.\n\nNamed at length rather than ``DecisionResponse``, and the reason is a\nmistake worth not repeating: ``api.v1.review`` already publishes a\n``DecisionResponse`` — a *review* decision, an entirely different thing —\nand two Pydantic models with one class name make FastAPI qualify both\nschema components with their full module paths. The generated TypeScript\nclient's ``DecisionResponse`` then stops existing, and the breakage surfaces\nin the frontend rather than here.",
+        "properties": {
+          "allowed": {
+            "title": "Allowed",
+            "type": "boolean"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "matched_scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Scope"
+          },
+          "operator_subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Subject"
+          },
+          "permission": {
+            "title": "Permission",
+            "type": "string"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "resource_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Kind"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "id",
+          "decided_at",
+          "user_id",
+          "permission",
+          "allowed",
+          "reason_code",
+          "resource_kind",
+          "resource_id",
+          "matched_scope",
+          "operator_subject",
+          "route"
+        ],
+        "title": "AuthorizationDecisionResponse",
+        "type": "object"
+      },
       "Body_submit_complaint_api_v1_complaints_post": {
         "properties": {
           "audio": {
@@ -746,6 +857,29 @@
           "taxonomy_key"
         ],
         "title": "CertificationSpec",
+        "type": "object"
+      },
+      "ChangePasswordRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "current_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "ChangePasswordRequest",
         "type": "object"
       },
       "ComplaintHistory": {
@@ -1509,7 +1643,7 @@
       "DecisionRequest": {
         "properties": {
           "decided_by_label": {
-            "default": "control-plane token",
+            "default": "unspecified",
             "maxLength": 128,
             "title": "Decided By Label",
             "type": "string"
@@ -1596,6 +1730,58 @@
         ],
         "title": "DegradationFallback",
         "type": "string"
+      },
+      "DelegationSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Reason",
+            "type": "string"
+          },
+          "role_id": {
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          },
+          "scope_kind": {
+            "maxLength": 32,
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "scope_ref": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Ref"
+          },
+          "to_user_id": {
+            "format": "uuid",
+            "title": "To User Id",
+            "type": "string"
+          },
+          "valid_until": {
+            "format": "date-time",
+            "title": "Valid Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to_user_id",
+          "role_id",
+          "scope_kind",
+          "valid_until",
+          "reason"
+        ],
+        "title": "DelegationSpec",
+        "type": "object"
       },
       "DeliveryLogResponse": {
         "properties": {
@@ -2063,6 +2249,81 @@
         "title": "FactResponse",
         "type": "object"
       },
+      "GrantSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "role_id": {
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          },
+          "scope_kind": {
+            "default": "tenant",
+            "maxLength": 32,
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "scope_ref": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Ref"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "required": [
+          "user_id",
+          "role_id"
+        ],
+        "title": "GrantSpec",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2074,6 +2335,192 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ImpersonationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "allows_writes": {
+            "title": "Allows Writes",
+            "type": "boolean"
+          },
+          "decisions_allowed": {
+            "title": "Decisions Allowed",
+            "type": "integer"
+          },
+          "decisions_denied": {
+            "title": "Decisions Denied",
+            "type": "integer"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "ended_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended Reason"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "justification": {
+            "title": "Justification",
+            "type": "string"
+          },
+          "operator_subject": {
+            "title": "Operator Subject",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "subject_user_id": {
+            "format": "uuid",
+            "title": "Subject User Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "ticket_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Ref"
+          }
+        },
+        "required": [
+          "id",
+          "tenant_id",
+          "subject_user_id",
+          "operator_subject",
+          "justification",
+          "ticket_ref",
+          "allows_writes",
+          "started_at",
+          "ends_at",
+          "ended_at",
+          "ended_reason",
+          "decisions_allowed",
+          "decisions_denied"
+        ],
+        "title": "ImpersonationResponse",
+        "type": "object"
+      },
+      "ImpersonationSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "allows_writes": {
+            "default": false,
+            "title": "Allows Writes",
+            "type": "boolean"
+          },
+          "justification": {
+            "maxLength": 2000,
+            "minLength": 30,
+            "title": "Justification",
+            "type": "string"
+          },
+          "minutes": {
+            "default": 30,
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "ticket_ref": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Ref"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "user_id",
+          "justification"
+        ],
+        "title": "ImpersonationSpec",
+        "type": "object"
+      },
+      "ImpersonationTokenResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "impersonation": {
+            "$ref": "#/components/schemas/ImpersonationResponse"
+          },
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "Bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "impersonation",
+          "access_token",
+          "expires_in",
+          "refresh_token"
+        ],
+        "title": "ImpersonationTokenResponse",
         "type": "object"
       },
       "KeyResponse": {
@@ -2479,6 +2926,90 @@
         "title": "ObserveRequest",
         "type": "object"
       },
+      "OidcCallbackRequest": {
+        "additionalProperties": false,
+        "description": "Deliberately has no ``id_token`` field, and must never gain one.\n\n``identity.oidc`` trusts an ID token because of the channel it arrived on —\na back-channel TLS request to the issuer's own token endpoint (ADR-0064).\nA token handed to us through a browser has no such channel, and accepting\none here would turn a documented design decision into a vulnerability.",
+        "properties": {
+          "code": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "state": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "code"
+        ],
+        "title": "OidcCallbackRequest",
+        "type": "object"
+      },
+      "OidcStartRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "redirect_uri": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Redirect Uri",
+            "type": "string"
+          },
+          "return_to": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return To"
+          }
+        },
+        "required": [
+          "provider",
+          "redirect_uri"
+        ],
+        "title": "OidcStartRequest",
+        "type": "object"
+      },
+      "OidcStartResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "authorization_url": {
+            "title": "Authorization Url",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "authorization_url",
+          "state",
+          "expires_at"
+        ],
+        "title": "OidcStartResponse",
+        "type": "object"
+      },
       "OrgUnitResponse": {
         "properties": {
           "code": {
@@ -2527,6 +3058,86 @@
           "is_active"
         ],
         "title": "OrgUnitResponse",
+        "type": "object"
+      },
+      "PasswordGrantRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "identifier": {
+            "maxLength": 320,
+            "minLength": 1,
+            "title": "Identifier",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "identifier",
+          "password"
+        ],
+        "title": "PasswordGrantRequest",
+        "type": "object"
+      },
+      "PasswordResetSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "PasswordResetSpec",
+        "type": "object"
+      },
+      "PermissionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "audited": {
+            "title": "Audited",
+            "type": "boolean"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "resource_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Kind"
+          },
+          "scopable": {
+            "title": "Scopable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "resource_kind",
+          "audited",
+          "scopable"
+        ],
+        "title": "PermissionResponse",
         "type": "object"
       },
       "PlaceResolution": {
@@ -3067,6 +3678,96 @@
         "title": "ProposeRequest",
         "type": "object"
       },
+      "ProviderSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_email_domains": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Email Domains"
+          },
+          "auto_provision": {
+            "default": false,
+            "title": "Auto Provision",
+            "type": "boolean"
+          },
+          "auto_provision_role_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Provision Role Id"
+          },
+          "client_id": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_secret_setting": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Client Secret Setting",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "issuer": {
+            "maxLength": 2048,
+            "minLength": 8,
+            "title": "Issuer",
+            "type": "string"
+          },
+          "scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scopes"
+          },
+          "slug": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "display_name",
+          "issuer",
+          "client_id",
+          "client_secret_setting"
+        ],
+        "title": "ProviderSpec",
+        "type": "object"
+      },
       "ProvisioningRequest": {
         "additionalProperties": false,
         "description": "Everything needed to bring a tenant into existence, in one transaction.",
@@ -3375,6 +4076,22 @@
         "title": "RealtimeShapedEventType",
         "type": "string"
       },
+      "RefreshRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "refresh_token": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshRequest",
+        "type": "object"
+      },
       "RegisteredContractorResponse": {
         "description": "What was created, including the identifier it is addressed by.\n\n**``contractor_id`` was missing, and its absence had a consequence.**\n§26.4's public profile is keyed on the contractor's UUID\n(``/public/{slug}/contractor/{contractor_id}/profile``), and this handler —\nthe only way to create one — returned the registration id and the name. So\na caller could register a contractor over HTTP and then had no way, short of\nSQL, to learn the identifier needed to link to that contractor's own public\nrecord. §E18's contractor page was reachable only by somebody holding a\ndatabase session, which is the same defect shape as \"no endpoint maps a\ntenant slug to its id\".\n\nA POST that creates a resource returns its identity. Additive, so v1 is\nunaffected and the lock is re-taken by addition.",
         "properties": {
@@ -3567,6 +4284,169 @@
           "reason"
         ],
         "title": "RevokeKeyRequest",
+        "type": "object"
+      },
+      "RoleResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_system": {
+            "title": "Is System",
+            "type": "boolean"
+          },
+          "live_grants": {
+            "title": "Live Grants",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "description",
+          "permissions",
+          "is_system",
+          "is_active",
+          "live_grants"
+        ],
+        "title": "RoleResponse",
+        "type": "object"
+      },
+      "RoleSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Code",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Permissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "permissions"
+        ],
+        "title": "RoleSpec",
+        "type": "object"
+      },
+      "RoleUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "permissions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permissions"
+          }
+        },
+        "title": "RoleUpdate",
         "type": "object"
       },
       "RollbackRequest": {
@@ -3934,6 +4814,136 @@
           "skipped_kinds"
         ],
         "title": "SeedResponse",
+        "type": "object"
+      },
+      "SessionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contractor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contractor Id"
+          },
+          "department_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department Id"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/nemesis__api__v1__auth__GrantResponse"
+            },
+            "title": "Grants",
+            "type": "array"
+          },
+          "impersonated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Impersonated By"
+          },
+          "impersonation_allows_writes": {
+            "default": false,
+            "title": "Impersonation Allows Writes",
+            "type": "boolean"
+          },
+          "impersonation_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Impersonation Ends At"
+          },
+          "is_platform": {
+            "title": "Is Platform",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "tenant_id",
+          "subject",
+          "display_name",
+          "kind",
+          "email",
+          "department_id",
+          "contractor_id",
+          "is_platform",
+          "permissions",
+          "grants"
+        ],
+        "title": "SessionResponse",
         "type": "object"
       },
       "SetWebhookActiveRequest": {
@@ -4592,6 +5602,46 @@
         "title": "TenantSpec",
         "type": "object"
       },
+      "TokenResponse": {
+        "additionalProperties": false,
+        "description": "What a client stores. The refresh token is returned once per rotation.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "must_change_password": {
+            "default": false,
+            "title": "Must Change Password",
+            "type": "boolean"
+          },
+          "refresh_expires_in": {
+            "title": "Refresh Expires In",
+            "type": "integer"
+          },
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "Bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in",
+          "refresh_token",
+          "refresh_expires_in"
+        ],
+        "title": "TokenResponse",
+        "type": "object"
+      },
       "TransitionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4735,6 +5785,199 @@
           "throttled_count"
         ],
         "title": "UsageRow",
+        "type": "object"
+      },
+      "UserResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contractor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contractor Id"
+          },
+          "department_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department Id"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "has_password": {
+            "title": "Has Password",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login At"
+          },
+          "role_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Label"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "display_name",
+          "email",
+          "kind",
+          "role_label",
+          "department_id",
+          "contractor_id",
+          "is_active",
+          "last_login_at",
+          "has_password"
+        ],
+        "title": "UserResponse",
+        "type": "object"
+      },
+      "UserSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "contractor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contractor Id"
+          },
+          "department_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department Id"
+          },
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 320,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "kind": {
+            "default": "operator",
+            "maxLength": 32,
+            "title": "Kind",
+            "type": "string"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "role_label": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Label"
+          }
+        },
+        "required": [
+          "display_name"
+        ],
+        "title": "UserSpec",
         "type": "object"
       },
       "ValidationError": {
@@ -5547,6 +6790,183 @@
         ],
         "title": "ZoneTotals",
         "type": "object"
+      },
+      "nemesis__api__v1__access__GrantResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "delegated_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delegated By User Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "role_code": {
+            "title": "Role Code",
+            "type": "string"
+          },
+          "role_id": {
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          },
+          "scope_kind": {
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "scope_ref": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Ref"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "role_id",
+          "role_code",
+          "scope_kind",
+          "scope_ref",
+          "valid_from",
+          "valid_until",
+          "delegated_by_user_id",
+          "reason",
+          "revoked_at"
+        ],
+        "title": "GrantResponse",
+        "type": "object"
+      },
+      "nemesis__api__v1__auth__GrantResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "delegated": {
+            "title": "Delegated",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "role_code": {
+            "title": "Role Code",
+            "type": "string"
+          },
+          "scope_kind": {
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "scope_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Path"
+          },
+          "scope_ref": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Ref"
+          }
+        },
+        "required": [
+          "id",
+          "role_code",
+          "scope_kind",
+          "scope_ref",
+          "scope_path",
+          "permissions",
+          "delegated"
+        ],
+        "title": "GrantResponse",
+        "type": "object"
       }
     }
   },
@@ -5557,6 +6977,1183 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/access/decisions": {
+      "get": {
+        "description": "\"Who tried to open Ward 7 last night\", without an engineer running SQL.\n\nRows are retained for ninety days (``identity.decisions.DECISION_RETENTION``)\nand the response does not say so — the API documentation does, because a\nfield in every row repeating a constant is noise.",
+        "operationId": "list_decisions_api_v1_access_decisions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "allowed",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Allowed"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuthorizationDecisionResponse"
+                  },
+                  "title": "Response List Decisions Api V1 Access Decisions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "This tenant's authorization decision log",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/grants": {
+      "get": {
+        "description": "An access review, scoped to what the caller may see.\n\n``visible`` first, and the filter is applied to the query rather than to the\nresult. A department head reviewing access sees grants held by users in\ntheir own department and no others — and crucially gets the same answer from\na count as from a list, which is the clause about pagination counts.",
+        "operationId": "list_grants_api_v1_access_grants_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_revoked",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Revoked",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/nemesis__api__v1__access__GrantResponse"
+                  },
+                  "title": "Response List Grants Api V1 Access Grants Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Who holds what",
+        "tags": [
+          "access"
+        ]
+      },
+      "post": {
+        "description": "Assign a role. The caller must be permitted *on the scope being granted*.\n\nThat second check is the one that matters and it is easy to leave out: a\ndepartment head with ``grants:write`` on their own department must not be\nable to grant a role over the tenant. The resource handed to ``authorize``\nis therefore the *scope of the grant*, not the user receiving it.",
+        "operationId": "create_grant_api_v1_access_grants_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/nemesis__api__v1__access__GrantResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assign a role on a scope",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/grants/delegate": {
+      "post": {
+        "description": "Leave and shift cover, bounded and attributed.\n\nThe delegator's own grants are passed to the service from the principal\nresolved for *this* request — ``identity.roles.delegate`` explains why\nloading them again inside the service would make its answer race with this\nauthorization check.",
+        "operationId": "delegate_grant_api_v1_access_grants_delegate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DelegationSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/nemesis__api__v1__access__GrantResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Hand a subset of your own authority to a colleague",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/grants/{grant_id}": {
+      "delete": {
+        "description": "Revoke, with the scope of the grant checked before anything is written.\n\nThe grant is loaded first so the authorization can be against *its* scope.\nChecking only ``grants:write`` somewhere would let a department head revoke\na grant in another department, which is the same defect as granting one\nthere, reached from the other direction.",
+        "operationId": "revoke_grant_api_v1_access_grants__grant_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "required": true,
+            "schema": {
+              "maxLength": 2000,
+              "minLength": 3,
+              "title": "Reason",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke a grant",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/impersonation": {
+      "get": {
+        "description": "The gate clause, as an endpoint the customer can call.\n\nHeld by tenant roles and not by support: the whole point is that the\nimpersonated party can see this and the operator cannot suppress it.",
+        "operationId": "list_impersonations_api_v1_access_impersonation_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "only_open",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Only Open",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImpersonationResponse"
+                  },
+                  "title": "Response List Impersonations Api V1 Access Impersonation Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "What support has done in this tenant",
+        "tags": [
+          "access"
+        ]
+      },
+      "post": {
+        "description": "Platform-only, justified, capped, and visible to the tenant.\n\n``requires(\"impersonation:start\")`` is the whole authorization check here,\nand it is sufficient because the permission is declared with\n``resource_kind=None``: there is no narrower subject than \"may this operator\nimpersonate\", and the *target* is validated by the service rather than by a\nscope — a support engineer with the permission may support any customer, and\nthe control on that is the audit rather than a grant per tenant.",
+        "operationId": "start_impersonation_api_v1_access_impersonation_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImpersonationSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImpersonationTokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Begin an audited support session",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/impersonation/{impersonation_id}": {
+      "delete": {
+        "description": "Endable by the operator inside it **or** by the tenant it is against.\n\nTwo callers, two permissions, one route — and no ``requires`` declaration,\nbecause which permission applies depends on who is asking. The checker\npermits that only for a route that calls ``authorize`` itself, which this\ndoes, twice, with the two possibilities named. A tenant being unable to\nclose a support session it did not ask for would make the visibility this\nphase is built around decorative.",
+        "operationId": "end_impersonation_api_v1_access_impersonation__impersonation_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "impersonation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Impersonation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "End a support session",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/permissions": {
+      "get": {
+        "description": "What a role may be composed from.\n\nServed from the code-declared registry rather than a table, which is the\nwhole argument of ``identity.permissions`` — and the reason this endpoint\nexists at all: an administrator composing a role needs the list, and the\nlist cannot be fetched from the database because it is not in the database.\n\nA platform principal sees the platform-only permissions as well. A tenant\nadministrator does not, because a role they composed could not hold one\nanyway and offering it in a picker would be an invitation to a 422.",
+        "operationId": "list_permissions_api_v1_access_permissions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionResponse"
+                  },
+                  "title": "Response List Permissions Api V1 Access Permissions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "The permission vocabulary this build recognises",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/providers": {
+      "post": {
+        "operationId": "register_provider_api_v1_access_providers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Register Provider Api V1 Access Providers Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Configure an OIDC provider for this tenant",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/roles": {
+      "get": {
+        "operationId": "list_roles_api_v1_access_roles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoleResponse"
+                  },
+                  "title": "Response List Roles Api V1 Access Roles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "This tenant's roles",
+        "tags": [
+          "access"
+        ]
+      },
+      "post": {
+        "operationId": "create_role_api_v1_access_roles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compose a role",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/roles/{role_id}": {
+      "patch": {
+        "operationId": "update_role_api_v1_access_roles__role_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Role Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Amend a role",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/users": {
+      "get": {
+        "description": "The clause about pagination counts, implemented.\n\nA contractor lead holding ``contractor_users:manage`` on their own\norganisation sees their own crew. A department head sees their own\ndepartment. Neither sees a count that includes the other's people, because\nthe constraint reaches the query rather than filtering the response.",
+        "operationId": "list_users_api_v1_access_users_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_inactive",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Inactive",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserResponse"
+                  },
+                  "title": "Response List Users Api V1 Access Users Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "This tenant's users, scoped to the caller",
+        "tags": [
+          "access"
+        ]
+      },
+      "post": {
+        "description": "Create a user. A new user holds nothing until somebody grants it.\n\nA contractor sub-user is created through this route too, by a caller holding\n``contractor_users:manage`` on that contractor — which is why the resource\nfor the decision carries ``contractor_id`` when one is named. A foreman\ncreating their own crew is the case this serves; a foreman creating a\nmunicipal operator is the case it refuses.",
+        "operationId": "create_user_api_v1_access_users_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create a user",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/users/{user_id}": {
+      "delete": {
+        "description": "Deactivate, never delete. Grants are kept for the access review.\n\n``DELETE`` on a route that deactivates is a deliberate choice of verb over\nliteralism: the client's intent is \"remove this person's access\", that is\nwhat happens, and offering a ``DELETE`` that actually deleted would make the\naudit trail destructible from the API.",
+        "operationId": "deactivate_user_api_v1_access_users__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deactivate a user",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/access/users/{user_id}/password": {
+      "post": {
+        "description": "Set a password on somebody else's account, and sign them out everywhere.\n\nBoth halves are deliberate. ``must_change`` is set because a password\nsomebody else chose is a password somebody else knows, and every session is\nrevoked because the usual reason for an administrative reset is that\nsomebody who should not have the old credential does.",
+        "operationId": "reset_password_api_v1_access_users__user_id__password_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset a user's password",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "description": "Revokes this session only, not the family.\n\nSigning out of one browser must not sign you out of the field app. Revoking\neverything is a separate, deliberate action (``POST /auth/logout-all``),\nbecause the two intents look identical in a UI and have very different\nconsequences for somebody mid-shift.\n\nCarries no permission declaration beyond authentication: the thing being\nacted on is the caller's own session, and a permission that every session\nnecessarily holds over itself would be a permission that means nothing.",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Revoke the current session",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "description": "\"Sign me out everywhere\" — the response to a lost phone.",
+        "operationId": "logout_everywhere_api_v1_auth_logout_all_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Revoke every session for the caller",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "post": {
+        "operationId": "complete_oidc_api_v1_auth_oidc_callback_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcCallbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete a provider sign-in",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/oidc/start": {
+      "post": {
+        "operationId": "start_oidc_api_v1_auth_oidc_start_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Begin a provider sign-in",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/password": {
+      "post": {
+        "description": "Verify the current password, set the new one, keep this session.\n\nThe current password is required even though the caller already holds a\nvalid session. A session is a bearer credential that might have been stolen;\nrequiring the password means a stolen token cannot be used to lock the owner\nout of their own account, which is the first thing an attacker does with one.\n\nOther sessions are revoked and this one is not — ``identity.users.set_password``\nexplains why that choice belongs to the caller rather than the service.",
+        "operationId": "change_password_api_v1_auth_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change the caller's own password",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/providers": {
+      "get": {
+        "description": "Public because a sign-in page renders from it before anybody is signed in.\n\nReturns the slug and the display name and nothing else — not the issuer, not\nthe client id, not the allowed domains. A sign-in page needs a button label;\neverything else is configuration an unauthenticated caller has no business\nenumerating.",
+        "operationId": "list_sign_in_providers_api_v1_auth_providers_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "title": "Response List Sign In Providers Api V1 Auth Providers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Which identity providers this tenant offers",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "description": "Public by necessity: the caller's access token has usually expired.\n\nThe refresh token *is* the credential here, and it names the tenant by\nitself (``sessions.rotate`` resolves it with no tenant in context, exactly\nas ``integrations.keys`` resolves an API key).",
+        "operationId": "refresh_token_api_v1_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rotate a refresh token",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "description": "The console's first call. See the module docstring on ``permissions``.",
+        "operationId": "current_session_api_v1_auth_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Who the caller is and what they hold",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "description": "The caller's own sessions, and only ever the caller's own.\n\nDeclares no permission beyond authentication, for the reason ``logout``\ngives: the subject is the caller themself, and a permission that every\nsession necessarily holds over itself would mean nothing. There is no\n``user_id`` parameter and there must not be one -- reading somebody\nelse's session list is an administrative act that belongs on\n``/access/users/{user_id}/sessions``, where it is scoped and audited.",
+        "operationId": "my_sessions_api_v1_auth_sessions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response My Sessions Api V1 Auth Sessions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Where the caller is signed in",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/token": {
+      "post": {
+        "operationId": "issue_token_api_v1_auth_token_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordGrantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Exchange a password for a session",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
     "/api/v1/complaints": {
       "post": {
         "description": "Accept a report, acknowledge it, and hand it to the pipeline.\n\n202 rather than 201: §27.1 budgets the acknowledgment at under two seconds\nand the full pipeline at up to thirty, so the resource is *accepted*, not\ncomplete. Returning 201 would tell every well-behaved HTTP client that the\nrepresentation at the returned location is final, which it is not for\nanother half minute.",
@@ -10192,7 +12789,7 @@
     },
     "/api/v1/review/media/{redacted_sha256}": {
       "get": {
-        "description": "Serve one blurred image, looked up by content address within the tenant.\n\n**The lookup goes through ``submission_media`` and not straight to the\nfilesystem**, and that is the tenant boundary. The redacted root is one\ndirectory shared by every tenant on a deployment — content-addressed storage\ndeduplicates identical bytes by design — so resolving the path from the URL\nalone would let any tenant fetch any other tenant's photograph by guessing\nor by observing a hash. The row is what says this artefact belongs here.",
+        "description": "Serve one blurred image, looked up by content address within the tenant.\n\n**The lookup goes through ``submission_media`` and not straight to the\nfilesystem**, and that is the tenant boundary. The redacted root is one\ndirectory shared by every tenant on a deployment — content-addressed storage\ndeduplicates identical bytes by design — so resolving the path from the URL\nalone would let any tenant fetch any other tenant's photograph by guessing\nor by observing a hash. The row is what says this artefact belongs here.\n\n**Phase 13 adds the second boundary: which reviewer, not just which\ntenant.** The artefact is reached through the complaint that produced it,\nso the authorization is the same decision the queue item gets — a\nreviewer scoped to one ward cannot fetch the photograph attached to a\nreport in another, even holding its content address. Without this the\nqueue would be scoped and the evidence behind it would not, which is the\n§25 disclosure surface ADR-0062 found on the console.",
         "operationId": "get_media_api_v1_review_media__redacted_sha256__get",
         "parameters": [
           {
@@ -10202,22 +12799,6 @@
             "schema": {
               "title": "Redacted Sha256",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Tenant-ID",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Tenant-Id"
             }
           }
         ],
@@ -10251,7 +12832,7 @@
     },
     "/api/v1/review/queue": {
       "get": {
-        "description": "Open items first, by priority then age. See ``review.list_items``.",
+        "description": "Open items first, by priority then age. See ``review.list_items``.\n\n**Scoped to what this reviewer may see, in the query.** The Phase 13 gate\nclause is that one department's officer cannot read another's rows\n*including pagination counts*, so the restriction is a condition passed\ninto the service and applied to the count and the page alike. Filtering\nthe response instead would give a correct page under a total describing\nsomebody else's work, which is the leak the clause names.\n\nA reviewer whose grants are zone- or taxonomy-scoped sees their part of\nthe queue. One with a tenant-wide grant sees all of it. One whose only\ngrant is department-scoped sees **nothing today**, because nothing writes\n``complaints.department_id`` until Phase 12 routes a report —\n``identity.resources`` states that consequence rather than leaving it to\nbe discovered.",
         "operationId": "list_queue_api_v1_review_queue_get",
         "parameters": [
           {
@@ -10311,22 +12892,6 @@
               "title": "Offset",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "X-Tenant-ID",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Tenant-Id"
-            }
           }
         ],
         "responses": {
@@ -10360,6 +12925,7 @@
     },
     "/api/v1/review/queue/{item_id}": {
       "get": {
+        "description": "One item, and the decision that it is this reviewer's to read.\n\nThe item is loaded first and authorized second, which is the only order\nthat works: what a grant is tested against are the *complaint's*\nattributes (``identity.resources.review_item_resource``), and those are not\nknowable from an item id. The load is tenant-scoped, so the worst an\nout-of-scope caller can do is cause a read they never see the result of —\nand the 403 that follows names the permission and nothing about the row.",
         "operationId": "get_queue_item_api_v1_review_queue__item_id__get",
         "parameters": [
           {
@@ -10370,22 +12936,6 @@
               "format": "uuid",
               "title": "Item Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Tenant-ID",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Tenant-Id"
             }
           }
         ],
@@ -10420,7 +12970,7 @@
     },
     "/api/v1/review/queue/{item_id}/decision": {
       "post": {
-        "description": "Approve, reject, or escalate. One judgement per item, ever.",
+        "description": "Approve, reject, or escalate. One judgement per item, ever.\n\n**The judgement is now attributed to a person.** Phase 8 recorded a\n``decided_by_label`` the caller supplied and said plainly that it was a\nlabel rather than an identity because there was no identity to record.\nThere is now: ``decided_by`` carries the operator's user id and the label\nis derived from the principal rather than accepted from the request.\n\nA caller-supplied label is still accepted and still stored — but only\nappended to the derived one, never replacing it. Phase 11 will train on\nthese rows, and a label that can claim any author is a training set that\ncannot be audited.\n\nAn impersonated support session reaches here only if it was opened with\nwrite authorisation; ``identity.scopes.evaluate`` refuses a write on a\nread-only impersonation before the scope is even considered. A judgement\non a citizen's report made by support acting as an officer is exactly\nthe case that must be deliberate.",
         "operationId": "decide_item_api_v1_review_queue__item_id__decision_post",
         "parameters": [
           {
@@ -10431,38 +12981,6 @@
               "format": "uuid",
               "title": "Item Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Control-Plane-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Control-Plane-Token"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Tenant-ID",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Tenant-Id"
             }
           }
         ],

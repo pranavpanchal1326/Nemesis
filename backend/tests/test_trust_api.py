@@ -37,11 +37,86 @@ DEV_TOKEN = "dev-only-insecure-control-plane-token-change-me"
 FACE = FaceBox(x=4, y=4, width=24, height=16, confidence=0.9)
 
 
+REVIEWER_PASSWORD = "a-perfectly-adequate-passphrase"
+
+
 def headers(tenant_id: uuid.UUID, *, token: bool = False) -> dict[str, str]:
+    """The tenant header, and optionally the deprecated control-plane token.
+
+    Still here for the routes that are deliberately unauthenticated. The
+    review queue is no longer one of them -- Phase 13 scopes it to a
+    reviewer, which is what ``reviewer_headers`` below produces.
+    """
     result = {"X-Tenant-ID": str(tenant_id)}
     if token:
         result[CONTROL_PLANE_TOKEN_HEADER] = DEV_TOKEN
     return result
+
+
+async def reviewer_headers(
+    api_client: AsyncClient, app_settings: Settings, tenant_id: uuid.UUID
+) -> dict[str, str]:
+    """A signed-in reviewer with a tenant-wide grant.
+
+    **Phase 13 is why this exists.** This file used to reach the queue with
+    nothing but ``X-Tenant-ID``, which named a tenant and proved nothing --
+    the posture ``api.deps`` described honestly and said Phase 13 would
+    replace. The queue renders a citizen's redacted photograph and the
+    evidence behind a stopped gate, so it is now scoped to a grant.
+
+    The grant is deliberately **tenant-wide**: what this file tests is the
+    queue, the media boundary and the decision rules, and a narrow scope here
+    would make every assertion depend on the zone wiring as well.
+    ``test_identity_api.py`` owns the scoped matrix.
+    """
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from nemesis.identity import roles, users
+
+    email = f"reviewer-{tenant_id.hex[:8]}@example.org"
+    engine = create_async_engine(app_settings.database_url, pool_pre_ping=True)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with maker() as session:
+            with tenant_scope(tenant_id):
+                existing = await users.find_by_subject(session, tenant_id=tenant_id, subject=email)
+                if existing is None:
+                    role = await roles.create_role(
+                        session,
+                        tenant_id=tenant_id,
+                        code="queue_reviewer",
+                        name="Queue reviewer",
+                        permissions=[
+                            "review:read",
+                            "review:decide",
+                            "complaints:read",
+                        ],
+                    )
+                    user = await users.create_user(
+                        session,
+                        tenant_id=tenant_id,
+                        display_name="Queue reviewer",
+                        email=email,
+                        subject=email,
+                        password=REVIEWER_PASSWORD,
+                    )
+                    await roles.grant(
+                        session,
+                        tenant_id=tenant_id,
+                        user_id=user.id,
+                        role_id=role.id,
+                    )
+                await session.commit()
+    finally:
+        await engine.dispose()
+
+    response = await api_client.post(
+        "/api/v1/auth/token",
+        headers={"X-Tenant-ID": str(tenant_id)},
+        json={"identifier": email, "password": REVIEWER_PASSWORD},
+    )
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 @pytest.fixture
@@ -136,7 +211,9 @@ async def test_the_queue_lists_open_items_with_their_evidence(
     """§11.4's filtered table, over HTTP."""
     _, item_id, _ = await seed_item(app_settings, tenant_id=tenant_id)
 
-    response = await api_client.get(f"{REVIEW}/queue", headers=headers(tenant_id))
+    response = await api_client.get(
+        f"{REVIEW}/queue", headers=await reviewer_headers(api_client, app_settings, tenant_id)
+    )
     assert response.status_code == 200
     body = response.json()
     assert body["total"] == 1
@@ -155,8 +232,13 @@ async def test_the_queue_never_shows_another_tenants_items(
 ) -> None:
     _, item_id, _ = await seed_item(app_settings, tenant_id=other_tenant_id)
 
-    listing = await api_client.get(f"{REVIEW}/queue", headers=headers(tenant_id))
-    single = await api_client.get(f"{REVIEW}/queue/{item_id}", headers=headers(tenant_id))
+    listing = await api_client.get(
+        f"{REVIEW}/queue", headers=await reviewer_headers(api_client, app_settings, tenant_id)
+    )
+    single = await api_client.get(
+        f"{REVIEW}/queue/{item_id}",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
+    )
 
     assert listing.json()["total"] == 0
     # 404, not 403: a distinguishable "exists but forbidden" enumerates another
@@ -165,35 +247,78 @@ async def test_the_queue_never_shows_another_tenants_items(
 
 
 async def test_an_unknown_status_filter_is_refused_with_a_usable_message(
-    api_client: AsyncClient, tenant_id: uuid.UUID
+    api_client: AsyncClient, app_settings: Settings, tenant_id: uuid.UUID
 ) -> None:
     response = await api_client.get(
-        f"{REVIEW}/queue", headers=headers(tenant_id), params={"status": "in_progress"}
+        f"{REVIEW}/queue",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
+        params={"status": "in_progress"},
     )
     assert response.status_code == 422
     assert "Phase 13" in response.json()["detail"]
 
 
-async def test_a_decision_requires_the_control_plane_token(
+async def test_a_decision_requires_an_authenticated_reviewer(
     api_client: AsyncClient, app_settings: Settings, tenant_id: uuid.UUID
 ) -> None:
-    """Reads are token-free; recording a judgement is not.
+    """Phase 13 replaced the shared secret on this route with a permission.
 
-    A decision changes what the system believes about a citizen's report and
-    becomes a Phase 11 training label, which is at least as consequential as
-    changing a policy.
+    The old version of this test asserted 403 and recorded *why* it was not
+    401: there was no authentication scheme to challenge with. There is one
+    now, so an anonymous caller gets 401 with ``WWW-Authenticate``, and a
+    caller with a session but without ``review:decide`` gets 403. Both are
+    asserted, because collapsing them is what makes an expired session look
+    like a missing privilege to whoever is reading the console.
     """
     _, item_id, _ = await seed_item(app_settings, tenant_id=tenant_id)
-    response = await api_client.post(
+    payload = {"decision": "approve", "rationale": "Confirmed."}
+
+    anonymous = await api_client.post(
         f"{REVIEW}/queue/{item_id}/decision",
         headers=headers(tenant_id),
-        json={"decision": "approve", "rationale": "Confirmed."},
+        json=payload,
     )
-    # 403, matching every other control-plane write: the caller is identified as
-    # a tenant, they are simply not permitted this operation without the shared
-    # secret. A 401 would imply an authentication scheme this phase does not
-    # have — Phase 13 owns that.
-    assert response.status_code == 403
+    assert anonymous.status_code == 401
+    assert anonymous.headers.get("www-authenticate") == "Bearer"
+
+    # A real session that simply does not carry the permission.
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from nemesis.identity import users
+
+    engine = create_async_engine(app_settings.database_url, pool_pre_ping=True)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with maker() as session:
+            with tenant_scope(tenant_id):
+                await users.create_user(
+                    session,
+                    tenant_id=tenant_id,
+                    display_name="Bystander",
+                    email="bystander@example.org",
+                    subject="bystander@example.org",
+                    password=REVIEWER_PASSWORD,
+                )
+                await session.commit()
+    finally:
+        await engine.dispose()
+
+    issued = await api_client.post(
+        "/api/v1/auth/token",
+        headers={"X-Tenant-ID": str(tenant_id)},
+        json={
+            "identifier": "bystander@example.org",
+            "password": REVIEWER_PASSWORD,
+        },
+    )
+    granted_nothing = {"Authorization": f"Bearer {issued.json()['access_token']}"}
+    refused = await api_client.post(
+        f"{REVIEW}/queue/{item_id}/decision",
+        headers=granted_nothing,
+        json=payload,
+    )
+    assert refused.status_code == 403
+    assert refused.json()["required_permission"] == "review:decide"
 
 
 async def test_a_decision_is_recorded_and_the_item_closes(
@@ -203,7 +328,7 @@ async def test_a_decision_is_recorded_and_the_item_closes(
 
     created = await api_client.post(
         f"{REVIEW}/queue/{item_id}/decision",
-        headers=headers(tenant_id, token=True),
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
         json={
             "decision": "reject",
             "rationale": "The photograph is of a different street entirely.",
@@ -216,11 +341,15 @@ async def test_a_decision_is_recorded_and_the_item_closes(
     assert body["complaint_id"] == str(complaint_id)
     assert len(body["evidence_hash"]) == 64
 
-    listing = await api_client.get(f"{REVIEW}/queue", headers=headers(tenant_id))
+    listing = await api_client.get(
+        f"{REVIEW}/queue", headers=await reviewer_headers(api_client, app_settings, tenant_id)
+    )
     assert listing.json()["total"] == 0
 
     decided = await api_client.get(
-        f"{REVIEW}/queue", headers=headers(tenant_id), params={"status": "decided"}
+        f"{REVIEW}/queue",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
+        params={"status": "decided"},
     )
     assert decided.json()["total"] == 1
 
@@ -232,10 +361,14 @@ async def test_a_second_decision_is_a_conflict(
     payload = {"decision": "approve", "rationale": "Confirmed."}
 
     first = await api_client.post(
-        f"{REVIEW}/queue/{item_id}/decision", headers=headers(tenant_id, token=True), json=payload
+        f"{REVIEW}/queue/{item_id}/decision",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
+        json=payload,
     )
     second = await api_client.post(
-        f"{REVIEW}/queue/{item_id}/decision", headers=headers(tenant_id, token=True), json=payload
+        f"{REVIEW}/queue/{item_id}/decision",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
+        json=payload,
     )
     assert first.status_code == 201
     assert second.status_code == 409
@@ -248,7 +381,7 @@ async def test_a_decision_with_a_blank_rationale_is_refused_at_the_boundary(
     _, item_id, _ = await seed_item(app_settings, tenant_id=tenant_id)
     response = await api_client.post(
         f"{REVIEW}/queue/{item_id}/decision",
-        headers=headers(tenant_id, token=True),
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
         json={"decision": "approve", "rationale": ""},
     )
     assert response.status_code == 422
@@ -262,7 +395,7 @@ async def test_an_unknown_decision_is_refused(
     _, item_id, _ = await seed_item(app_settings, tenant_id=tenant_id)
     response = await api_client.post(
         f"{REVIEW}/queue/{item_id}/decision",
-        headers=headers(tenant_id, token=True),
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
         json={"decision": "delete", "rationale": "no"},
     )
     assert response.status_code == 422
@@ -284,10 +417,16 @@ async def test_a_redacted_artefact_is_served_with_its_content_address(
     _, item_id, digest = await seed_item(app_settings, tenant_id=tenant_id, with_media=True)
     assert digest is not None
 
-    item = await api_client.get(f"{REVIEW}/queue/{item_id}", headers=headers(tenant_id))
+    item = await api_client.get(
+        f"{REVIEW}/queue/{item_id}",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
+    )
     assert item.json()["redacted_media"] == [digest]
 
-    media = await api_client.get(f"{REVIEW}/media/{digest}", headers=headers(tenant_id))
+    media = await api_client.get(
+        f"{REVIEW}/media/{digest}",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
+    )
     assert media.status_code == 200
     assert media.headers["content-type"] == "image/jpeg"
     # The one route that returns attacker-influenced bytes. Without `nosniff` a
@@ -309,7 +448,10 @@ async def test_the_item_response_never_carries_the_source_address(
     unblurred image sitting one guessed route away from being served.
     """
     _, item_id, digest = await seed_item(app_settings, tenant_id=tenant_id, with_media=True)
-    body = await api_client.get(f"{REVIEW}/queue/{item_id}", headers=headers(tenant_id))
+    body = await api_client.get(
+        f"{REVIEW}/queue/{item_id}",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
+    )
     assert "a" * 64 not in body.text
     assert digest in body.text
 
@@ -331,32 +473,50 @@ async def test_one_tenant_cannot_fetch_anothers_artefact_by_its_hash(
     _, _, digest = await seed_item(app_settings, tenant_id=other_tenant_id, with_media=True)
     assert digest is not None
 
-    theirs = await api_client.get(f"{REVIEW}/media/{digest}", headers=headers(other_tenant_id))
-    mine = await api_client.get(f"{REVIEW}/media/{digest}", headers=headers(tenant_id))
+    theirs = await api_client.get(
+        f"{REVIEW}/media/{digest}",
+        headers=await reviewer_headers(api_client, app_settings, other_tenant_id),
+    )
+    mine = await api_client.get(
+        f"{REVIEW}/media/{digest}",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
+    )
 
     assert theirs.status_code == 200
     assert mine.status_code == 404
 
 
 async def test_the_media_route_refuses_anything_that_is_not_a_content_address(
-    api_client: AsyncClient, tenant_id: uuid.UUID, upload_root: Path
+    api_client: AsyncClient, app_settings: Settings, tenant_id: uuid.UUID, upload_root: Path
 ) -> None:
     """Rejected before any I/O. ``RedactedStore.resolve`` already refuses
-    traversal; a check that happens first is one an auditor can see."""
+    traversal; a check that happens first is one an auditor can see.
+
+    The session is obtained once rather than per candidate: signing in inside
+    the loop would spend four of the sign-in limiter's tokens to assert one
+    thing four times.
+    """
+    reviewer = await reviewer_headers(api_client, app_settings, tenant_id)
     for candidate in ("../../etc/passwd", "not-a-hash", "a" * 63, "g" * 64):
-        response = await api_client.get(f"{REVIEW}/media/{candidate}", headers=headers(tenant_id))
+        response = await api_client.get(
+            f"{REVIEW}/media/{candidate}",
+            headers=reviewer,
+        )
         assert response.status_code == 404, candidate
 
 
 async def test_an_unknown_hash_is_not_found(
-    api_client: AsyncClient, tenant_id: uuid.UUID, upload_root: Path
+    api_client: AsyncClient, app_settings: Settings, tenant_id: uuid.UUID, upload_root: Path
 ) -> None:
-    response = await api_client.get(f"{REVIEW}/media/{'b' * 64}", headers=headers(tenant_id))
+    response = await api_client.get(
+        f"{REVIEW}/media/{'b' * 64}",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
+    )
     assert response.status_code == 404
 
 
 async def test_there_is_no_route_that_serves_quarantine(
-    api_client: AsyncClient, tenant_id: uuid.UUID
+    api_client: AsyncClient, app_settings: Settings, tenant_id: uuid.UUID
 ) -> None:
     """The §22.1 guarantee, asserted from outside the process.
 
@@ -373,6 +533,7 @@ async def test_there_is_no_route_that_serves_quarantine(
     assert "quarantine" not in str(spec["paths"][media_paths[0]])
 
     response = await api_client.get(
-        f"{REVIEW}/media/nemesis+quarantine://ab/{'a' * 64}.jpg", headers=headers(tenant_id)
+        f"{REVIEW}/media/nemesis+quarantine://ab/{'a' * 64}.jpg",
+        headers=await reviewer_headers(api_client, app_settings, tenant_id),
     )
     assert response.status_code == 404

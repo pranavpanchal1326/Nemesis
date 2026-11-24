@@ -76,8 +76,8 @@ has no authentication at all — anyone can mint a valid token. `app_env=pilot`
 refuses to boot while it is still set, which is a guard and not a substitute for
 rotation.
 
-**Rotate on:** any suspected exposure, personnel change with production access,
-and on a schedule once Phase 13 ships real identity.
+**Rotate on:** any suspected exposure, and on a personnel change with
+production access.
 
 ```bash
 python -c "import secrets;print(secrets.token_urlsafe(64))"
@@ -88,9 +88,22 @@ immediately** — that is the desired behaviour under compromise even though it
 logs everybody out. Say so in the incident notes, so nobody "fixes" the logouts
 by rolling back the rotation.
 
-Verify: a token minted before the rotation must now be rejected. Overlapping
-key support (`kid`-based rotation without a logout) is a Phase 13 item; until
-then the interruption is the honest cost.
+Verify: a token minted before the rotation must now be rejected.
+
+**Since Phase 13, this is almost never the right tool.** Rotating the signing key
+ends every session in every tenant, including the field app mid-shift. One
+compromised account, one stolen session, or one departing employee is a
+revocation — immediate, because the access token is checked against its
+`user_sessions` row on every request (ADR-0066) — and
+[`runbooks/compromised-operator-session.md`](runbooks/compromised-operator-session.md)
+is the procedure. Rotate the key when **the key itself** is suspected, not when
+one person's access has to end.
+
+Overlapping `kid`-based rotation is deliberately **not** implemented: ADR-0063
+accepts exactly one algorithm and no key-selection path, which is what removes a
+whole family of JWT vulnerabilities. Revocation covers what key rotation would
+have been used for, so the interruption is now a rare cost rather than a standing
+one.
 
 ### `NEMESIS_CONTROL_PLANE_TOKEN`
 
@@ -257,6 +270,39 @@ tenants rather than seed data.
 `NEMESIS_DATABASE_URL` and `NEMESIS_REDIS_URL` carry credentials inside the URL.
 Treat the whole URL as a secret: it is easy to paste a "connection string" into a
 ticket without registering that it contains a password.
+
+### OIDC client secrets — `NEMESIS_OIDC_*`
+
+**Blast radius: one tenant's sign-in, and only through their provider.**
+
+These are the only secrets in this system with **no fixed name**. Each
+`identity_providers` row carries `client_secret_setting` — the *name* of an
+environment variable — and the value is read from the process at the moment of
+the back-channel token exchange. Nothing about the secret is stored in the
+database, which is the asymmetry with `api_keys`: a digest cannot be replayed, a
+client secret can, so a database dump of a customer's tenant must not contain
+one.
+
+The convention is `NEMESIS_OIDC_<TENANT>_<PROVIDER>`, upper snake case. It is a
+convention and not a rule, because the name is data the tenant's row supplies.
+
+**Rotate on:** any suspected exposure, and whenever the provider's own
+credential is rotated at their end (which is their schedule, not ours).
+
+1. Create the new secret **in the provider**, alongside the old one if they allow
+   two — most do.
+2. Set the variable, restart `api`.
+3. Delete the old secret at the provider.
+
+Verify with a real sign-in through that provider. A wrong value does **not**
+present as a silent failure: the exchange answers 502 with the provider named,
+and an unset one answers 502 naming the variable, because the service checks for
+it before making the request.
+
+**If you cannot rotate it immediately**, set `is_active = false` on the provider
+row. Users of that tenant fall back to local passwords, or lose sign-in if they
+have none — which is worse for them and better than leaving a live credential
+that authenticates us to their identity provider.
 
 ## If a secret leaks
 

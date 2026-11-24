@@ -20,7 +20,18 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any, Final
 
-from fastapi import APIRouter, File, Form, Header, Query, Request, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.concurrency import run_in_threadpool
 from geoalchemy2 import Geometry
 from sqlalchemy import cast, func, select
@@ -35,6 +46,7 @@ from nemesis.api.errors import (
     PROBLEM_BASE,
     ProblemDetailError,
 )
+from nemesis.api.identity_deps import public
 from nemesis.api.ratelimit import get_limiter
 from nemesis.api.v1.schemas import (
     ComplaintHistory,
@@ -99,6 +111,7 @@ _NO_MEDIA_DETAIL: Final = (
         415: {"description": "Unsupported media type"},
         429: {"description": "Rate limit exceeded"},
     },
+    dependencies=[Depends(public())],
 )
 async def submit_complaint(
     request: Request,
@@ -294,6 +307,7 @@ async def _enforce_live_capture(
         304: {"description": "Not modified"},
         404: {"description": "Not found"},
     },
+    dependencies=[Depends(public())],
 )
 async def get_complaint(
     complaint_id: uuid.UUID,
@@ -434,6 +448,7 @@ COMPLAINT_ENTITY: Final = EntityType.COMPLAINT.value
     response_model=ComplaintHistory,
     summary="This complaint's own history, from the log",
     responses={404: {"description": "Not found"}},
+    dependencies=[Depends(public())],
 )
 async def get_complaint_history(
     complaint_id: uuid.UUID,

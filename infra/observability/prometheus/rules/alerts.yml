@@ -603,3 +603,62 @@ groups:
             touching the ruleset — a rule that fires on everything gets switched
             off along with the rules that work.
           runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/safety-path-degraded.md
+
+      # Phase 13. A refresh token presented twice means one of the two
+      # presenters is not the legitimate holder, and the system has already torn
+      # the family down by the time this fires -- so the alert is not asking for
+      # a mitigation, it is asking somebody to find out how a credential ended
+      # up in two places. No `for:` clause: one occurrence is the signal.
+      - alert: NemesisRefreshTokenReuseDetected
+        expr: increase(nemesis_authentication_attempts_total{outcome="reuse_detected"}[15m]) > 0
+        labels:
+          severity: critical
+          blueprint: "18.2"
+        annotations:
+          summary: "A refresh token was replayed and its session family was revoked"
+          description: >-
+            Either a stolen refresh token was used behind the legitimate holder,
+            or a client retried a refresh whose response it never received.
+            The two are indistinguishable from the server, so the strong answer
+            was taken automatically. Establish which it was before concluding
+            anything -- two client networks rotating one lineage is theft, one
+            network is probably a dropped response.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/compromised-operator-session.md
+
+      # Authentication failures are ordinary -- people mistype passwords. A
+      # *sustained* rate from a deployment this size is not, and the per-account
+      # lockout does nothing against one attempt each at ten thousand accounts.
+      - alert: NemesisAuthenticationFailureRateElevated
+        expr: sum(rate(nemesis_authentication_attempts_total{outcome=~"rejected|locked|throttled"}[15m])) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          blueprint: "18.2"
+        annotations:
+          summary: "Authentication failing at {{ $value | printf \"%.2f\" }}/s"
+          description: >-
+            Credential stuffing looks exactly like this and so does a broken
+            client retrying a bad password in a loop. Check whether the failures
+            share a network (the sign-in limiter bounds per network) or spread
+            across many accounts (which lockout cannot see).
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/compromised-operator-session.md
+
+      # Support is inside a customer's tenant. Info, not a page: it is a
+      # sanctioned capability and the justification is in the row. It exists so
+      # that "was anybody in there on Tuesday" is answerable from the monitoring
+      # stack as well as from the database, and so a session that never ends
+      # shows up as a flat line.
+      - alert: NemesisImpersonationSessionOpen
+        expr: sum(nemesis_impersonation_sessions_active) > 0
+        for: 1h
+        labels:
+          severity: info
+          blueprint: "17.7"
+        annotations:
+          summary: "{{ $value | printf \"%.0f\" }} impersonation session(s) open for over an hour"
+          description: >-
+            Sessions are capped at two hours and default to thirty minutes, so a
+            flat line here means either a genuinely long support call or the
+            expiry sweep is not running. The tenant can see and end the session
+            themselves; this is for us.
+          runbook_url: https://github.com/pranavpanchal1326/Nemesis/blob/main/docs/runbooks/compromised-operator-session.md

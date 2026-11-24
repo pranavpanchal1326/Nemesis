@@ -16,11 +16,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict
 
 from nemesis.api.deps import ConfigDep, SessionDep
 from nemesis.api.errors import HTTP_404_NOT_FOUND, PROBLEM_BASE, ProblemDetailError
+from nemesis.api.identity_deps import public
 from nemesis.api.public_deps import (
     PublicLocaleDep,
     PublicRateLimit,
@@ -170,6 +171,7 @@ class ZoneIndexV2(LocalisedEnvelope):
     "/{tenant_slug}/zones",
     summary="List published places (v2 shape)",
     response_model=ZoneIndexV2,
+    dependencies=[Depends(public())],
 )
 async def list_zones(
     tenant: PublicTenantDep,
@@ -214,6 +216,7 @@ async def list_zones(
     "/{tenant_slug}/zone/{zone_code}/summary",
     summary="Figures for one place (v2 path and shape)",
     response_model=ZoneSummaryV2,
+    dependencies=[Depends(public())],
 )
 async def zone_summary(
     zone_code: str,

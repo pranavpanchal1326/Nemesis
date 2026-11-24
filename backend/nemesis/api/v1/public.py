@@ -30,11 +30,12 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict
 
 from nemesis.api.deps import ConfigDep, SessionDep
 from nemesis.api.errors import HTTP_404_NOT_FOUND, PROBLEM_BASE, ProblemDetailError
+from nemesis.api.identity_deps import public
 from nemesis.api.public_deps import (
     PublicLocaleDep,
     PublicRateLimit,
@@ -241,6 +242,7 @@ class BudgetSummaryResponse(LocalisedEnvelope):
     "/{tenant_slug}/zones",
     summary="List published places and their headline figures",
     response_model=ZoneIndexResponse,
+    dependencies=[Depends(public())],
 )
 async def list_zones(
     tenant: PublicTenantDep,
@@ -288,6 +290,7 @@ async def list_zones(
     "/{tenant_slug}/ward/{zone_code}/summary",
     summary="Complaint and resolution figures for one place",
     response_model=ZoneSummaryResponse,
+    dependencies=[Depends(public())],
 )
 async def ward_summary(
     zone_code: str,
@@ -327,6 +330,7 @@ async def ward_summary(
     "/{tenant_slug}/contractor/{contractor_id}/profile",
     summary="A contractor's public track record",
     response_model=ContractorProfileResponse,
+    dependencies=[Depends(public())],
 )
 async def contractor_profile(
     contractor_id: uuid.UUID,
@@ -390,6 +394,7 @@ async def contractor_profile(
     "/{tenant_slug}/budget/{zone_code}",
     summary="Budget allocation and spend for one place and fiscal year",
     response_model=BudgetSummaryResponse,
+    dependencies=[Depends(public())],
 )
 async def budget(
     zone_code: str,

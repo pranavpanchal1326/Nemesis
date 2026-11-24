@@ -34,7 +34,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from nemesis.api.deps import ConfigDep, SessionDep, TenantDep
@@ -45,6 +45,7 @@ from nemesis.api.errors import (
     PROBLEM_BASE,
     ProblemDetailError,
 )
+from nemesis.api.identity_deps import public, requires_or_control_plane_token
 from nemesis.api.v1.control_plane import TokenDep, _require_token
 from nemesis.db.models.simulation import (
     EvaluationSet,
@@ -364,7 +365,11 @@ def _window(start: datetime | None, end: datetime | None) -> CorpusWindow | None
 # ---------------------------------------------------------------------------
 
 
-@router.get("/runs", summary="Backtest history")
+@router.get(
+    "/runs",
+    summary="Backtest history",
+    dependencies=[Depends(public())],
+)
 async def list_runs(
     tenant: TenantDep,
     session: SessionDep,
@@ -376,7 +381,11 @@ async def list_runs(
     return [_run_summary(run) for run in found]
 
 
-@router.get("/runs/{run_id}", summary="One run, with its impact report")
+@router.get(
+    "/runs/{run_id}",
+    summary="One run, with its impact report",
+    dependencies=[Depends(public())],
+)
 async def get_run(run_id: uuid.UUID, tenant: TenantDep, session: SessionDep) -> RunDetail:
     with tenant_scope(tenant.id):
         try:
@@ -386,7 +395,11 @@ async def get_run(run_id: uuid.UUID, tenant: TenantDep, session: SessionDep) -> 
     return _run_detail(run)
 
 
-@router.get("/evaluation-sets", summary="Labelled evaluation sets")
+@router.get(
+    "/evaluation-sets",
+    summary="Labelled evaluation sets",
+    dependencies=[Depends(public())],
+)
 async def list_sets(
     tenant: TenantDep,
     session: SessionDep,
@@ -397,7 +410,11 @@ async def list_sets(
     return [_set_response(evaluation_set) for evaluation_set in found]
 
 
-@router.get("/evaluation-sets/{code}/labels", summary="The judgements in a set")
+@router.get(
+    "/evaluation-sets/{code}/labels",
+    summary="The judgements in a set",
+    dependencies=[Depends(public())],
+)
 async def list_labels(code: str, tenant: TenantDep, session: SessionDep) -> list[LabelResponse]:
     with tenant_scope(tenant.id):
         try:
@@ -422,7 +439,11 @@ async def list_labels(code: str, tenant: TenantDep, session: SessionDep) -> list
     ]
 
 
-@router.get("/shadow/{content_hash}", summary="Divergence rate for one candidate")
+@router.get(
+    "/shadow/{content_hash}",
+    summary="Divergence rate for one candidate",
+    dependencies=[Depends(public())],
+)
 async def shadow_summary(
     content_hash: str, tenant: TenantDep, session: SessionDep
 ) -> ShadowSummaryResponse:
@@ -450,6 +471,7 @@ async def shadow_summary(
         403: {"description": "Control-plane token missing or wrong"},
         422: {"description": "The window holds too few complaints to conclude anything"},
     },
+    dependencies=[Depends(requires_or_control_plane_token("simulation:run"))],
 )
 async def create_run(
     request: RunRequest,
@@ -489,6 +511,7 @@ async def create_run(
     "/evaluation-sets",
     status_code=status.HTTP_201_CREATED,
     summary="Open a draft evaluation set",
+    dependencies=[Depends(requires_or_control_plane_token("simulation:run"))],
 )
 async def create_set(
     request: CreateSetRequest,
@@ -519,6 +542,7 @@ async def create_set(
     "/evaluation-sets/{code}/labels",
     status_code=status.HTTP_201_CREATED,
     summary="Record one human judgement",
+    dependencies=[Depends(requires_or_control_plane_token("simulation:run"))],
 )
 async def add_label(
     code: str,
@@ -563,6 +587,7 @@ async def add_label(
     "/evaluation-sets/{code}/publish",
     summary="Freeze the labels and gate this kind",
     responses={409: {"description": "Already published, or has no labels"}},
+    dependencies=[Depends(requires_or_control_plane_token("simulation:run"))],
 )
 async def publish_set(
     code: str,
@@ -592,6 +617,7 @@ async def publish_set(
     "/evaluation-sets/{code}/retire",
     summary="Stop gating this kind",
     responses={409: {"description": "Not currently published"}},
+    dependencies=[Depends(requires_or_control_plane_token("simulation:run"))],
 )
 async def retire_set(
     code: str,
@@ -612,7 +638,11 @@ async def retire_set(
     return _set_response(retired)
 
 
-@router.post("/shadow", summary="Observe a candidate against named complaints")
+@router.post(
+    "/shadow",
+    summary="Observe a candidate against named complaints",
+    dependencies=[Depends(requires_or_control_plane_token("simulation:run"))],
+)
 async def observe(
     request: ObserveRequest,
     tenant: TenantDep,
@@ -650,7 +680,11 @@ async def observe(
     )
 
 
-@router.post("/tuning/dedup", summary="What the reverted merges suggest")
+@router.post(
+    "/tuning/dedup",
+    summary="What the reverted merges suggest",
+    dependencies=[Depends(requires_or_control_plane_token("simulation:run"))],
+)
 async def propose_dedup(
     request: ProposeRequest,
     tenant: TenantDep,
@@ -693,6 +727,7 @@ async def propose_dedup(
     status_code=status.HTTP_201_CREATED,
     summary="Draft the proposed thresholds for review",
     responses={422: {"description": "The window supports no proposal"}},
+    dependencies=[Depends(requires_or_control_plane_token("policy:draft"))],
 )
 async def draft_dedup_proposal(
     request: ProposeRequest,

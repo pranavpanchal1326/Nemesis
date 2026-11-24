@@ -175,7 +175,9 @@ notice if it were wrong. A declared standard that has never executed.
 
 Start narrow, where a silent wrong answer is most costly:
 `dedup/decide.py`, `policy/resolver.py`, `events/` (the hash chain),
-and Phase 13's authorization decisions when they exist.
+and `identity/scopes.py`, which Phase 13 shipped as a pure decision function
+specifically so it could be hammered — a mutation run against it would be the
+most valuable one in the repository.
 
 ---
 

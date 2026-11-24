@@ -143,6 +143,7 @@ and both open by explaining why the reflex to act quickly is usually wrong.
 |---|---|---|
 | [feature-flag-kill-switch.md](feature-flag-kill-switch.md) | Pulling and restoring an emergency handle | procedure |
 | [credential-leak.md](credential-leak.md) | A secret reached somewhere it should not | critical |
+| [compromised-operator-session.md](compromised-operator-session.md) | A session or an operator credential is in the wrong hands | critical |
 | [alert-pipeline-heartbeat.md](alert-pipeline-heartbeat.md) | The alerting path itself stopped working | info |
 | [scrape-target-down.md](scrape-target-down.md) | Prometheus cannot reach a target | critical |
 

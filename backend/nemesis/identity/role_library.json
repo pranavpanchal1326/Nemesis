@@ -1,0 +1,107 @@
+{
+  "name": "starter role library",
+  "version": "1.0.0",
+  "description": "Roles installed with a new tenant, and the deployment's own platform roles. Data, not code: a role is a tenant-authored set of permissions (critique-log defect #7), so even the ones NEMESIS ships are a starting point a customer edits by copying. Permission strings are declared in nemesis/identity/permissions.py and validated on write; a typo here fails provisioning rather than producing a role that silently permits nothing.",
+  "platform": [
+    {
+      "code": "platform_support",
+      "name": "Platform support",
+      "description": "Reads a customer's console through an audited, time-capped impersonation session. Holds no customer permission of its own: everything it can see, it sees as the user it is acting as, and every decision is recorded against the operator's subject.",
+      "permissions": ["impersonation:start", "platform:read"]
+    },
+    {
+      "code": "platform_admin",
+      "name": "Platform administrator",
+      "description": "Provisions tenants and reads the deployment's integrity findings. Deliberately does not carry impersonation:start — onboarding a customer and reading their screen are different jobs, and an operator who needs both holds two roles so the audit says which one they were using.",
+      "permissions": ["tenants:provision", "platform:read"]
+    }
+  ],
+  "tenant": [
+    {
+      "code": "tenant_admin",
+      "name": "Administrator",
+      "description": "Configures the tenant and administers access. Does not carry review:decide: judging a flagged citizen report is operational work on a person's complaint, and an administrator who happens to hold the keys is not automatically the right person to do it. Grant both where one person genuinely does both jobs.",
+      "permissions": [
+        "complaints:read",
+        "taxonomy:read",
+        "taxonomy:write",
+        "organisation:write",
+        "publication:write",
+        "policy:read",
+        "policy:draft",
+        "policy:activate",
+        "simulation:read",
+        "simulation:run",
+        "users:read",
+        "users:write",
+        "roles:read",
+        "roles:write",
+        "grants:write",
+        "grants:delegate",
+        "decisions:read",
+        "impersonation:read",
+        "integrations:manage"
+      ]
+    },
+    {
+      "code": "department_head",
+      "name": "Department head",
+      "description": "Runs one department's queue. Granted on a department scope, never tenant-wide — the Phase 13 gate clause is that department head A cannot read department B's rows, and a tenant-wide grant of this role is how that stops being true.",
+      "permissions": [
+        "complaints:read",
+        "complaints:read_reporter",
+        "review:read",
+        "review:decide",
+        "taxonomy:read",
+        "policy:read",
+        "users:read",
+        "roles:read",
+        "grants:delegate"
+      ]
+    },
+    {
+      "code": "zone_officer",
+      "name": "Zone officer",
+      "description": "Covers everything happening in one part of the city, across departments. Granted on a zone scope. Named for the place tree rather than for a municipal job title, because the same role is a ward officer in a city, a campus warden on a university, and an estate manager in an industrial park.",
+      "permissions": [
+        "complaints:read",
+        "complaints:read_reporter",
+        "review:read",
+        "taxonomy:read",
+        "policy:read",
+        "users:read"
+      ]
+    },
+    {
+      "code": "field_staff",
+      "name": "Field staff",
+      "description": "Sees only what they are personally attached to. Granted on the 'self' scope, which is a relationship rather than a place: the rows are defined by who holds the grant, which is why it cannot be delegated.",
+      "permissions": ["complaints:read"]
+    },
+    {
+      "code": "reviewer",
+      "name": "Trust & safety reviewer",
+      "description": "Works the Phase 8 human review queue and nothing else. The narrowest useful role in the library, and the one worth copying when composing a new one: it holds the two permissions its job needs and no read of the control plane at all.",
+      "permissions": ["review:read", "review:decide", "complaints:read"]
+    },
+    {
+      "code": "contractor_lead",
+      "name": "Contractor lead",
+      "description": "A contractor organisation's own administrator. Granted on a contractor scope, which restricts it to that organisation's rows. Carries no reporter-contact permission: a contractor repairing a road does not need the citizen's phone number, and §22 treats that as a different disclosure from the photograph of the pothole.",
+      "permissions": ["complaints:read", "contractor_users:manage"]
+    },
+    {
+      "code": "analyst",
+      "name": "Analyst",
+      "description": "Reads everything the tenant publishes about itself and the evidence behind a policy, and changes nothing. The role to hand an auditor, a journalist under an agreement, or a councillor's office.",
+      "permissions": [
+        "complaints:read",
+        "taxonomy:read",
+        "policy:read",
+        "simulation:read",
+        "decisions:read",
+        "impersonation:read"
+      ]
+    }
+  ]
+}

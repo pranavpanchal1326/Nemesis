@@ -76,8 +76,8 @@ that named its own tenant would ship a trust boundary that is not one
 | Variable | What it decides |
 |---|---|
 | `NEMESIS_API_URL` | Where FastAPI is. Defaults to `http://127.0.0.1:8000` |
-| `NEMESIS_TENANT_ID` | The tenant this deployment serves. Goes away after Phase 13, when verified session claims replace it |
-| `NEMESIS_CONTROL_PLANE_TOKEN` | The shared secret every console **write** carries. Without it the console reads fine and the first decision fails with a backend error — a failure mode that is easy to misread |
+| `NEMESIS_TENANT_ID` | The tenant this deployment serves. **Still required**, and now only for the unauthenticated surfaces — the citizen report flow and the public pages, which have no session to read a tenant claim from. Phase 13 made it irrelevant to every *authenticated* request: a bearer token carries its own tenant, and `api.deps.require_tenant` ignores the header when one is present |
+| `NEMESIS_CONTROL_PLANE_TOKEN` | The shared secret every console **write** carries. Without it the console reads fine and the first decision fails with a backend error — a failure mode that is easy to misread. **Deprecated since Phase 13** (ADR-0066): the backend accepts an operator session instead, logs a warning on every token use, and removes the token two releases out. The console has not migrated yet |
 | `NEMESIS_STORY_TENANT` | The published slug the landing film is a film *of*. Unset is supported: the landing prints the storyboard and claims nothing about a place |
 
 Two optional ones: `NEMESIS_REALTIME_URL` (only when the browser reaches the

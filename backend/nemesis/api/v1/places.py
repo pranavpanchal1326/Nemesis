@@ -38,12 +38,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from geoalchemy2 import Geography
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import cast, func, select
 
 from nemesis.api.deps import SessionDep, TenantDep
+from nemesis.api.identity_deps import public
 from nemesis.db.models.organisation import Zone
 from nemesis.events.catalog import Latitude, Longitude
 from nemesis.tenancy.context import tenant_scope
@@ -94,6 +95,7 @@ class PlaceResolution(BaseModel):
     "/places/resolve",
     response_model=PlaceResolution,
     summary="Which units of place contain this coordinate",
+    dependencies=[Depends(public())],
 )
 async def resolve_place(
     tenant: TenantDep,

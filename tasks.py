@@ -271,6 +271,15 @@ def _check(_: list[str]) -> int:
             # Phase 5 gate clause 2: no domain module contains a category, role,
             # ward, or language literal. Host-side AST, same as the two above.
             ("domain literals", [sys.executable, "scripts/check_domain_literals.py"]),
+            # Phase 13 gate clause 2: an endpoint without a declared permission
+            # fails the build. Host-side AST for the same reason the three above
+            # are — it reads the route decorators and the permission registry as
+            # *source*, so it runs with the stack down and cannot be fooled by an
+            # app that happens to import.
+            (
+                "endpoint permissions",
+                [sys.executable, "scripts/check_endpoint_permissions.py"],
+            ),
             # Phase 8 gate clause 2: no code path can persist or serve an
             # unblurred image (§22.1). Host-side because `scripts/` is not
             # mounted into the api container — which is also why that script
@@ -643,6 +652,26 @@ def _gate_phase10(_: list[str]) -> int:
     checked here as one.
     """
     return run([sys.executable, "scripts/gate_phase10.py"])
+
+
+@task(
+    "gate-phase13",
+    "Phase 13 gate: two officers, two wards, and support that the tenant can see",
+)
+def _gate_phase13(_: list[str]) -> int:
+    """Provisions a throwaway tenant and drills the four gate clauses.
+
+    Needs the stack up: it signs in over HTTP, seeds rows through the api
+    container, and reads the event chain through psql. The pytest suite
+    proves the same invariants in one process; this proves the deployment,
+    which is the distinction every other gate task here makes.
+    """
+    if not _poll(
+        "api", f"{API_BASE}/ready", lambda body: '"status":"ready"' in body, seconds=60
+    ):
+        print("api never became ready; run `nem up` first")
+        return 1
+    return run([sys.executable, "scripts/gate_phase13.py"])
 
 
 @task("gate-phase9", "Phase 9 gate: reproduce the F1 report, then classify an invented category")

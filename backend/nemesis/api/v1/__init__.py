@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from nemesis.api.v1.access import router as access_router
+from nemesis.api.v1.auth import router as auth_router
 from nemesis.api.v1.complaints import router as complaints_router
 from nemesis.api.v1.control_plane import router as control_plane_router
 from nemesis.api.v1.developers import portal_router
@@ -61,6 +63,14 @@ api_v1.include_router(public_router)
 # operational, and administering the ward tree is configuration. The geometry
 # has existed since Phase 5 and nothing published a read of it.
 api_v1.include_router(places_router)
+# Phase 13. Mounted before the Phase 5 control plane, which is the order the
+# dependency runs in rather than a routing requirement: /auth is how a caller
+# gets the token every other authenticated route now reads, and /access is
+# what replaces the shared control-plane token those routes still accept.
+# ADR-0066 holds the removal of that token; until it lands, a deployment has
+# both and the token path logs a deprecation when used.
+api_v1.include_router(auth_router)
+api_v1.include_router(access_router)
 api_v1.include_router(integrations_router)
 api_v1.include_router(developers_router)
 

@@ -102,6 +102,58 @@ class SeveritySettings(BaseModel):
         return self
 
 
+class IdentitySettings(BaseModel):
+    """Sessions, tokens and sign-in policy (Phase 13).
+
+    **Why the access token's life is fifteen minutes and not an hour.**
+    ``identity.sessions.resolve`` checks the session row on every request
+    (ADR-0066), so revocation does not depend on the token expiring — which
+    removes the usual reason to keep the TTL short. What is left is the window
+    in which a token captured from a log file or a browser extension is useful,
+    and fifteen minutes is short enough to matter while being long enough that a
+    console does not spend its life refreshing.
+
+    **``refresh_ttl_seconds`` is a fortnight, and that is the field-app number
+    rather than the console number.** §E21 has staff working in basements and
+    dead zones; a seven-day refresh window means somebody back from leave has to
+    re-authenticate before they can sync yesterday's evidence, which is exactly
+    when the queue matters most. The console's exposure is bounded by the
+    session row, not by this number.
+
+    **``oidc_redirect_uris`` is an exact allow-list.** Not a pattern, not a
+    prefix: a prefix-matched redirect URI is how an open redirect becomes a
+    stolen session, and the list is one entry per deployment.
+    """
+
+    access_ttl_seconds: int = Field(default=900, ge=60, le=3600)
+    refresh_ttl_seconds: int = Field(default=1_209_600, ge=3600)
+
+    #: Validated against ``tokens.DEFAULT_ISSUER``/``DEFAULT_AUDIENCE`` defaults.
+    #: Both are checked on every token: without an audience check, a token minted
+    #: by one NEMESIS deployment is valid against another that shares the secret,
+    #: which is the situation a staging environment restored from production
+    #: creates by accident.
+    token_issuer: str = "nemesis"
+    token_audience: str = "nemesis-api"
+
+    #: Exact URIs this deployment will send a browser back to after a provider
+    #: sign-in. Empty by default: a deployment that has not configured OIDC
+    #: cannot start a flow, which is the correct default-deny rather than a
+    #: localhost entry that follows the stack into production.
+    oidc_redirect_uris: tuple[str, ...] = ()
+
+    #: Write ``last_seen_at`` at most this often per session. A write per request
+    #: on the hottest path in the system buys millisecond precision on a column
+    #: nobody reads to the second.
+    session_touch_interval_seconds: int = Field(default=60, ge=1)
+
+    #: Refuse to mint a session for a user with no grants. Off by default: a
+    #: just-provisioned user signing in and seeing an empty console is a better
+    #: first experience than a 403 with no explanation, and the decision log
+    #: makes the cause visible either way.
+    refuse_signin_without_grants: bool = False
+
+
 class OtelSettings(BaseModel):
     """OpenTelemetry. Disabled by default; enabling without an endpoint keeps
     spans in-process, which is useful for tests that assert instrumentation
@@ -543,6 +595,7 @@ class Settings(BaseSettings):
     models: ModelSettings = ModelSettings()
     perception: PerceptionSettings = PerceptionSettings()
     ollama: OllamaSettings = OllamaSettings()
+    identity: IdentitySettings = IdentitySettings()
     otel: OtelSettings = OtelSettings()
     flags: FeatureFlagSettings = FeatureFlagSettings()
 

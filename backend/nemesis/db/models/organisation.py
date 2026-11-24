@@ -35,13 +35,14 @@ Three further deviations, each closing a defect the program plan names:
 from __future__ import annotations
 
 import uuid
-from datetime import date, time
+from datetime import date, datetime, time
 
 from geoalchemy2 import Geography
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -49,6 +50,7 @@ from sqlalchemy import (
     Text,
     Time,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -345,17 +347,94 @@ class ContractorCertification(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampM
 
 
 class User(UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin, Base):
-    __tablename__ = "users"
-    __table_args__ = (UniqueConstraint("tenant_id", "subject", name="uq_users_tenant_id_subject"),)
+    """A person who signs in. Extended, not replaced, by Phase 13.
 
-    #: The identity-provider subject claim. Phase 13 brings OIDC; storing the
-    #: external subject rather than an email means a customer changing SSO
-    #: providers is a re-mapping, and means no password ever lands in this table.
+    The Phase 13 additions are all here rather than in ``db.models.identity``
+    because they are facts about *this* row — which provider authenticated them,
+    whether the account is live — and a parallel ``user_profiles`` table would
+    mean two rows to keep in step for one person. What moved next door is
+    everything with a different lifetime: credentials (deleted on
+    deactivation), sessions (expire), grants (revoked, and kept for the audit).
+    """
+
+    __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "subject", name="uq_users_tenant_id_subject"),
+        # Scoped to the tenant, and partial so a tenant may have any number of
+        # users with no email — a contractor sub-user created by a foreman who
+        # has their phone number and nothing else is a real case, and a global
+        # unique index over NULLs would have been fine in Postgres while
+        # silently permitting two accounts for one address.
+        Index(
+            "uq_users_tenant_id_email",
+            "tenant_id",
+            "email",
+            unique=True,
+            postgresql_where=text("email IS NOT NULL"),
+        ),
+    )
+
+    #: The identity-provider subject claim, or a locally minted one for a
+    #: password user. Storing the external subject rather than an email means a
+    #: customer changing SSO providers is a re-mapping, and means no password
+    #: ever lands in this table — Phase 13 keeps that promise by putting the
+    #: credential in ``user_credentials``.
     subject: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    #: Free text by design — see the module docstring. Phase 13 supersedes it.
-    role: Mapped[str] = mapped_column(String(64), nullable=False)
+    #: **Superseded by ``role_grants`` and no longer read by any decision.**
+    #: Phase 13 made it nullable rather than dropping it: Phase 5's provisioning
+    #: templates and the demo seed both write it, the §18.1 role names are still
+    #: the words a customer uses in conversation, and a dropped column is an
+    #: unrecoverable rename of history. It is now a *label* — what this person
+    #: is called in the org chart — and ``check_domain_literals.py`` still
+    #: forbids any code branching on its value.
+    role: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        # Declared on the model as well as set by the migration, and the two
+        # strings must stay identical: ``alembic check`` compares column
+        # comments, so a comment that exists only in the migration is drift
+        # that reappears on every run.
+        comment=(
+            "Superseded by role_grants (Phase 13) and read by no authorization "
+            "decision. Retained as an org-chart label: Phase 5 templates and the "
+            "demo seed write it, and dropping it would lose the label on every "
+            "existing row. Nullable since Phase 13."
+        ),
+    )
+
+    #: Verified at sign-in against the provider's ``allowed_email_domains``, or
+    #: set by an administrator for a password user. Nullable: see the partial
+    #: unique index above.
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+
+    #: ``operator`` (staff), ``contractor`` (a contractor organisation's
+    #: sub-user), or ``service`` (a bootstrap or automation identity). Three
+    #: *kinds* rather than three tables because every one of them signs in,
+    #: holds grants, and appears in the decision log identically — and because
+    #: §16's contractor accountability requires a contractor's actions to be
+    #: queryable beside a department's, not in a different table.
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, server_default="operator")
+
+    #: Deactivation, not deletion. The audit trail, every work order and every
+    #: decision references this row; removing it would either cascade history
+    #: away or fail on a foreign key at the worst moment. A deactivated user's
+    #: sessions are revoked and their credential deleted, which is the part that
+    #: actually stops access.
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+
+    #: Which provider authenticated this user, or NULL for a local password.
+    #: ``SET NULL`` on delete: removing a provider configuration must not remove
+    #: the people it onboarded, it must leave them unable to sign in through it,
+    #: which is what a null here means.
+    identity_provider_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("identity_providers.id", ondelete="SET NULL", name="fk_users_provider"),
+        nullable=True,
+    )
+
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     department_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
