@@ -21,7 +21,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Final
 
-from fastapi import APIRouter, Header, Query, status
+from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 from sqlalchemy import select
 
@@ -34,6 +34,7 @@ from nemesis.api.errors import (
     PROBLEM_BASE,
     ProblemDetailError,
 )
+from nemesis.api.identity_deps import public, requires_or_control_plane_token
 from nemesis.config import Settings
 from nemesis.db.models.integration import WebhookDelivery, WebhookEndpoint
 from nemesis.events.store import EventStore
@@ -278,7 +279,12 @@ async def _record(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/keys", status_code=status.HTTP_201_CREATED, summary="Mint an API key")
+@router.post(
+    "/keys",
+    status_code=status.HTTP_201_CREATED,
+    summary="Mint an API key",
+    dependencies=[Depends(requires_or_control_plane_token("integrations:manage"))],
+)
 async def mint_key(
     body: MintKeyRequest,
     tenant: TenantDep,
@@ -326,7 +332,11 @@ async def mint_key(
     )
 
 
-@router.get("/keys", summary="List this tenant's API keys")
+@router.get(
+    "/keys",
+    summary="List this tenant's API keys",
+    dependencies=[Depends(public())],
+)
 async def list_keys(tenant: TenantDep, session: SessionDep) -> list[KeyResponse]:
     rows = await keys.list_keys(session, tenant_id=tenant.id)
     return [
@@ -346,7 +356,11 @@ async def list_keys(tenant: TenantDep, session: SessionDep) -> list[KeyResponse]
     ]
 
 
-@router.post("/keys/{key_id}/revoke", summary="Revoke an API key")
+@router.post(
+    "/keys/{key_id}/revoke",
+    summary="Revoke an API key",
+    dependencies=[Depends(requires_or_control_plane_token("integrations:manage"))],
+)
 async def revoke_key(
     key_id: uuid.UUID,
     body: RevokeKeyRequest,
@@ -370,7 +384,11 @@ async def revoke_key(
     return {"status": "revoked"}
 
 
-@router.get("/usage", summary="Per-key request accounting")
+@router.get(
+    "/usage",
+    summary="Per-key request accounting",
+    dependencies=[Depends(public())],
+)
 async def usage(
     tenant: TenantDep,
     session: SessionDep,
@@ -404,7 +422,10 @@ async def usage(
 
 
 @router.post(
-    "/webhooks", status_code=status.HTTP_201_CREATED, summary="Register a webhook endpoint"
+    "/webhooks",
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a webhook endpoint",
+    dependencies=[Depends(requires_or_control_plane_token("integrations:manage"))],
 )
 async def create_webhook(
     body: CreateWebhookRequest,
@@ -447,13 +468,21 @@ async def create_webhook(
     )
 
 
-@router.get("/webhooks", summary="List this tenant's webhook endpoints")
+@router.get(
+    "/webhooks",
+    summary="List this tenant's webhook endpoints",
+    dependencies=[Depends(public())],
+)
 async def list_webhooks(tenant: TenantDep, session: SessionDep) -> list[WebhookResponse]:
     rows = await webhooks.list_endpoints(session, tenant_id=tenant.id)
     return [_webhook_response(row) for row in rows]
 
 
-@router.post("/webhooks/{endpoint_id}/rotate-secret", summary="Rotate a signing secret")
+@router.post(
+    "/webhooks/{endpoint_id}/rotate-secret",
+    summary="Rotate a signing secret",
+    dependencies=[Depends(requires_or_control_plane_token("integrations:manage"))],
+)
 async def rotate_secret(
     endpoint_id: uuid.UUID,
     tenant: TenantDep,
@@ -488,7 +517,11 @@ async def rotate_secret(
     )
 
 
-@router.post("/webhooks/{endpoint_id}/active", summary="Enable or disable an endpoint")
+@router.post(
+    "/webhooks/{endpoint_id}/active",
+    summary="Enable or disable an endpoint",
+    dependencies=[Depends(requires_or_control_plane_token("integrations:manage"))],
+)
 async def set_webhook_active(
     endpoint_id: uuid.UUID,
     body: SetWebhookActiveRequest,
@@ -507,7 +540,11 @@ async def set_webhook_active(
     return {"is_active": body.active}
 
 
-@router.delete("/webhooks/{endpoint_id}", summary="Delete an endpoint and its history")
+@router.delete(
+    "/webhooks/{endpoint_id}",
+    summary="Delete an endpoint and its history",
+    dependencies=[Depends(requires_or_control_plane_token("integrations:manage"))],
+)
 async def delete_webhook(
     endpoint_id: uuid.UUID,
     tenant: TenantDep,
@@ -533,6 +570,7 @@ async def delete_webhook(
 @router.get(
     "/webhooks/{endpoint_id}/deliveries",
     summary="The delivery log for one endpoint",
+    dependencies=[Depends(public())],
 )
 async def delivery_log(
     endpoint_id: uuid.UUID,

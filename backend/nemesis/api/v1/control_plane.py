@@ -29,7 +29,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Annotated, Any, Final
 
-from fastapi import APIRouter, Header, Query, status
+from fastapi import APIRouter, Depends, Header, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +43,7 @@ from nemesis.api.errors import (
     PROBLEM_BASE,
     ProblemDetailError,
 )
+from nemesis.api.identity_deps import public, requires_or_control_plane_token
 from nemesis.config import Settings
 from nemesis.control_plane import (
     calendars,
@@ -257,7 +258,11 @@ def _translate(error: ControlPlaneError) -> ProblemDetailError:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/templates", summary="List the seeded tenant templates")
+@router.get(
+    "/templates",
+    summary="List the seeded tenant templates",
+    dependencies=[Depends(public())],
+)
 async def list_templates() -> list[TemplateResponse]:
     """Read-only and tenant-free: the library is a property of the build.
 
@@ -288,6 +293,7 @@ async def list_templates() -> list[TemplateResponse]:
         409: {"description": "Slug already taken"},
         422: {"description": "The plan is internally inconsistent"},
     },
+    dependencies=[Depends(requires_or_control_plane_token("tenants:provision"))],
 )
 async def provision_tenant(
     session: SessionDep,
@@ -343,6 +349,7 @@ class PublicationResponse(ApiModel):
         404: {"description": "No tenant by that name"},
         422: {"description": "The requested aggregate floor is below the deployment's"},
     },
+    dependencies=[Depends(requires_or_control_plane_token("publication:write"))],
 )
 async def set_publication(
     slug: str,
@@ -396,6 +403,7 @@ async def set_publication(
         404: {"description": "No tenant by that name"},
         422: {"description": "The list is empty, or the primary locale is not in it"},
     },
+    dependencies=[Depends(requires_or_control_plane_token("taxonomy:write"))],
 )
 async def set_tenant_locales(
     slug: str,
@@ -444,7 +452,7 @@ async def set_tenant_locales(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/taxonomy", summary="The tenant's defect taxonomy")
+@router.get("/taxonomy", summary="The tenant's defect taxonomy", dependencies=[Depends(public())])
 async def get_taxonomy(
     tenant: TenantDep,
     session: SessionDep,
@@ -481,6 +489,7 @@ async def get_taxonomy(
     status_code=status.HTTP_201_CREATED,
     summary="Define a defect category",
     responses={403: {"description": "Control-plane token missing or wrong"}},
+    dependencies=[Depends(requires_or_control_plane_token("taxonomy:write"))],
 )
 async def create_taxonomy_node(
     tenant: TenantDep,
@@ -509,6 +518,7 @@ async def create_taxonomy_node(
     "/taxonomy/{key}",
     summary="Amend a defect category",
     responses={403: {"description": "Control-plane token missing or wrong"}},
+    dependencies=[Depends(requires_or_control_plane_token("taxonomy:write"))],
 )
 async def patch_taxonomy_node(
     tenant: TenantDep,
@@ -548,7 +558,11 @@ async def patch_taxonomy_node(
         return TaxonomyNodeResponse.of(node, parent_key=parent_key)
 
 
-@router.get("/taxonomy/{key}/subtree", summary="A category and everything under it")
+@router.get(
+    "/taxonomy/{key}/subtree",
+    summary="A category and everything under it",
+    dependencies=[Depends(public())],
+)
 async def get_subtree(
     tenant: TenantDep,
     session: SessionDep,
@@ -575,6 +589,7 @@ async def get_subtree(
     "/taxonomy/prompt-sets",
     summary="Attach or replace a category's classifier prompts",
     responses={403: {"description": "Control-plane token missing or wrong"}},
+    dependencies=[Depends(requires_or_control_plane_token("taxonomy:write"))],
 )
 async def put_prompt_set(
     tenant: TenantDep,
@@ -626,7 +641,11 @@ async def put_prompt_set(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/departments", summary="The responsibility tree")
+@router.get(
+    "/departments",
+    summary="The responsibility tree",
+    dependencies=[Depends(public())],
+)
 async def get_departments(
     tenant: TenantDep,
     session: SessionDep,
@@ -658,6 +677,7 @@ async def get_departments(
     status_code=status.HTTP_201_CREATED,
     summary="Add a unit of responsibility",
     responses={403: {"description": "Control-plane token missing or wrong"}},
+    dependencies=[Depends(requires_or_control_plane_token("organisation:write"))],
 )
 async def create_department(
     tenant: TenantDep,
@@ -696,7 +716,7 @@ async def create_department(
         )
 
 
-@router.get("/zones", summary="The place tree")
+@router.get("/zones", summary="The place tree", dependencies=[Depends(public())])
 async def get_zones(
     tenant: TenantDep,
     session: SessionDep,
@@ -726,6 +746,7 @@ async def get_zones(
     status_code=status.HTTP_201_CREATED,
     summary="Add a unit of place",
     responses={403: {"description": "Control-plane token missing or wrong"}},
+    dependencies=[Depends(requires_or_control_plane_token("organisation:write"))],
 )
 async def create_zone(
     tenant: TenantDep,
@@ -788,6 +809,7 @@ class RegisteredContractorResponse(ApiModel):
     status_code=status.HTTP_201_CREATED,
     summary="Register a contractor",
     responses={403: {"description": "Control-plane token missing or wrong"}},
+    dependencies=[Depends(requires_or_control_plane_token("organisation:write"))],
 )
 async def register_contractor(
     tenant: TenantDep,
@@ -816,6 +838,7 @@ async def register_contractor(
     status_code=status.HTTP_201_CREATED,
     summary="Certify a contractor for a defect category",
     responses={403: {"description": "Control-plane token missing or wrong"}},
+    dependencies=[Depends(requires_or_control_plane_token("organisation:write"))],
 )
 async def certify_contractor(
     tenant: TenantDep,
@@ -850,7 +873,11 @@ async def certify_contractor(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/calendars", summary="Business calendars")
+@router.get(
+    "/calendars",
+    summary="Business calendars",
+    dependencies=[Depends(public())],
+)
 async def get_calendars(tenant: TenantDep, session: SessionDep) -> list[CalendarResponse]:
     with tenant_scope(tenant.id):
         rows = await calendars.list_calendars(session, tenant_id=tenant.id)
@@ -872,6 +899,7 @@ async def get_calendars(tenant: TenantDep, session: SessionDep) -> list[Calendar
     status_code=status.HTTP_201_CREATED,
     summary="Define a working week",
     responses={403: {"description": "Control-plane token missing or wrong"}},
+    dependencies=[Depends(requires_or_control_plane_token("organisation:write"))],
 )
 async def create_calendar(
     tenant: TenantDep,
@@ -919,7 +947,11 @@ class DeadlinePreviewRequest(BaseModel):
     calendar_code: str | None = None
 
 
-@router.post("/calendars/preview-deadline", summary="Preview an SLA deadline")
+@router.post(
+    "/calendars/preview-deadline",
+    summary="Preview an SLA deadline",
+    dependencies=[Depends(public())],
+)
 async def preview_deadline(
     tenant: TenantDep, session: SessionDep, request: DeadlinePreviewRequest
 ) -> DeadlineResponse:
@@ -971,6 +1003,7 @@ async def preview_deadline(
     "/translations",
     summary="Import a translation bundle",
     responses={403: {"description": "Control-plane token missing or wrong"}},
+    dependencies=[Depends(requires_or_control_plane_token("taxonomy:write"))],
 )
 async def put_translations(
     tenant: TenantDep,
@@ -989,7 +1022,11 @@ async def put_translations(
     return {"namespace": bundle.namespace, "locale": bundle.locale, "written": written}
 
 
-@router.get("/translations/{namespace}/{locale}", summary="A namespace's strings")
+@router.get(
+    "/translations/{namespace}/{locale}",
+    summary="A namespace's strings",
+    dependencies=[Depends(public())],
+)
 async def get_translations(
     tenant: TenantDep, session: SessionDep, namespace: str, locale: str
 ) -> dict[str, str]:
@@ -999,7 +1036,11 @@ async def get_translations(
         )
 
 
-@router.get("/translations/coverage", summary="Taxonomy translation coverage per locale")
+@router.get(
+    "/translations/coverage",
+    summary="Taxonomy translation coverage per locale",
+    dependencies=[Depends(public())],
+)
 async def get_coverage(tenant: TenantDep, session: SessionDep) -> list[CoverageResponse]:
     """What is *not* translated, per declared locale.
 

@@ -152,6 +152,21 @@ _TRUNCATED_TABLES = (
     "budget_allocations",
     "outbox_messages",
     "pipeline_dead_letters",
+    # Phase 13 identity tables. Listed before `users` for readability only —
+    # CASCADE from `tenants` makes the order irrelevant — but listed at all is
+    # not optional: a table left out leaks rows between tests, and the symptom
+    # is a unique-constraint failure in whichever test happens to run second.
+    # `authorization_decisions` is the one most likely to be forgotten, because
+    # it is written by a *side effect* of any test that touches an endpoint.
+    "authorization_decisions",
+    "impersonation_sessions",
+    "oidc_auth_requests",
+    "user_sessions",
+    "role_grants",
+    "user_credentials",
+    "credential_policies",
+    "roles",
+    "identity_providers",
     "users",
     # Phase 5 control-plane tables. Listed before `departments` and
     # `contractors` only for readability — CASCADE makes the order irrelevant —

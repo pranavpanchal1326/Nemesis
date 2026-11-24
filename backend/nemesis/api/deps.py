@@ -73,9 +73,25 @@ def get_config(request: Request) -> Settings:
 
 
 async def require_tenant(
+    request: Request,
     x_tenant_id: Annotated[str | None, Header(alias=TENANT_HEADER)] = None,
 ) -> TenantContext:
-    """Resolve and validate the tenant named by the header.
+    """Resolve and validate the tenant: from a verified token, else the header.
+
+    **This is the one function body this module promised Phase 13 would be.**
+    The docstring above still describes what ``X-Tenant-ID`` is and is not; what
+    changed is that it is now the *fallback*. A request carrying a bearer token
+    takes its tenant from the token's verified claim, so an authenticated caller
+    cannot name a tenant at all — passing someone else's id in the header does
+    nothing, because the header is not read.
+
+    The header remains for the surfaces that are deliberately unauthenticated
+    and must stay so: a citizen submitting a report has no session (ADR-0016 —
+    the complaint id is the capability), and the public surface has no caller at
+    all. Those are the routes declaring ``public()`` in
+    ``check_endpoint_permissions.py``'s sense, and for them the header is still
+    exactly what it always was: a name, proving nothing, validated against the
+    registry.
 
     Opens its own short session rather than sharing the request's. The tenant
     has to be known *before* the route's transaction begins — a submission that
@@ -83,6 +99,18 @@ async def require_tenant(
     the lookup is a primary-key read against a table with as many rows as the
     deployment has customers.
     """
+    # Imported here rather than at module scope: `api.identity_deps` imports
+    # `api.errors` and the identity package, and importing it at the top of this
+    # module would make `api.deps` -> `identity_deps` -> `identity.decisions` ->
+    # `db.session` a cycle through the dependency every router imports first.
+    from nemesis.api.identity_deps import bearer_token
+
+    if bearer_token(request) is not None:
+        from nemesis.api.identity_deps import require_principal
+
+        principal = await require_principal(request)
+        return await _tenant_context(principal.tenant_id)
+
     if not x_tenant_id:
         raise ProblemDetailError(
             status_code=HTTP_400_BAD_REQUEST,
@@ -107,6 +135,22 @@ async def require_tenant(
         # operational audit trail.
         raise _unknown_tenant()
 
+    return await _tenant_context(tenant_id)
+
+
+async def _tenant_context(tenant_id: uuid.UUID) -> TenantContext:
+    """Load the tenant row, or raise the indistinguishable 404.
+
+    Shared by the token path and the header path so both get the same
+    validation. The token path cannot reach an inactive tenant any other way:
+    a session outlives its tenant being suspended, and a suspended customer
+    whose officers could still work would make suspension decorative.
+
+    The platform tenant is **not** rejected here, unlike in the header path.
+    A support operator genuinely belongs to it and genuinely has to make
+    authenticated requests — what they may do there is a question for the
+    decision point, not for tenant resolution.
+    """
     # tenant-scope-exempt: this IS the tenant lookup. `tenants` is the one table
     # whose primary key is the tenant, so there is nothing to scope it by.
     async with session_scope() as session:

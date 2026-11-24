@@ -27,12 +27,13 @@ import html
 from datetime import UTC, datetime
 from typing import Annotated, Final
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from nemesis.api.deps import ConfigDep, SessionDep
 from nemesis.api.errors import HTTP_422_UNPROCESSABLE, PROBLEM_BASE, ProblemDetailError
+from nemesis.api.identity_deps import machine, public
 from nemesis.api.key_deps import KeyDep
 from nemesis.api.versioning import (
     PUBLIC_API_NOTICE_DAYS,
@@ -77,7 +78,11 @@ class VersionsResponse(ApiModel):
     versions: list[VersionResponse]
 
 
-@router.get("/versions", summary="Published API versions and their deprecation clock")
+@router.get(
+    "/versions",
+    summary="Published API versions and their deprecation clock",
+    dependencies=[Depends(public())],
+)
 async def versions() -> VersionsResponse:
     """Machine-readable version discovery.
 
@@ -126,6 +131,7 @@ _DATASETS: Final = {
     "/export/{dataset}",
     summary="Bulk extract for RTI applicants and researchers",
     response_class=StreamingResponse,
+    dependencies=[Depends(machine("export:read"))],
 )
 async def bulk_export(
     dataset: str,
@@ -197,7 +203,12 @@ async def bulk_export(
 # ---------------------------------------------------------------------------
 
 
-@portal_router.get("/developers", response_class=HTMLResponse, include_in_schema=False)
+@portal_router.get(
+    "/developers",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    dependencies=[Depends(public())],
+)
 async def portal(request: Request) -> Response:
     """The human-readable entry point. Generated from the same registries the API uses."""
     today = datetime.now(tz=UTC).date()

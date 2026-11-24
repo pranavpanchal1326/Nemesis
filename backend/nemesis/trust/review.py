@@ -43,10 +43,11 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Final
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import ColumnElement, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nemesis.db.models.complaint import Complaint
 from nemesis.db.models.trust import ReviewDecision, ReviewQueueItem
 from nemesis.events.canonical import canonicalise
 from nemesis.events.store import EventStore
@@ -261,6 +262,7 @@ async def list_items(
     reason: ReviewReason | None = None,
     limit: int = 50,
     offset: int = 0,
+    complaint_condition: ColumnElement[bool] | None = None,
 ) -> tuple[Sequence[ReviewQueueItem], int]:
     """§11.4's filtered table, plus the total so a client can page it.
 
@@ -271,28 +273,60 @@ async def list_items(
     # The optional filters are composed; the tenant filter is written inline at
     # both ``select()`` calls below. ``check_tenant_scoping.py`` reads the AST at
     # the call site, so a tenant predicate hidden inside a list is one it cannot
-    # verify — and an isolation guarantee nothing can check is not one.
+    # verify -- and an isolation guarantee nothing can check is not one.
+    #
+    # ``complaint_condition`` is Phase 13 reaching into this query, and it has to
+    # reach the *count* as well as the page. The gate clause is explicit that a
+    # department head must not learn about another department's rows "including
+    # error messages and pagination counts", and a total computed before the
+    # restriction is applied is exactly that leak: the page would be right and
+    # the number above it would describe somebody else's work. The join is to
+    # ``complaints`` because a queue item carries a reason and a priority and
+    # nothing a grant can be scoped by -- see ``identity.resources``.
     filters = []
     if status is not None:
         filters.append(ReviewQueueItem.status == status)
     if reason is not None:
         filters.append(ReviewQueueItem.reason == reason.value)
 
-    total = int(
-        (
-            await session.execute(
-                select(func.count(ReviewQueueItem.id)).where(
-                    ReviewQueueItem.tenant_id == tenant_id, *filters
-                )
+    if complaint_condition is None:
+        count_statement = select(func.count(ReviewQueueItem.id)).where(
+            ReviewQueueItem.tenant_id == tenant_id, *filters
+        )
+        page_statement = select(ReviewQueueItem).where(
+            ReviewQueueItem.tenant_id == tenant_id, *filters
+        )
+    else:
+        # Both halves carry the tenant predicate on *both* tables. A
+        # column-to-column join condition scopes the join and not the table,
+        # which is the distinction the tenancy guard refused to accept in
+        # ``api.v1.complaints`` and was right to.
+        count_statement = (
+            select(func.count(ReviewQueueItem.id))
+            .join(Complaint, Complaint.id == ReviewQueueItem.complaint_id)
+            .where(
+                ReviewQueueItem.tenant_id == tenant_id,
+                Complaint.tenant_id == tenant_id,
+                complaint_condition,
+                *filters,
             )
-        ).scalar_one()
-    )
+        )
+        page_statement = (
+            select(ReviewQueueItem)
+            .join(Complaint, Complaint.id == ReviewQueueItem.complaint_id)
+            .where(
+                ReviewQueueItem.tenant_id == tenant_id,
+                Complaint.tenant_id == tenant_id,
+                complaint_condition,
+                *filters,
+            )
+        )
+
+    total = int((await session.execute(count_statement)).scalar_one())
     rows = (
         (
             await session.execute(
-                select(ReviewQueueItem)
-                .where(ReviewQueueItem.tenant_id == tenant_id, *filters)
-                .order_by(
+                page_statement.order_by(
                     ReviewQueueItem.priority.asc(),
                     ReviewQueueItem.created_at.asc(),
                 )

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Annotated, Any, Final
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -995,6 +996,62 @@ class SystemDegradationV1(EventPayload):
     failure_mode: str
     fallback_taken: str
     correlation_id: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Identity & support access (Phase 13)
+# ---------------------------------------------------------------------------
+#
+# **Both are appended to the *impersonated* tenant's chain**, with the tenant as
+# the entity. That is not a filing convenience: the Phase 13 gate clause is that
+# every impersonation session is visible to the impersonated tenant, and an
+# event on the operator's own chain would be visible to everybody except the
+# party with the right to see it.
+#
+# Neither type is in §9.4 — the blueprint's §18 describes authorization as role
+# claims checked in middleware and has no support-access story at all. They are
+# registered rather than deferred because their shape is fully determined by
+# what the gate requires, and `check_event_catalog.py` requires every §9.4 row
+# to be covered without forbidding types the blueprint never imagined.
+
+
+@register_event("impersonation_started", version=1, entity_type=EntityType.TENANT)
+class ImpersonationStartedV1(EventPayload):
+    """Support began acting as a user in this tenant."""
+
+    operator_subject: str
+    operator_tenant_id: uuid.UUID
+    subject_user_id: uuid.UUID
+    #: Required and length-floored in the database too
+    #: (`impersonation_sessions.justification`). An audited action with no stated
+    #: reason answers "what" and refuses to answer "why" — the same argument
+    #: `admin_action` makes.
+    justification: str = Field(min_length=30)
+    ticket_ref: str | None = None
+    #: Whether this session may write, not whether it did. What it did is the
+    #: decision log, and the two are different questions a tenant asks in
+    #: sequence.
+    allows_writes: bool = False
+    ends_at: datetime
+
+
+@register_event("impersonation_ended", version=1, entity_type=EntityType.TENANT)
+class ImpersonationEndedV1(EventPayload):
+    """The session closed, with what it touched.
+
+    The counters are in the payload rather than left to be derived from the
+    decision log, because the decision log is subject to retention (ninety days,
+    `identity.decisions.DECISION_RETENTION`) and this chain is not. A tenant
+    asking in a year's time "what did support do to us" must still get a number,
+    even when the row-by-row detail has rightly expired.
+    """
+
+    operator_subject: str
+    subject_user_id: uuid.UUID
+    #: `expired`, `ended_by_operator`, `ended_by_tenant`.
+    reason: str
+    decisions_allowed: int = Field(ge=0)
+    decisions_denied: int = Field(ge=0)
 
 
 # ---------------------------------------------------------------------------

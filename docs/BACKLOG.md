@@ -128,26 +128,30 @@ beating the champion; every published number reproduces from a versioned snapsho
 
 ## Priority 2 — Track D · Accountability
 
-### Phase 13 · Identity, authorization & org modelling · **XL** · **longest-lead blocker**
+### Phase 13 · Identity, authorization & org modelling · ✅ **done** · gate 4/4
 
-Everything in Track D and the entire frontend sit behind this. Today's auth is
-API keys (Phase 4) plus a shared control-plane token (ADR-0020). There is no user
-identity anywhere in the system.
+Shipped. `nem gate-phase13` drills all four clauses against a running stack.
+Everything in Track D, Phase 25, Phase 26 and Phase 27 was behind this.
+
+| Item | Effort | Outcome |
+|---|---|---|
+| **B-13.1** OIDC-capable identity, JWT, refresh rotation, revocation | L | ✅ `identity/tokens.py`, `sessions.py`, `oidc.py`. Strict single-algorithm JWT (ADR-0063), stdlib scrypt passwords (ADR-0065), authorization-code + PKCE with no in-process signature verification and an argument for why that is sound (ADR-0064). Refresh reuse tears down the family. **No new dependencies.** |
+| **B-13.2** ABAC/ReBAC authorization | XL | ✅ 26 permissions declared in code, roles composed freely by the tenant, grants scoped to a department, zone, taxonomy node, contractor or the holder themself. Containment is prefix containment over Phase 5's materialised paths. Critique-log defect #7 closed. |
+| **B-13.3** Delegation & temporary grants with expiry | M | ✅ 90-day cap, reason required, attributed to the delegator, and bounded by one property-tested invariant: never more than the delegator holds, never on a scope they do not cover. |
+| **B-13.4** Contractor organisations with sub-users | M | ✅ `users.kind` + a contractor-scoped grant; a lead manages their own crew and cannot create a municipal operator. |
+| **B-13.5** Audited impersonation | M | ✅ ADR-0067. Read-only by default, capped at two hours, justification length-floored in the database, event on the **impersonated tenant's** chain, endable by the customer. **Carries G10:** no screen renders it. |
+| **B-13.6** Centralised decision point + decision log | M | ✅ `identity/decisions.py`. Default-deny; every denial logged, audited allows logged, retention-bounded at 90 days for Phase 26's sweep. |
+| **B-13.7** CI check: an endpoint without a declared permission fails the build | S | ✅ `scripts/check_endpoint_permissions.py` in `nem check`. All 99 routes declare one of five postures; it also enforces that a scopable permission is narrowed in the handler. |
+| **B-13.8** Negative-authorisation test per role pair | L | ✅ Over HTTP in `tests/test_identity_api.py` and live in the gate. Counts included — the filter reaches the `COUNT(*)`, not the response. |
+
+**What Phase 13 left for somebody else**
 
 | Item | Effort | Notes |
 |---|---|---|
-| **B-13.1** OIDC-capable identity, JWT, refresh rotation, revocation | L | Optional SSO for institutional tenants. |
-| **B-13.2** ABAC/ReBAC authorization | XL | **Not a role enum.** Custom roles composed from permissions, scoped by department, zone, site, or taxonomy node. Critique-log defect #7. |
-| **B-13.3** Delegation & temporary grants with expiry | M | Leave and shift coverage. |
-| **B-13.4** Contractor organisations with sub-users | M | |
-| **B-13.5** Audited impersonation | M | Requires justification; produces an event **visible to the tenant**. |
-| **B-13.6** Centralised decision point + decision log | M | Default-deny. |
-| **B-13.7** CI check: an endpoint without a declared permission fails the build | S | Same shape as `check_tenant_scoping.py`. |
-| **B-13.8** Negative-authorisation test per role pair | L | Gate clause: department head A provably cannot read department B's rows **through any endpoint, including error messages and pagination counts**. |
-
-**Gate:** the negative test above; undeclared-permission endpoints fail CI;
-decisions property-tested against a generated role/scope matrix; every
-impersonation session visible to the impersonated tenant.
+| **B-13.9** Retire the shared control-plane token | M | **G11.** 32 routes still accept it; every use logs `control_plane_token.deprecated` and CI prints the count. ADR-0066 holds the three-release schedule, and step one is the console BFF signing in as an operator instead — which also retires ADR-0062's passphrase. The remaining `public()` control-plane *reads* become `requires(...)` in the same change. |
+| **B-13.10** An impersonation banner and a support-session screen | M | **G10. [serves FE]** The read exists (`GET /api/v1/access/impersonation`); no surface renders it, so an impersonated officer is not told. Recorded in `check_surface_traceability.py`'s `UNSURFACED`. |
+| **B-13.11** A breach-corpus check for passwords | S | `credential_policies.refuse_known_breached` is a column nothing reads, because the corpus is not shipped. Current guidance makes this worth more than any complexity rule. |
+| **B-13.12** MFA / WebAuthn for platform operators | L | Not in the Phase 13 ship lines and deliberately not invented. The accounts that can impersonate any customer are the ones that want a second factor first. |
 
 ---
 
@@ -326,7 +330,7 @@ B-10.1 (photo corpus) ──┬─→ B-10.2 (radius) ─→ Phase 10 gate close
 
 Phase 12 ─┬─→ Phase 14 ─→ Phase 15 ─→ Phase 17
           └─→ Phase 23
-Phase 13 ─┴─→ Phase 14, 27, and all of Track E
+Phase 13 ✅ ─┴─→ Phase 14, 27 (and Track E, which shipped ahead of it)
 
 Phase 10 + 12 ─→ Phase 16 ─→ (repays the Phase 10 ambiguous-band substitution)
 Phase 23 ─→ Phase 24

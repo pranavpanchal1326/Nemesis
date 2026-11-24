@@ -90,6 +90,18 @@
       "has_upcaster": false,
       "model": "ExifCheckCompletedV1"
     },
+    "impersonation_ended@1": {
+      "entity_type": "tenant",
+      "fingerprint": "bba8fde48fd4d81f3cabed5961b0555c8e10e711b9ffb1bffd366bda9a799661",
+      "has_upcaster": false,
+      "model": "ImpersonationEndedV1"
+    },
+    "impersonation_started@1": {
+      "entity_type": "tenant",
+      "fingerprint": "668eda12d08ed17d27ff84d447a0e8f62761c6d0199aa4bea38c6172d6c6a5c2",
+      "has_upcaster": false,
+      "model": "ImpersonationStartedV1"
+    },
     "media_redacted@1": {
       "entity_type": "complaint",
       "fingerprint": "0a5d43d73889adb588b7e394c6b579ad6908086561b0d4617b490160b78bd144",

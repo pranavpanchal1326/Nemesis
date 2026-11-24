@@ -33,11 +33,11 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
-from nemesis.api.deps import ConfigDep, SessionDep, TenantDep
+from nemesis.api.deps import ConfigDep, SessionDep
 from nemesis.api.errors import (
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
@@ -45,8 +45,15 @@ from nemesis.api.errors import (
     PROBLEM_BASE,
     ProblemDetailError,
 )
-from nemesis.api.v1.control_plane import TokenDep, _require_token
+from nemesis.api.identity_deps import PrincipalDep, requires, translate
 from nemesis.db.models.trust import ReviewQueueItem, SubmissionMedia
+from nemesis.identity import decisions
+from nemesis.identity.errors import IdentityError
+from nemesis.identity.resources import (
+    complaint_visibility_condition,
+    review_item_resource,
+)
+from nemesis.identity.scopes import Principal
 from nemesis.observability.logging import get_correlation_id
 from nemesis.trust import review as review_service
 from nemesis.trust.errors import (
@@ -58,6 +65,11 @@ from nemesis.trust.errors import (
 )
 from nemesis.trust.redaction import RedactedStore
 from nemesis.trust.review import ReviewDecisionKind, ReviewReason
+
+#: What ``decided_by_label`` holds when a client sends nothing. Phase 8's
+#: default said ``control-plane token``, which was accurate then and is a lie
+#: now — the decision carries an operator id.
+DEFAULT_DECIDER_LABEL = "unspecified"
 
 router = APIRouter(prefix="/review", tags=["review", "trust"])
 
@@ -103,10 +115,13 @@ class ReviewPage(ApiModel):
 class DecisionRequest(ApiModel):
     decision: ReviewDecisionKind
     rationale: str = Field(min_length=1, max_length=2000)
-    #: Who decided, when the caller knows. Phase 13 replaces this with the
-    #: authenticated operator; until then it is recorded as supplied and the
-    #: field name says it is a label rather than an identity.
-    decided_by_label: str = Field(default="control-plane token", max_length=128)
+    #: A free-text note about who decided, appended to the authenticated
+    #: operator rather than replacing them (Phase 13). Kept in the contract
+    #: because a reviewer working a queue on somebody else's behalf — a
+    #: supervisor covering a shift — is a real thing to be able to record, and
+    #: because removing a published field is a breaking change the Phase 4
+    #: deprecation clock governs.
+    decided_by_label: str = Field(default=DEFAULT_DECIDER_LABEL, max_length=128)
 
 
 class DecisionResponse(ApiModel):
@@ -121,9 +136,14 @@ class DecisionResponse(ApiModel):
     created_at: str
 
 
-@router.get("/queue", response_model=ReviewPage, summary="The §11.4 review queue")
+@router.get(
+    "/queue",
+    response_model=ReviewPage,
+    summary="The §11.4 review queue",
+    dependencies=[Depends(requires("review:read"))],
+)
 async def list_queue(
-    tenant: TenantDep,
+    principal: PrincipalDep,
     session: SessionDep,
     status_filter: Annotated[
         str | None,
@@ -136,7 +156,22 @@ async def list_queue(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ReviewPage:
-    """Open items first, by priority then age. See ``review.list_items``."""
+    """Open items first, by priority then age. See ``review.list_items``.
+
+    **Scoped to what this reviewer may see, in the query.** The Phase 13 gate
+    clause is that one department's officer cannot read another's rows
+    *including pagination counts*, so the restriction is a condition passed
+    into the service and applied to the count and the page alike. Filtering
+    the response instead would give a correct page under a total describing
+    somebody else's work, which is the leak the clause names.
+
+    A reviewer whose grants are zone- or taxonomy-scoped sees their part of
+    the queue. One with a tenant-wide grant sees all of it. One whose only
+    grant is department-scoped sees **nothing today**, because nothing writes
+    ``complaints.department_id`` until Phase 12 routes a report —
+    ``identity.resources`` states that consequence rather than leaving it to
+    be discovered.
+    """
     if status_filter not in (None, "open", "decided"):
         raise ProblemDetailError(
             status_code=HTTP_422_UNPROCESSABLE,
@@ -149,15 +184,19 @@ async def list_queue(
             problem_type=f"{PROBLEM_BASE}/review-status-unknown",
         )
 
+    allowed = decisions.visible(principal=principal, permission="review:read")
     rows, total = await review_service.list_items(
         session,
-        tenant_id=tenant.id,
+        tenant_id=principal.tenant_id,
         status=status_filter,
         reason=reason,
         limit=limit,
         offset=offset,
+        complaint_condition=complaint_visibility_condition(
+            tenant_id=principal.tenant_id, allowed=allowed
+        ),
     )
-    media = await _redacted_media_for(session, tenant_id=tenant.id, items=rows)
+    media = await _redacted_media_for(session, tenant_id=principal.tenant_id, items=rows)
     return ReviewPage(
         items=[_to_item(row, media.get(row.complaint_id, [])) for row in rows],
         total=total,
@@ -166,17 +205,45 @@ async def list_queue(
     )
 
 
-@router.get("/queue/{item_id}", response_model=ReviewItem, summary="One item and its bundle")
+@router.get(
+    "/queue/{item_id}",
+    response_model=ReviewItem,
+    summary="One item and its bundle",
+    dependencies=[Depends(requires("review:read"))],
+)
 async def get_queue_item(
     item_id: uuid.UUID,
-    tenant: TenantDep,
+    principal: PrincipalDep,
     session: SessionDep,
 ) -> ReviewItem:
+    """One item, and the decision that it is this reviewer's to read.
+
+    The item is loaded first and authorized second, which is the only order
+    that works: what a grant is tested against are the *complaint's*
+    attributes (``identity.resources.review_item_resource``), and those are not
+    knowable from an item id. The load is tenant-scoped, so the worst an
+    out-of-scope caller can do is cause a read they never see the result of —
+    and the 403 that follows names the permission and nothing about the row.
+    """
     try:
-        item = await review_service.get_item(session, tenant_id=tenant.id, item_id=item_id)
+        item = await review_service.get_item(
+            session, tenant_id=principal.tenant_id, item_id=item_id
+        )
     except ReviewError as exc:
         raise _problem(exc) from exc
-    media = await _redacted_media_for(session, tenant_id=tenant.id, items=[item])
+
+    try:
+        await decisions.authorize(
+            principal=principal,
+            permission="review:read",
+            resource=await review_item_resource(
+                session, tenant_id=principal.tenant_id, complaint_id=item.complaint_id
+            ),
+        )
+    except IdentityError as error:
+        raise translate(error) from error
+
+    media = await _redacted_media_for(session, tenant_id=principal.tenant_id, items=[item])
     return _to_item(item, media.get(item.complaint_id, []))
 
 
@@ -185,25 +252,60 @@ async def get_queue_item(
     response_model=DecisionResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Record the human judgement (§11.4), and the Phase 11 label",
+    dependencies=[Depends(requires("review:decide"))],
 )
 async def decide_item(
     item_id: uuid.UUID,
     body: DecisionRequest,
-    tenant: TenantDep,
+    principal: PrincipalDep,
     session: SessionDep,
-    settings: ConfigDep,
-    token: TokenDep = None,
 ) -> DecisionResponse:
-    """Approve, reject, or escalate. One judgement per item, ever."""
-    _require_token(settings, token)
+    """Approve, reject, or escalate. One judgement per item, ever.
+
+    **The judgement is now attributed to a person.** Phase 8 recorded a
+    ``decided_by_label`` the caller supplied and said plainly that it was a
+    label rather than an identity because there was no identity to record.
+    There is now: ``decided_by`` carries the operator's user id and the label
+    is derived from the principal rather than accepted from the request.
+
+    A caller-supplied label is still accepted and still stored — but only
+    appended to the derived one, never replacing it. Phase 11 will train on
+    these rows, and a label that can claim any author is a training set that
+    cannot be audited.
+
+    An impersonated support session reaches here only if it was opened with
+    write authorisation; ``identity.scopes.evaluate`` refuses a write on a
+    read-only impersonation before the scope is even considered. A judgement
+    on a citizen's report made by support acting as an officer is exactly
+    the case that must be deliberate.
+    """
+    try:
+        item = await review_service.get_item(
+            session, tenant_id=principal.tenant_id, item_id=item_id
+        )
+    except ReviewError as exc:
+        raise _problem(exc) from exc
+
+    try:
+        await decisions.authorize(
+            principal=principal,
+            permission="review:decide",
+            resource=await review_item_resource(
+                session, tenant_id=principal.tenant_id, complaint_id=item.complaint_id
+            ),
+        )
+    except IdentityError as error:
+        raise translate(error) from error
+
     try:
         record = await review_service.decide(
             session,
-            tenant_id=tenant.id,
+            tenant_id=principal.tenant_id,
             item_id=item_id,
             decision=body.decision,
             rationale=body.rationale,
-            decided_by_label=body.decided_by_label,
+            decided_by=principal.user_id,
+            decided_by_label=_decider_label(principal, supplied=body.decided_by_label),
             correlation_id=get_correlation_id(),
         )
     except ReviewError as exc:
@@ -226,10 +328,11 @@ async def decide_item(
     "/media/{redacted_sha256}",
     summary="A redacted artefact — the only image any route serves",
     responses={200: {"content": {"image/jpeg": {}}}},
+    dependencies=[Depends(requires("review:read"))],
 )
 async def get_media(
     redacted_sha256: str,
-    tenant: TenantDep,
+    principal: PrincipalDep,
     session: SessionDep,
     settings: ConfigDep,
 ) -> Response:
@@ -241,6 +344,14 @@ async def get_media(
     deduplicates identical bytes by design — so resolving the path from the URL
     alone would let any tenant fetch any other tenant's photograph by guessing
     or by observing a hash. The row is what says this artefact belongs here.
+
+    **Phase 13 adds the second boundary: which reviewer, not just which
+    tenant.** The artefact is reached through the complaint that produced it,
+    so the authorization is the same decision the queue item gets — a
+    reviewer scoped to one ward cannot fetch the photograph attached to a
+    report in another, even holding its content address. Without this the
+    queue would be scoped and the evidence behind it would not, which is the
+    §25 disclosure surface ADR-0062 found on the console.
     """
     if len(redacted_sha256) != 64 or not all(
         character in "0123456789abcdef" for character in redacted_sha256
@@ -256,8 +367,12 @@ async def get_media(
 
     row = (
         await session.execute(
-            select(SubmissionMedia.redacted_uri, SubmissionMedia.content_type).where(
-                SubmissionMedia.tenant_id == tenant.id,
+            select(
+                SubmissionMedia.redacted_uri,
+                SubmissionMedia.content_type,
+                SubmissionMedia.complaint_id,
+            ).where(
+                SubmissionMedia.tenant_id == principal.tenant_id,
                 SubmissionMedia.redacted_sha256 == redacted_sha256,
             )
         )
@@ -268,6 +383,19 @@ async def get_media(
             title="Media not found",
             problem_type=f"{PROBLEM_BASE}/media-not-found",
         )
+
+    try:
+        await decisions.authorize(
+            principal=principal,
+            permission="review:read",
+            resource=await review_item_resource(
+                session,
+                tenant_id=principal.tenant_id,
+                complaint_id=row.complaint_id,
+            ),
+        )
+    except IdentityError as error:
+        raise translate(error) from error
 
     try:
         path = RedactedStore(settings.upload_dir).resolve(row.redacted_uri)
@@ -346,6 +474,27 @@ _STATUS: dict[type[ReviewError], int] = {
     ReviewConflictError: HTTP_409_CONFLICT,
     ReviewValidationError: HTTP_422_UNPROCESSABLE,
 }
+
+
+def _decider_label(principal: Principal, *, supplied: str) -> str:
+    """The authenticated operator, plus whatever the client called them.
+
+    Derived first and never replaced. Phase 8 took this field from the request
+    because there was no identity to derive it from; accepting it as the whole
+    answer now would let a judgement on a citizen's report claim any author,
+    in a table Phase 11 will train on.
+
+    An impersonated session says so, in the field, because a tenant reading
+    its own review history must be able to see that support made a call on
+    their behalf without cross-referencing the impersonation log.
+    """
+    derived = principal.subject
+    if principal.impersonator_subject is not None:
+        derived = f"{derived} (support: {principal.impersonator_subject})"
+    extra = supplied.strip()
+    if extra and extra != DEFAULT_DECIDER_LABEL:
+        derived = f"{derived} — {extra}"
+    return derived[:128]
 
 
 def _title_of(error_type: type[ReviewError]) -> str:

@@ -1,7 +1,7 @@
 # NEMESIS — Engineering Handover
 
 **Audience:** the engineer picking up backend work on this repository.
-**Status date:** 2026-08-24 · **Commit:** `02df9b7` · **Branch:** `main`
+**Status date:** 2026-11-24 · **Commit:** `e169fa0`+ (Phase 13 uncommitted) · **Branch:** `main`
 
 This document is the entry point. Read it once, end to end, before writing any
 code. It will take twenty minutes and will save you a week — this codebase has
@@ -26,8 +26,10 @@ kanban that renders them is not.
 
 ## 2. Where you are
 
-Ten phases of thirty are complete and gated. One is implemented with a
-documented gate failure. Nineteen have not started.
+Sixteen phases of thirty are complete. Twelve are gated outright, one is
+implemented with a documented gate failure, five (Track E) shipped through the
+frontend phase plan with two clauses openly carried, and one is deferred on a
+decision nobody has made yet. Thirteen have not started.
 
 | # | Phase | State |
 |---|---|---|
@@ -43,22 +45,38 @@ documented gate failure. Nineteen have not started.
 | 8 | Trust & safety spine | ✅ gated |
 | 9 | Perception & model registry | ✅ gated 32/32 |
 | **10** | **Deduplication & clustering** | ⚠️ **implemented, gate 3/4** — see §6 |
-| 11–17, 23–29 | Intelligence, accountability, data, trust, commercial, release | ❌ not started |
-| 18–22 | Experience | ❌ not started — **project owner's** |
+| 11, 12 | ML platform; severity, routing & SLA | ❌ not started |
+| **13** | **Identity, authorization & org modelling** | ✅ **gated 4/4** (`nem gate-phase13`), two carries — see §6 |
+| 14–17 | Workflow, closure, agent, contractor transparency | ❌ not started |
+| 18–22 | Experience | ✅ shipped via `docs/FRONTEND-PHASE-PLAN.md`; **A15/A16 carried** — **project owner's** |
+| 23–29 | Analytics, experimentation, trust, commercial, release | ❌ not started |
+
+**Phase 13 is the one that changes what you can build next.** It was the
+longest-lead blocker in this repository: Track D (14–17), Phase 25, Phase 26 and
+Phase 27 all sat behind it, and the only credentials the system had were a
+per-consumer API key and one shared control-plane secret that identified nobody.
+Start by reading `backend/nemesis/identity/__init__.py`, which is a reading order
+rather than a module, then ADR-0063 to ADR-0067.
+
+The next two phases by dependency are **13 → 12** (severity, routing and SLA —
+which also makes department-scoped authorization *useful*, because nothing
+writes `complaints.department_id` until routing does) and **13 → 14** (work
+orders).
 
 ### Health at this commit
 
 | Metric | Value |
 |---|---|
-| Tests | **1186 passed**, 2 skipped |
-| Coverage | **86.09%** against an 85% floor |
-| `ruff` / `ruff format` / `mypy --strict` | clean, 172 source modules |
-| CI checkers (7) | all clean |
-| Migrations | 9, up/down reversible, `alembic check` clean |
-| ADRs | 36 |
-| Runbooks | 27 |
-| Registered event types | 34 |
-| Backend source | ~45k LOC across 21 packages |
+| Tests | **1441 passed**, 2 skipped |
+| Coverage | **85.39%** against an 85% floor |
+| `ruff` / `ruff format` / `mypy --strict` | clean, 197 source modules |
+| CI checkers (12) | all clean |
+| Migrations | 10, up/down reversible, `alembic check` clean |
+| ADRs | 67 |
+| Runbooks | 28 |
+| Registered event schemas | 36 |
+| Declared permissions | 26, every one of 99 routes declaring its posture |
+| Backend source | ~58k LOC across 22 packages |
 
 **Reproduce all of it with one command:** `nem check`.
 
@@ -86,11 +104,14 @@ Working end to end today:
 - **Policy engine** — severity rubrics, dedup bands, SLA matrices, safety rulesets, routing rules and rate cards as versioned, effective-dated, approvable documents evaluated by an AST interpreter (never `eval`).
 - **Simulation & backtesting** — replay the log against a proposed policy before it goes live; shadow mode is read-only by construction.
 - **Public API** — versioned, k-anonymous, with webhooks, API keys, rate limiting, and a locked OpenAPI contract.
+- **Identity & authorization** — sessions with refresh rotation and reuse detection, local passwords (stdlib scrypt) *or* per-tenant OIDC, roles composed from a code-declared permission vocabulary and granted on a department, zone, taxonomy node, contractor or the holder themself, time-boxed delegation, and audited support impersonation that the impersonated tenant can see and end. Default-deny through one decision point, with a decision log.
 - **Observability** — OpenTelemetry traces, Prometheus metrics for the §41 KPI set, Grafana dashboards, Alertmanager rules, and a runbook per failure scenario.
 
 **Not built yet:** severity scoring, routing, SLA, work orders, closure
-verification, the Investigation Agent, contractor transparency, identity/authz,
-analytics, DPDP compliance, billing, and the entire frontend.
+verification, the Investigation Agent, contractor transparency, analytics,
+DPDP compliance, and billing. The frontend exists (Track E, phases 18–22) and
+is the project owner's; its console still authenticates with ADR-0062's shared
+passphrase rather than a Phase 13 operator session, which ADR-0066 schedules.
 
 ---
 
@@ -213,6 +234,37 @@ than the noise.
 Two remedies, in [BACKLOG.md](BACKLOG.md) as **B-10.1** and **B-10.2**. Full
 diagnosis in [`reports/dedup-precision-recall.md`](reports/dedup-precision-recall.md).
 
+### Phase 13's two carries — read before touching authorization
+
+All four gate clauses pass (`nem gate-phase13` drills them against a running
+stack). Two things it ships are nonetheless incomplete, and both are recorded in
+a *check* rather than only in prose so neither can quietly become permanent.
+
+**1. No screen renders impersonation.** A tenant administrator can call
+`GET /api/v1/access/impersonation` and see every support session with its
+justification — that is the clause, and it holds. What does not exist is a
+banner: an officer whose session is being driven by support is **not told so by
+the product they are looking at**. The surface is Track E's and no console screen
+owns it, so `scripts/check_surface_traceability.py` lists both impersonation
+events in `UNSURFACED` with that reason. Whoever builds the console's session
+chrome should close it.
+
+**2. The shared control-plane token is deprecated, not removed.** 32 routes
+accept *either* a session carrying the declared permission or Phase 5's
+`X-Control-Plane-Token`; the token path logs `control_plane_token.deprecated` at
+warning on every use, and `check_endpoint_permissions.py` prints the count so it
+cannot grow. ADR-0066 holds the three-release removal schedule, and step two is
+the console BFF signing in as an operator — until then ADR-0062's console
+passphrase stays, and the frontend is unchanged by this phase.
+
+**One consequence worth knowing before you grant anything:** a
+*department*-scoped grant authorises nothing today, because nothing writes
+`complaints.department_id` until Phase 12 routes a report. That is default-deny
+working correctly on an attribute that does not exist yet, it is stated in
+`identity/resources.py`, and Phase 12 fixes it by writing the column the resolver
+already reads — no change in the identity package. The scopes that work now are
+tenant, zone, taxonomy node, contractor and self.
+
 ---
 
 ## 7. Carried-forward gaps
@@ -231,6 +283,9 @@ whoever touches the relevant area next.
 | **G7** | **Engineering standards declared but not enforced:** no `mutmut` (mutation testing), no `k6` (load/SLO thresholds), no `toxiproxy` (fault injection), no consumer-driven contract tests. | Phase 0 | §27.1 latency budgets are unproven end to end after ten phases. |
 | **G8** | **§44 REAL/SIMULATED/ROADMAP table** in the blueprint has not been reconciled since Phase 3 and drifts further each phase. | ongoing | Deferred to Phase 29 by plan, but the drift compounds. |
 | **G9** | **`CHANGELOG.md` `[Unreleased]` is stale** — it lists only README/logo commits. Phases 3–10 are absent from generated output. | Phase 3 | The document itself says a wrong changelog is worse than none, because it is read as a record during an incident. |
+| **G10** | **Impersonation has no user-visible disclosure.** The API read and the event chain carry it; no screen does, so an impersonated officer sees nothing. | Phase 13 | A vendor can read a customer's screen and the person at that screen is not told. Recorded in `check_surface_traceability.py`'s `UNSURFACED`; needs a Track E banner. |
+| **G11** | **The shared control-plane token still works** on 32 routes, alongside real sessions. | Phase 5 → 13 | A deployment that never migrates keeps a credential that identifies nobody. Logged at warning on every use, counted by CI, removal scheduled in ADR-0066. |
+| **G12** | **Department-scoped grants authorise nothing**, because nothing writes `complaints.department_id` until Phase 12 routes a report. Zone, taxonomy, contractor, tenant and self scopes all work. | Phase 13 | An administrator can compose a grant that is silently inert. Stated in `identity/resources.py`; closed by Phase 12 writing the column, with no change in the identity package. |
 
 ---
 

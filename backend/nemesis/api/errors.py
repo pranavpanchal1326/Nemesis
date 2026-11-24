@@ -21,6 +21,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from nemesis.identity.errors import IdentityError
 from nemesis.observability.logging import get_correlation_id, get_logger
 
 log = get_logger(__name__)
@@ -53,6 +54,11 @@ HTTP_429_TOO_MANY_REQUESTS = 429
 # wrong" and sends them to the changelog rather than to their own code.
 HTTP_410_GONE = 410
 HTTP_500_INTERNAL_SERVER_ERROR = 500
+# Phase 13. A tenant's identity provider failing is somebody else's outage, and
+# 502 is the honest code for it: the request was fine and an upstream we depend
+# on was not. Rendering it as 500 would file another organisation's downtime in
+# our own error budget and send the on-call engineer looking for a bug here.
+HTTP_502_BAD_GATEWAY = 502
 
 # Stable, documentable type URIs. Clients branch on these, never on prose.
 PROBLEM_BASE = "https://nemesis.dev/problems"
@@ -69,12 +75,20 @@ class ProblemDetailError(Exception):
         detail: str | None = None,
         problem_type: str = "about:blank",
         extra: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         self.status_code = status_code
         self.title = title
         self.detail = detail
         self.problem_type = problem_type
         self.extra = extra or {}
+        #: Response headers this error *requires* to be correct, not a general
+        #: escape hatch. Phase 13 added it for two: ``WWW-Authenticate`` on a
+        #: 401, which RFC 9110 requires and without which a client cannot tell
+        #: a missing credential from a rejected one, and ``Retry-After`` on a
+        #: lockout, which is the difference between a client that waits and one
+        #: that extends its own lockout by retrying.
+        self.headers = headers or {}
         super().__init__(detail or title)
 
 
@@ -100,6 +114,7 @@ def _problem_response(
     problem_type: str = "about:blank",
     instance: str | None = None,
     extra: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     body: dict[str, Any] = {
         "type": problem_type,
@@ -118,7 +133,12 @@ def _problem_response(
     if extra:
         body.update(extra)
 
-    return JSONResponse(status_code=status_code, content=body, media_type=PROBLEM_CONTENT_TYPE)
+    return JSONResponse(
+        status_code=status_code,
+        content=body,
+        media_type=PROBLEM_CONTENT_TYPE,
+        headers=headers or None,
+    )
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -131,6 +151,35 @@ def register_exception_handlers(app: FastAPI) -> None:
             problem_type=exc.problem_type,
             instance=_instance_for(request),
             extra=exc.extra,
+            headers=exc.headers,
+        )
+
+    @app.exception_handler(IdentityError)
+    async def _handle_identity(request: Request, exc: IdentityError) -> JSONResponse:
+        """Phase 13 errors raised outside a handler body.
+
+        Every router that calls an identity service wraps it and calls
+        ``identity_deps.translate``. The ones that cannot are the *dependencies*:
+        ``requires()`` raises ``AuthorizationError`` while resolving a route's
+        declared permission, before the handler exists to wrap anything. Without
+        this handler that denial is an unhandled exception -- a 500 where a 403
+        belongs, on the single most security-relevant path in the system.
+
+        The mapping is the same one the routers use, imported here rather than at
+        module scope: ``identity_deps`` imports this module, so a top-level import
+        would be a cycle.
+        """
+        from nemesis.api.identity_deps import translate
+
+        problem = translate(exc)
+        return _problem_response(
+            status_code=problem.status_code,
+            title=problem.title,
+            detail=problem.detail,
+            problem_type=problem.problem_type,
+            instance=_instance_for(request),
+            extra=problem.extra,
+            headers=problem.headers,
         )
 
     @app.exception_handler(StarletteHTTPException)

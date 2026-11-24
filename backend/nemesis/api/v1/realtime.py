@@ -28,9 +28,10 @@ from __future__ import annotations
 import uuid
 from typing import Final
 
-from fastapi import APIRouter, Query, WebSocket, status
+from fastapi import APIRouter, Depends, Query, WebSocket, status
 from sqlalchemy import select
 
+from nemesis.api.identity_deps import public
 from nemesis.db.models.tenant import Tenant
 from nemesis.db.session import session_scope
 from nemesis.domain.constants import SYSTEM_TENANT_ID
@@ -74,7 +75,7 @@ class _WebSocketSink:
         await self._socket.close(code=code, reason=reason)
 
 
-@router.websocket(WS_PATH)
+@router.websocket(WS_PATH, dependencies=[Depends(public())])
 async def pipeline_events(
     websocket: WebSocket,
     tenant_id: uuid.UUID = Query(...),
